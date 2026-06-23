@@ -1,0 +1,83 @@
+name: Deploy UI
+
+# Automatic deployment to GPU server when pushing to main/master branches.
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SSH_PORT: "22"
+  SSH_USER: balabantaray-user
+  REMOTE_DIR: /home/balabantaray-user/kdext_conversa_ai_ui
+  IMAGE_NAME: kdext-conversa-ai-ui
+  APP_PORT: "8004"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p "$SSH_PORT" "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Upload code to server
+        run: |
+          HOST="${{ secrets.SERVER_HOST }}"
+          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" "$SSH_USER@$HOST" "mkdir -p $REMOTE_DIR"
+          tar czf - \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='dist' \
+            . | ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" "$SSH_USER@$HOST" \
+                "tar xzf - -C $REMOTE_DIR"
+
+      - name: Build & restart
+        run: |
+          HOST="${{ secrets.SERVER_HOST }}"
+          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" \
+            -o ServerAliveInterval=60 -o ServerAliveCountMax=30 -T \
+            "$SSH_USER@$HOST" "bash -s" << 'SCRIPT'
+          set -euo pipefail
+          cd /home/balabantaray-user/kdext_conversa_ai_ui
+
+          container_name="kdext-conversa-ai-ui"
+
+          # Build the Docker image on the server
+          docker build --no-cache -t kdext-conversa-ai-ui:latest .
+
+          # Remove existing container if it exists
+          if docker ps -a --format '{{.Names}}' | grep -Eq "^${container_name}$"; then
+            echo "Removing existing $container_name container"
+            docker rm -f "$container_name" || true
+          fi
+
+          # Start the container on port 8004
+          docker run -d --name "$container_name" \
+            --restart unless-stopped \
+            -p 8004:80 \
+            kdext-conversa-ai-ui:latest
+
+          # Check if container started successfully
+          sleep 5
+          if docker ps --format '{{.Names}}' | grep -Eq "^${container_name}$"; then
+            echo "✅ UI service is running on port 8004"
+          else
+            echo "❌ UI service failed to start"
+            docker logs "$container_name" || true
+            exit 1
+          fi
+          SCRIPT
