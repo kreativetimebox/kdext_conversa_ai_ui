@@ -14,6 +14,15 @@ export default function SignUp({ navigate, login, showToast }) {
   const [otpCode, setOtpCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
+  React.useEffect(() => {
+    const savedEmail = sessionStorage.getItem('otp_email');
+    if (savedEmail) {
+      setFormData(prev => ({ ...prev, email: savedEmail }));
+      setShowOtpVerify(true);
+      sessionStorage.removeItem('otp_email');
+    }
+  }, []);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -64,21 +73,31 @@ export default function SignUp({ navigate, login, showToast }) {
 
     try {
       await verifyOtp(formData.email, otpCode);
-      showToast('Email verified successfully! Signing you in...', 'success');
+      showToast('Email verified successfully!', 'success');
 
-      // Auto sign-in after verification
-      const loginData = await apiLogin(formData.email, formData.password);
+      // Only attempt auto sign-in if the password is present in state (e.g. fresh signup)
+      if (formData.password) {
+        try {
+          const loginData = await apiLogin(formData.email, formData.password);
+          sessionStorage.setItem('access_token', loginData.access_token);
+          sessionStorage.setItem('api_key', loginData.api_key);
 
-      sessionStorage.setItem('access_token', loginData.access_token);
-      sessionStorage.setItem('api_key', loginData.api_key);
+          login({
+            name: formData.email.split('@')[0].split('.').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' '),
+            email: formData.email,
+            api_key: loginData.api_key,
+            access_token: loginData.access_token,
+          });
+          navigate('/dashboard');
+          return;
+        } catch (loginErr) {
+          console.warn('Auto sign-in failed:', loginErr);
+        }
+      }
 
-      login({
-        name: formData.email.split('@')[0].split('.').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' '),
-        email: formData.email,
-        api_key: loginData.api_key,
-        access_token: loginData.access_token,
-      });
-      navigate('/dashboard');
+      // If no password is present or login failed, redirect to Sign In page
+      showToast('Please sign in with your credentials.', 'info');
+      navigate('/signin');
     } catch (err) {
       const msg = err.message || 'Failed to verify OTP. Please try again.';
       setError(msg);

@@ -38,8 +38,18 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
       }, 1200);
 
     } catch (err) {
+      const isUnverified = err.message && err.message.toLowerCase().includes('email not verified');
       setError(err.message || 'Invalid email or password. Please try again.');
-      showToast(err.message || 'Login failed', 'error');
+      
+      if (isUnverified) {
+        sessionStorage.setItem('otp_email', email);
+        showToast('Email not verified. Redirecting to verification page...', 'info');
+        setTimeout(() => {
+          navigate('/signup');
+        }, 2000);
+      } else {
+        showToast(err.message || 'Login failed', 'error');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -113,8 +123,33 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
           {/* Error Banner */}
           {error && (
             <div style={styles.errorBanner} className="animate-fade-in">
-              <AlertCircle size={16} color="#ef4444" />
-              <span>{error}</span>
+              <AlertCircle size={16} color="#ef4444" style={{ flexShrink: 0 }} />
+              <div style={{ textAlign: 'left' }}>
+                <span>{error}</span>
+                {error.toLowerCase().includes('email not verified') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sessionStorage.setItem('otp_email', email);
+                      navigate('/signup');
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--primary-light)',
+                      textDecoration: 'underline',
+                      fontWeight: '600',
+                      padding: '0',
+                      marginLeft: '8px',
+                      cursor: 'pointer',
+                      fontSize: 'inherit',
+                      display: 'inline'
+                    }}
+                  >
+                    Verify Now
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
