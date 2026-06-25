@@ -161,6 +161,19 @@ export default function SignUp({ navigate, login, showToast }) {
                   {isVerifying ? 'Verifying...' : 'Verify Email'}
                 </button>
               </form>
+              <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowOtpVerify(false);
+                    setOtpCode('');
+                  }}
+                  style={styles.linkBtn}
+                  className="auth-link-btn"
+                >
+                  Back to Sign Up
+                </button>
+              </div>
             </>
           ) : (
             <>
