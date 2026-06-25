@@ -75,6 +75,20 @@ export async function login(email, password) {
   return handleResponse(res);
 }
 
+/**
+ * POST /verify-otp
+ * Body: { email, otp_code }
+ * Response: { message, verified }
+ */
+export async function verifyOtp(email, otpCode) {
+  const res = await fetch(`${BASE_URL}/verify-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, otp_code: otpCode }),
+  });
+  return handleResponse(res);
+}
+
 // ─── Profile ──────────────────────────────────────────────────────────────────
 
 /**

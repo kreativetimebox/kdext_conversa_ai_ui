@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Mail, Lock, User, Sparkles, AlertCircle } from 'lucide-react';
-import { signup as apiSignup, login as apiLogin } from '../../services/api';
+import { signup as apiSignup, login as apiLogin, verifyOtp } from '../../services/api';
 
 export default function SignUp({ navigate, login, showToast }) {
   const [formData, setFormData] = useState({
@@ -10,6 +10,9 @@ export default function SignUp({ navigate, login, showToast }) {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [showOtpVerify, setShowOtpVerify] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -37,9 +40,33 @@ export default function SignUp({ navigate, login, showToast }) {
     try {
       // POST /signup
       await apiSignup(formData.email, formData.password);
-      showToast('Account created! Signing you in...', 'success');
+      showToast('Account created! Verification code sent to your email.', 'success');
+      setShowOtpVerify(true);
+    } catch (err) {
+      const msg = err.message || 'Failed to create account. Please try again.';
+      setError(msg);
+      showToast(msg, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-      // Auto sign-in after signup
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (otpCode.length !== 6) {
+      setError('OTP code must be 6 digits.');
+      return;
+    }
+
+    setIsVerifying(true);
+
+    try {
+      await verifyOtp(formData.email, otpCode);
+      showToast('Email verified successfully! Signing you in...', 'success');
+
+      // Auto sign-in after verification
       const loginData = await apiLogin(formData.email, formData.password);
 
       sessionStorage.setItem('access_token', loginData.access_token);
@@ -52,13 +79,12 @@ export default function SignUp({ navigate, login, showToast }) {
         access_token: loginData.access_token,
       });
       navigate('/dashboard');
-
     } catch (err) {
-      const msg = err.message || 'Failed to create account. Please try again.';
+      const msg = err.message || 'Failed to verify OTP. Please try again.';
       setError(msg);
       showToast(msg, 'error');
     } finally {
-      setIsSubmitting(false);
+      setIsVerifying(false);
     }
   };
 
@@ -74,82 +100,129 @@ export default function SignUp({ navigate, login, showToast }) {
       <div style={styles.container}>
         {/* Left Side: Form */}
         <div style={styles.card} className="glass-card">
-          <h2 style={styles.title}>Create Your Account</h2>
-          <p style={styles.sub}>Start integrating neural speech tools with AI</p>
+          {showOtpVerify ? (
+            <>
+              <h2 style={styles.title}>Verify Your Email</h2>
+              <p style={styles.sub}>We have sent a 6-digit code to {formData.email}</p>
 
-          <form onSubmit={handleSubmit} style={styles.form}>
-            {/* Email */}
-            <div className="form-group">
-              <label className="form-label">Email Address</label>
-              <div style={styles.inputWrapper}>
-                <Mail size={16} color="var(--text-muted)" style={styles.inputIcon} />
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="you@example.com"
-                  className="form-input"
-                  style={styles.input}
-                />
-              </div>
-            </div>
+              <form onSubmit={handleVerifyOtp} style={styles.form}>
+                {/* OTP Code */}
+                <div className="form-group">
+                  <label className="form-label">Verification Code (OTP)</label>
+                  <div style={styles.inputWrapper}>
+                    <Lock size={16} color="var(--text-muted)" style={styles.inputIcon} />
+                    <input
+                      type="text"
+                      name="otpCode"
+                      maxLength={6}
+                      required
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="123456"
+                      className="form-input"
+                      style={{ ...styles.input, letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold' }}
+                    />
+                  </div>
+                </div>
 
-            {/* Password */}
-            <div className="form-group">
-              <label className="form-label">Password <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>(min 8 chars)</span></label>
-              <div style={styles.inputWrapper}>
-                <Lock size={16} color="var(--text-muted)" style={styles.inputIcon} />
-                <input
-                  type="password"
-                  name="password"
-                  required
-                  minLength={8}
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="Create a password"
-                  className="form-input"
-                  style={styles.input}
-                />
-              </div>
-            </div>
+                {/* Error Banner */}
+                {error && (
+                  <div style={styles.errorBanner} className="animate-fade-in">
+                    <AlertCircle size={16} color="#ef4444" />
+                    <span>{error}</span>
+                  </div>
+                )}
 
-            {/* Confirm Password */}
-            <div className="form-group">
-              <label className="form-label">Confirm Password</label>
-              <div style={styles.inputWrapper}>
-                <Lock size={16} color="var(--text-muted)" style={styles.inputIcon} />
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  required
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  placeholder="Confirm your password"
-                  className="form-input"
-                  style={styles.input}
-                />
-              </div>
-            </div>
+                <button
+                  type="submit"
+                  disabled={isVerifying}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '12px', marginTop: '12px' }}
+                >
+                  {isVerifying ? 'Verifying...' : 'Verify Email'}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <h2 style={styles.title}>Create Your Account</h2>
+              <p style={styles.sub}>Start integrating neural speech tools with AI</p>
 
-            {/* Error Banner */}
-            {error && (
-              <div style={styles.errorBanner} className="animate-fade-in">
-                <AlertCircle size={16} color="#ef4444" />
-                <span>{error}</span>
-              </div>
-            )}
+              <form onSubmit={handleSubmit} style={styles.form}>
+                {/* Email */}
+                <div className="form-group">
+                  <label className="form-label">Email Address</label>
+                  <div style={styles.inputWrapper}>
+                    <Mail size={16} color="var(--text-muted)" style={styles.inputIcon} />
+                    <input
+                      type="email"
+                      name="email"
+                      required
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="you@example.com"
+                      className="form-input"
+                      style={styles.input}
+                    />
+                  </div>
+                </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '12px', marginTop: '12px' }}
-            >
-              {isSubmitting ? 'Creating Account...' : 'Create Account'}
-            </button>
-          </form>
+                {/* Password */}
+                <div className="form-group">
+                  <label className="form-label">Password <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>(min 8 chars)</span></label>
+                  <div style={styles.inputWrapper}>
+                    <Lock size={16} color="var(--text-muted)" style={styles.inputIcon} />
+                    <input
+                      type="password"
+                      name="password"
+                      required
+                      minLength={8}
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Create a password"
+                      className="form-input"
+                      style={styles.input}
+                    />
+                  </div>
+                </div>
+
+                {/* Confirm Password */}
+                <div className="form-group">
+                  <label className="form-label">Confirm Password</label>
+                  <div style={styles.inputWrapper}>
+                    <Lock size={16} color="var(--text-muted)" style={styles.inputIcon} />
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      required
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      placeholder="Confirm your password"
+                      className="form-input"
+                      style={styles.input}
+                    />
+                  </div>
+                </div>
+
+                {/* Error Banner */}
+                {error && (
+                  <div style={styles.errorBanner} className="animate-fade-in">
+                    <AlertCircle size={16} color="#ef4444" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '12px', marginTop: '12px' }}
+                >
+                  {isSubmitting ? 'Creating Account...' : 'Create Account'}
+                </button>
+              </form>
+            </>
+          )}
 
           <div style={styles.footer}>
             Already have an account?{' '}
