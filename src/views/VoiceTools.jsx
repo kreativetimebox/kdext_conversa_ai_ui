@@ -21,14 +21,18 @@ import { textToSpeech, getVoices, getDemoVoices, speechToText, demoSTT, buildAud
 
 // ─── Available Voices Fallback ─────────────────────────────────────────────────
 const FALLBACK_VOICES = [
-  { id: 'divya',  name: 'Divya',  gender: 'female', style: 'Monotone, fast',       language: 'multilingual' },
-  { id: 'sita',   name: 'Sita',   gender: 'female', style: 'Calm, slow',            language: 'multilingual' },
-  { id: 'meera',  name: 'Meera',  gender: 'female', style: 'Expressive, warm',      language: 'multilingual' },
-  { id: 'priya',  name: 'Priya',  gender: 'female', style: 'Clear, professional',   language: 'multilingual' },
-  { id: 'rohit',  name: 'Rohit',  gender: 'male',   style: 'Calm, neutral',         language: 'multilingual' },
-  { id: 'arjun',  name: 'Arjun',  gender: 'male',   style: 'Deep, slow',            language: 'multilingual' },
-  { id: 'vikram', name: 'Vikram', gender: 'male',   style: 'Confident, expressive', language: 'multilingual' },
-  { id: 'amir',   name: 'Amir',   gender: 'male',   style: 'Clear, slightly fast',  language: 'multilingual' },
+  { id: 'divya',        name: 'Divya',        gender: 'female', style: 'Monotone, fast',       language: 'multilingual', model: 'indic_parler' },
+  { id: 'sita',         name: 'Sita',         gender: 'female', style: 'Calm, slow',            language: 'multilingual', model: 'indic_parler' },
+  { id: 'meera',        name: 'Meera',        gender: 'female', style: 'Expressive, warm',      language: 'multilingual', model: 'indic_parler' },
+  { id: 'priya',        name: 'Priya',        gender: 'female', style: 'Clear, professional',   language: 'multilingual', model: 'indic_parler' },
+  { id: 'rohit',        name: 'Rohit',        gender: 'male',   style: 'Calm, neutral',         language: 'multilingual', model: 'indic_parler' },
+  { id: 'arjun',        name: 'Arjun',        gender: 'male',   style: 'Deep, slow',            language: 'multilingual', model: 'indic_parler' },
+  { id: 'vikram',       name: 'Vikram',       gender: 'male',   style: 'Confident, expressive', language: 'multilingual', model: 'indic_parler' },
+  { id: 'amir',         name: 'Amir',         gender: 'male',   style: 'Clear, slightly fast',  language: 'multilingual', model: 'indic_parler' },
+  { id: 'en_speaker_6', name: 'Bark Female 1', gender: 'female', style: 'Clear, neutral',         language: 'english',      model: 'bark' },
+  { id: 'en_speaker_9', name: 'Bark Female 2', gender: 'female', style: 'Clear, expressive',      language: 'english',      model: 'bark' },
+  { id: 'en_speaker_3', name: 'Bark Female 3', gender: 'female', style: 'Soft, warm',             language: 'english',      model: 'bark' },
+  { id: 'en_speaker_1', name: 'Bark Male 1',   gender: 'male',   style: 'Clear, slow',            language: 'english',      model: 'bark' },
 ];
 
 const STT_LANGUAGES = [
@@ -158,6 +162,26 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
     };
     fetchVoices();
   }, [user]);
+
+  // ── Sync Selected Voice with Language Category ──────────────────────────────
+  useEffect(() => {
+    const isIndicLanguage = (langCode) => {
+      const indicGroup = TTS_LANGUAGES.find(g => g.category === 'Indic Languages');
+      return indicGroup?.langs.some(l => l.code === langCode) || false;
+    };
+    const isIndic = isIndicLanguage(ttsLanguage);
+    const validVoices = voices.filter(v => {
+      const isBarkVoice = v.model === 'bark' || v.id.startsWith('en_speaker');
+      return isIndic ? !isBarkVoice : isBarkVoice;
+    });
+
+    if (validVoices.length > 0) {
+      const isSelectedValid = validVoices.some(v => v.id === selectedVoice);
+      if (!isSelectedValid) {
+        setSelectedVoice(validVoices[0].id);
+      }
+    }
+  }, [ttsLanguage, voices, selectedVoice]);
 
   // ── Recording timer ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -430,9 +454,20 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${ms}`;
   };
 
-  // Group voices by gender
-  const femaleVoices = voices.filter(v => v.gender?.toLowerCase() === 'female');
-  const maleVoices = voices.filter(v => v.gender?.toLowerCase() === 'male');
+  // Group voices by gender, dynamically filtered by language category
+  const isIndicLanguage = (langCode) => {
+    const indicGroup = TTS_LANGUAGES.find(g => g.category === 'Indic Languages');
+    return indicGroup?.langs.some(l => l.code === langCode) || false;
+  };
+
+  const isIndic = isIndicLanguage(ttsLanguage);
+  const filteredVoices = voices.filter(v => {
+    const isBarkVoice = v.model === 'bark' || v.id.startsWith('en_speaker');
+    return isIndic ? !isBarkVoice : isBarkVoice;
+  });
+
+  const femaleVoices = filteredVoices.filter(v => v.gender?.toLowerCase() === 'female');
+  const maleVoices = filteredVoices.filter(v => v.gender?.toLowerCase() === 'male');
 
   // Character Limit Calculations
   const charPercentage = Math.min((text.length / CHAR_LIMIT) * 100, 100);
