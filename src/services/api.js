@@ -62,6 +62,20 @@ export async function signup(email, password) {
 }
 
 /**
+ * POST /verify-otp
+ * Body: { email, otp_code }
+ * Response: { message, verified }
+ */
+export async function verifyOtp(email, otp_code) {
+  const res = await fetch(`${BASE_URL}/verify-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, otp_code }),
+  });
+  return handleResponse(res);
+}
+
+/**
  * POST /login
  * Body: { email, password }
  * Response: { access_token, token_type, api_key, expires_in }
@@ -71,20 +85,6 @@ export async function login(email, password) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
-  });
-  return handleResponse(res);
-}
-
-/**
- * POST /verify-otp
- * Body: { email, otp_code }
- * Response: { message, verified }
- */
-export async function verifyOtp(email, otpCode) {
-  const res = await fetch(`${BASE_URL}/verify-otp`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, otp_code: otpCode }),
   });
   return handleResponse(res);
 }
@@ -198,5 +198,137 @@ export async function checkHealth() {
 
 export async function checkDemoHealth() {
   const res = await fetch(`${BASE_URL}/demo/health`);
+  return handleResponse(res);
+}
+
+// ─── Chat & Conversations ─────────────────────────────────────────────────────
+
+/**
+ * POST /conversations
+ * Header: Authorization: Bearer <token>
+ * Body: { title }
+ */
+export async function createConversation(token, title = 'New Chat') {
+  const res = await fetch(`${BASE_URL}/conversations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ title }),
+  });
+  return handleResponse(res);
+}
+
+/**
+ * GET /conversations
+ * Header: Authorization: Bearer <token>
+ */
+export async function getConversations(token) {
+  const res = await fetch(`${BASE_URL}/conversations`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  return handleResponse(res);
+}
+
+/**
+ * GET /conversations/{id}
+ * Header: Authorization: Bearer <token>
+ */
+export async function getConversationDetails(token, id) {
+  const res = await fetch(`${BASE_URL}/conversations/${id}`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  return handleResponse(res);
+}
+
+/**
+ * PATCH /conversations/{id}
+ * Header: Authorization: Bearer <token>
+ * Body: { title }
+ */
+export async function renameConversation(token, id, title) {
+  const res = await fetch(`${BASE_URL}/conversations/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ title }),
+  });
+  return handleResponse(res);
+}
+
+/**
+ * DELETE /conversations/{id}
+ * Header: Authorization: Bearer <token>
+ */
+export async function deleteConversation(token, id) {
+  const res = await fetch(`${BASE_URL}/conversations/${id}`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${token}` },
+  });
+  return handleResponse(res);
+}
+
+/**
+ * POST /conversations/{id}/messages
+ * Header: x-api-key: <apiKey> (or token)
+ * Body: { role, content }
+ */
+export async function addMessage(apiKey, id, role, content) {
+  const res = await fetch(`${BASE_URL}/conversations/${id}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey
+    },
+    body: JSON.stringify({ role, content }),
+  });
+  return handleResponse(res);
+}
+
+/**
+ * POST /chat/completions (SSE streaming)
+ * Header: x-api-key: <apiKey>
+ * Body: { messages, model, stream: true }
+ */
+export async function chatCompletion(apiKey, messages, model = "gemini-3.1-pro", stream = true) {
+  const res = await fetch(`${BASE_URL}/api/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey
+    },
+    body: JSON.stringify({ 
+      messages, 
+      temperature: 0.7, 
+      max_tokens: 2048, 
+      stream 
+    }),
+  });
+  
+  if (!res.ok) {
+    throw new Error(`chat ${res.status}`);
+  }
+  return res;
+}
+
+// ─── Translation ──────────────────────────────────────────────────────────────
+
+/**
+ * POST /translate
+ * Header: x-api-key: <apiKey>
+ * Body: { text, source, target, engine }
+ */
+export async function translateText(apiKey, text, source, target, engine = 'api') {
+  const res = await fetch(`${BASE_URL}/translate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey
+    },
+    body: JSON.stringify({ text, source, target, engine }),
+  });
   return handleResponse(res);
 }

@@ -504,7 +504,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
   };
 
   return (
-    <div style={{ width: '100%', paddingBottom: '80px' }} className="animate-fade-in">
+    <div style={{ width: '100%', height: '100%', overflowY: 'auto', paddingBottom: '80px' }} className="animate-fade-in">
 
       {/* ═══════════════════ HUB VIEW ═══════════════════ */}
       {subView === 'hub' ? (
