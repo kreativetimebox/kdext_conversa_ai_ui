@@ -189,6 +189,16 @@ export async function demoSTT(file, language = null) {
   return handleResponse(res);
 }
 
+/**
+ * GET /jobs/{job_id}  (requires api_key)
+ */
+export async function getJobStatus(apiKey, jobId) {
+  const res = await fetch(`${BASE_URL}/jobs/${jobId}`, {
+    headers: { 'x-api-key': apiKey },
+  });
+  return handleResponse(res);
+}
+
 // ─── Health ───────────────────────────────────────────────────────────────────
 
 export async function checkHealth() {

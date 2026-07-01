@@ -83,7 +83,21 @@ export default function Translate({ user, showToast }) {
     try {
       // Real or mock TTS depending on actual backend.
       // We know TTS works because voice tools uses it.
-      const res = await textToSpeech(user?.api_key || 'demo', translatedText, 'divya', 'mp3');
+      let res = await textToSpeech(user?.api_key || 'demo', translatedText, 'divya', 'mp3');
+      
+      if (res?.status === 'queued' && res?.job_id) {
+        showToast('TTS job queued, synthesizing...', 'info');
+        let job = res;
+        while (job.status === 'queued' || job.status === 'processing') {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          job = await getJobStatus(user?.api_key || 'demo', res.job_id);
+          if (job.status === 'failed') {
+            throw new Error(job.error || 'Async TTS failed.');
+          }
+        }
+        res = job;
+      }
+
       const audioUrl = buildAudioUrl(res.audio_url);
       if (audioUrl) {
         const audio = new Audio(audioUrl);
@@ -93,7 +107,7 @@ export default function Translate({ user, showToast }) {
         setIsPlaying(false);
       }
     } catch (err) {
-      showToast('Failed to synthesize speech.', 'error');
+      showToast(err.message || 'Failed to synthesize speech.', 'error');
       setIsPlaying(false);
     }
   };

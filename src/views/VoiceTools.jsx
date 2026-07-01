@@ -17,7 +17,7 @@ import {
   AlertCircle,
   CheckCircle2,
 } from 'lucide-react';
-import { textToSpeech, getVoices, getDemoVoices, speechToText, demoSTT, buildAudioUrl } from '../services/api';
+import { textToSpeech, getVoices, getDemoVoices, speechToText, demoSTT, buildAudioUrl, getJobStatus } from '../services/api';
 
 // ─── Available Voices Fallback ─────────────────────────────────────────────────
 const FALLBACK_VOICES = [
@@ -218,7 +218,20 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
     try {
       // Prepend language prefix to selected speaker voice as gateway routes
       const voiceParam = `${ttsLanguage}-${selectedVoice}`;
-      const data = await textToSpeech(user.api_key, text.trim(), voiceParam, audioFormat);
+      let data = await textToSpeech(user.api_key, text.trim(), voiceParam, audioFormat);
+
+      if (data?.status === 'queued' && data?.job_id) {
+        showToast('TTS job queued, synthesizing...', 'info');
+        let job = data;
+        while (job.status === 'queued' || job.status === 'processing') {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          job = await getJobStatus(user.api_key, data.job_id);
+          if (job.status === 'failed') {
+            throw new Error(job.error || 'Async TTS synthesis failed on worker.');
+          }
+        }
+        data = job;
+      }
 
       if (!data?.audio_url) {
         throw new Error('No audio URL returned by server.');
@@ -388,6 +401,19 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         result = await speechToText(user.api_key, file, sttLanguage || null);
       } else {
         result = await demoSTT(file, sttLanguage || null);
+      }
+
+      if (result?.status === 'queued' && result?.job_id) {
+        showToast('STT job queued, transcribing...', 'info');
+        let job = result;
+        while (job.status === 'queued' || job.status === 'processing') {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          job = await getJobStatus(user.api_key, result.job_id);
+          if (job.status === 'failed') {
+            throw new Error(job.error || 'Async STT transcription failed on worker.');
+          }
+        }
+        result = job;
       }
 
       const transcript = result?.detail || result?.transcript || result?.text || JSON.stringify(result);
