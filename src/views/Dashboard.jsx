@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
   Copy, 
@@ -18,9 +18,11 @@ import {
   X,
   Mic
 } from 'lucide-react';
+import { getProfile } from '../services/api';
 
 export default function Dashboard({ 
   navigate, 
+  user,
   apiKeys, 
   setApiKeys, 
   historyData, 
@@ -30,17 +32,40 @@ export default function Dashboard({
   const [copiedKey, setCopiedKey] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
+  const [profile, setProfile] = useState(user);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = sessionStorage.getItem('access_token');
+      if (token) {
+        try {
+          const data = await getProfile(token);
+          setProfile(data);
+        } catch (e) {
+          console.error("Failed to load profile:", e);
+        }
+      }
+    };
+    fetchProfile();
+  }, [user]);
   
   // Calculate voice processing counts dynamically from historyData
   const ttsCount = historyData.filter(d => d.type === 'Text to Speech').length;
   const sttCount = historyData.filter(d => d.type === 'Speech to Text').length;
-  const totalRequests = ttsCount + sttCount;
+  const totalRequests = profile?.total_processing || (ttsCount + sttCount);
   
   // Calculate total seconds processed
   const totalSeconds = historyData.reduce((acc, d) => {
     const secs = parseFloat(d.time) || 0;
     return acc + secs;
   }, 0).toFixed(1);
+
+  const displayKeys = apiKeys.map((k, index) => {
+    if (index === 0 && profile?.api_key) {
+      return { ...k, key: profile.api_key };
+    }
+    return k;
+  });
 
   const toggleKeyVisibility = (id) => {
     setApiKeys(prev => prev.map(k => k.id === id ? { ...k, visible: !k.visible } : k));
@@ -159,7 +184,7 @@ export default function Dashboard({
             </div>
             
             <div style={styles.keysList}>
-              {apiKeys.map((k) => (
+              {displayKeys.map((k) => (
                 <div key={k.id} style={styles.keyRow}>
                   <div style={styles.keyMeta}>
                     <div style={styles.keyNameRow}>
@@ -346,6 +371,8 @@ const styles = {
     margin: '0 auto',
     padding: '40px 24px 80px 24px',
     width: '100%',
+    height: '100%',
+    overflowY: 'auto',
   },
   header: {
     marginBottom: '32px',

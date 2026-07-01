@@ -314,6 +314,8 @@ const styles = {
     margin: '0 auto',
     padding: '40px 24px 80px 24px',
     width: '100%',
+    height: '100%',
+    overflowY: 'auto',
   },
   header: {
     marginBottom: '32px',

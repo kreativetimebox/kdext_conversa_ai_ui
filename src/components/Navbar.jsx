@@ -2,46 +2,29 @@ import React, { useState } from 'react';
 import { 
   FileText, 
   ChevronDown, 
-  LayoutDashboard, 
-  History as HistoryIcon, 
   HelpCircle, 
   Activity, 
   Info, 
   Mail, 
-  LogOut, 
-  User,
   Menu,
   X,
-  Volume2,
-  Mic
+  Volume2
 } from 'lucide-react';
 
 export default function Navbar({ currentPath, navigate, user, logout, showToast }) {
   const [resourcesOpen, setResourcesOpen] = useState(false);
-  const [servicesOpen, setServicesOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const resourcesLeaveTimer = React.useRef(null);
-  const servicesLeaveTimer = React.useRef(null);
 
   const navigateTo = (path) => {
     navigate(path);
     setResourcesOpen(false);
-    setServicesOpen(false);
     setMobileMenuOpen(false);
   };
 
   const handleLogoutClick = () => {
     logout();
     showToast('Logged out successfully', 'success');
-  };
-
-  // Services dropdown hover handlers with delay to prevent premature close
-  const onServicesEnter = () => {
-    if (servicesLeaveTimer.current) clearTimeout(servicesLeaveTimer.current);
-    setServicesOpen(true);
-  };
-  const onServicesLeave = () => {
-    servicesLeaveTimer.current = setTimeout(() => setServicesOpen(false), 150);
   };
 
   // Resources dropdown hover handlers with delay
@@ -69,82 +52,20 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
 
         {/* Desktop Menu */}
         <div style={styles.navLinks} className="nav-links-desktop">
-          {user ? (
-            /* Logged In Navbar */
-            <>
-              <button 
-                onClick={() => navigateTo('/dashboard')} 
-                style={{...styles.navLink, ...(cleanPath === '/dashboard' ? styles.navLinkActive : {})}}
-              >
-                <LayoutDashboard size={16} />
-                Dashboard
-              </button>
-              
-              <button 
-                onClick={() => navigateTo('/documentation')} 
-                style={{...styles.navLink, ...((cleanPath === '/documentation' || cleanPath === '/api-reference') ? styles.navLinkActive : {})}}
-              >
-                <FileText size={16} />
-                Documentation
-              </button>
-
-              <button 
-                onClick={() => navigateTo('/history')} 
-                style={{...styles.navLink, ...(cleanPath === '/history' ? styles.navLinkActive : {})}}
-              >
-                <HistoryIcon size={16} />
-                History
-              </button>
-
-              {/* Services Dropdown */}
-              <div 
-                style={styles.dropdownContainer}
-                onMouseEnter={onServicesEnter}
-                onMouseLeave={onServicesLeave}
-              >
-                <button style={{...styles.navLink, ...((['/services', '/services/hub', '/services/tts', '/services/stt'].includes(cleanPath)) ? styles.navLinkActive : {})}}>
-                  <Volume2 size={16} />
-                  Services
-                  <ChevronDown size={14} style={{ transform: servicesOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
-                </button>
-                {servicesOpen && (
-                  <div style={styles.dropdownMenu} className="animate-fade-in">
-                    <div onMouseDown={() => navigateTo('/services/tts')} style={styles.dropdownItem}>
-                      <Volume2 size={16} color="#8b5cf6" />
-                      <div>
-                        <div style={styles.dropdownItemTitle}>Text to Speech</div>
-                        <div style={styles.dropdownItemDesc}>Convert text to audio</div>
-                      </div>
-                    </div>
-                    <div onMouseDown={() => navigateTo('/services/stt')} style={styles.dropdownItem}>
-                      <Mic size={16} color="#ec4899" />
-                      <div>
-                        <div style={styles.dropdownItemTitle}>Speech to Text</div>
-                        <div style={styles.dropdownItemDesc}>Transcribe voice to text</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            /* Logged Out Navbar */
-            <>
-              <button 
-                onClick={() => navigateTo('/')} 
-                style={{...styles.navLink, ...(cleanPath === '/' || cleanPath === '/home' ? styles.navLinkActive : {})}}
-              >
-                Home
-              </button>
-              
-              <button 
-                onClick={() => navigateTo('/documentation')} 
-                style={{...styles.navLink, ...((cleanPath === '/documentation' || cleanPath === '/api-reference') ? styles.navLinkActive : {})}}
-              >
-                Documentation
-              </button>
-            </>
-          )}
+          <button 
+            onClick={() => navigateTo('/')} 
+            style={{...styles.navLink, ...(cleanPath === '/' || cleanPath === '/home' ? styles.navLinkActive : {})}}
+          >
+            Home
+          </button>
+          
+          <button 
+            onClick={() => navigateTo('/documentation')} 
+            style={{...styles.navLink, ...((cleanPath === '/documentation' || cleanPath === '/api-reference') ? styles.navLinkActive : {})}}
+          >
+            <FileText size={16} />
+            Documentation
+          </button>
 
           {/* Resources Dropdown (Shared) */}
           <div 
@@ -194,21 +115,12 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
           </div>
         </div>
 
-        {/* Auth Buttons / Profile info */}
+        {/* Auth Buttons / Go To App */}
         <div style={styles.authSection} className="auth-section-desktop">
           {user ? (
-            <div style={styles.userProfile}>
-              <div style={styles.userAvatar}>
-                <User size={16} />
-              </div>
-              <div style={styles.userDetails}>
-                <div style={styles.userName}>{user.name || 'Varish Tomar'}</div>
-                <div style={styles.userEmail}>{user.email || 'varish.tomar1303@gmail.com'}</div>
-              </div>
-              <button onClick={handleLogoutClick} style={styles.logoutBtn} title="Sign Out">
-                <LogOut size={16} />
-              </button>
-            </div>
+            <button onClick={() => navigateTo('/chat')} className="btn btn-primary" style={styles.getStartedBtn}>
+              Go to App
+            </button>
           ) : (
             <>
               <button onClick={() => navigateTo('/signin')} style={styles.signInBtn}>
@@ -230,31 +142,8 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
       {/* Mobile Menu Drawer */}
       {mobileMenuOpen && (
         <div style={styles.mobileMenu} className="animate-fade-in">
-          {user ? (
-            <>
-              <div style={styles.mobileProfile}>
-                <div style={styles.userAvatar}>
-                  <User size={18} />
-                </div>
-                <div style={styles.userDetails}>
-                  <div style={styles.userName}>{user.name}</div>
-                  <div style={styles.userEmail}>{user.email}</div>
-                </div>
-              </div>
-              <hr style={styles.mobileDivider} />
-              <button onClick={() => navigateTo('/dashboard')} style={styles.mobileNavLink}>Dashboard</button>
-              <button onClick={() => navigateTo('/documentation')} style={styles.mobileNavLink}>Documentation</button>
-              <button onClick={() => navigateTo('/history')} style={styles.mobileNavLink}>History</button>
-              <button onClick={() => navigateTo('/services/hub')} style={styles.mobileNavLink}>Voice Tools Hub</button>
-              <button onClick={() => navigateTo('/services/tts')} style={styles.mobileNavLink}>Text to Speech</button>
-              <button onClick={() => navigateTo('/services/stt')} style={styles.mobileNavLink}>Speech to Text</button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => navigateTo('/')} style={styles.mobileNavLink}>Home</button>
-              <button onClick={() => navigateTo('/documentation')} style={styles.mobileNavLink}>Documentation</button>
-            </>
-          )}
+          <button onClick={() => navigateTo('/')} style={styles.mobileNavLink}>Home</button>
+          <button onClick={() => navigateTo('/documentation')} style={styles.mobileNavLink}>Documentation</button>
           <hr style={styles.mobileDivider} />
           <button onClick={() => navigateTo('/help-center')} style={styles.mobileNavLink}>Help Center</button>
           <button onClick={() => navigateTo('/system-status')} style={styles.mobileNavLink}>System Status</button>
@@ -263,7 +152,7 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
           
           <hr style={styles.mobileDivider} />
           {user ? (
-            <button onClick={handleLogoutClick} style={{...styles.mobileNavLink, color: '#ef4444'}}>Sign Out</button>
+            <button onClick={() => navigateTo('/chat')} className="btn btn-primary" style={{width: '100%'}}>Go to App</button>
           ) : (
             <div style={styles.mobileAuthBtns}>
               <button onClick={() => navigateTo('/signin')} style={styles.mobileSignInBtn}>Sign In</button>
@@ -390,51 +279,6 @@ const styles = {
     padding: '8px 18px',
     fontSize: '0.9rem',
   },
-  userProfile: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    background: 'rgba(255, 255, 255, 0.03)',
-    border: '1px solid var(--border-color)',
-    padding: '6px 12px',
-    borderRadius: '40px',
-  },
-  userAvatar: {
-    width: '28px',
-    height: '28px',
-    borderRadius: '50%',
-    background: 'var(--primary)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#ffffff',
-  },
-  userDetails: {
-    textAlign: 'left',
-  },
-  userName: {
-    fontSize: '0.85rem',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    lineHeight: '1.2',
-  },
-  userEmail: {
-    fontSize: '0.72rem',
-    color: 'var(--text-muted)',
-    lineHeight: '1.2',
-  },
-  logoutBtn: {
-    background: 'transparent',
-    border: 'none',
-    color: 'var(--text-muted)',
-    cursor: 'pointer',
-    padding: '4px',
-    borderRadius: '4px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'var(--transition)',
-  },
   mobileMenuToggle: {
     background: 'transparent',
     border: 'none',
@@ -455,12 +299,6 @@ const styles = {
     gap: '12px',
     boxShadow: '0 10px 20px rgba(0,0,0,0.5)',
     zIndex: 99,
-  },
-  mobileProfile: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '8px 0',
   },
   mobileDivider: {
     border: 'none',
@@ -494,4 +332,3 @@ const styles = {
     cursor: 'pointer',
   }
 };
-
