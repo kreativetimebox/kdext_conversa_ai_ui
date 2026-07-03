@@ -94,7 +94,7 @@ const TTS_LANGUAGES = [
   }
 ];
 
-const CHAR_LIMIT = 1000;
+const CHAR_LIMIT = 500;
 
 export default function VoiceTools({ showToast, defaultSubView = 'hub', user, setHistoryData }) {
   const [subView, setSubView] = useState(defaultSubView);

@@ -13,11 +13,10 @@
 // ─── Base URLs ────────────────────────────────────────────────────────────────
 
 // The real backend server (always direct, for building absolute audio URLs)
-export const SERVER_BASE = 'http://185.14.252.20:8001';
+export const SERVER_BASE = 'https://aiservices.dexaitech.com';
 
-// API calls go through the Vite dev proxy (/api → SERVER_BASE) to avoid CORS.
-// In production, set VITE_API_BASE_URL to SERVER_BASE or use a reverse proxy.
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// API calls go through the Vite dev proxy or use secure reverse proxy
+const BASE_URL = 'https://aiservices.dexaitech.com';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
