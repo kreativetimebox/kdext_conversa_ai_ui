@@ -217,6 +217,7 @@ export default function App() {
             onSignOut={logout} 
             navigate={navigate}
             currentPath={currentPath}
+            user={user}
           />
           <div className="main-content">
             {renderView()}

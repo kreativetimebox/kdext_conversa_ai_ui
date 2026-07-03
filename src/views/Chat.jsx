@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, RefreshCw } from 'lucide-react';
-import { chatCompletion, speechToText } from '../services/api';
+import { chatCompletion, speechToText, getConversationDetails, createConversation, addMessage } from '../services/api';
 
 // Simple Markdown Renderer
 const renderMarkdown = (text) => {
@@ -74,7 +74,7 @@ const CopyButton = ({ text }) => {
   );
 };
 
-export default function Chat({ user, showToast }) {
+export default function Chat({ user, showToast, currentPath, navigate }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -84,6 +84,33 @@ export default function Chat({ user, showToast }) {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const abortControllerRef = useRef(null);
+
+  const pathParts = currentPath ? currentPath.split('/') : [];
+  const activeConversationId = pathParts.length > 2 ? pathParts[2] : null;
+
+  useEffect(() => {
+    const loadConversation = async () => {
+      if (activeConversationId) {
+        setIsTyping(true);
+        try {
+          const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
+          const res = await getConversationDetails(apiKey, activeConversationId);
+          if (res && res.messages) {
+            setMessages(res.messages);
+          } else {
+            setMessages([]);
+          }
+        } catch (err) {
+          showToast('Failed to load conversation history.', 'error');
+        } finally {
+          setIsTyping(false);
+        }
+      } else {
+        setMessages([]);
+      }
+    };
+    loadConversation();
+  }, [activeConversationId, user]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -153,7 +180,8 @@ export default function Chat({ user, showToast }) {
     if (e && e.preventDefault) e.preventDefault();
     if (!input.trim() || isTyping || isRecording) return;
     
-    const userMsg = { role: 'user', content: input.trim() };
+    const userMsgContent = input.trim();
+    const userMsg = { role: 'user', content: userMsgContent };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput('');
@@ -165,16 +193,27 @@ export default function Chat({ user, showToast }) {
     const assistantMsgIndex = newMessages.length;
 
     abortControllerRef.current = new AbortController();
+    const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
 
+    // Persist user message immediately if conversation exists
+    if (activeConversationId) {
+      try {
+        await addMessage(apiKey, activeConversationId, 'user', userMsgContent);
+      } catch (err) {
+        console.error("Failed to save user message to db:", err);
+      }
+    }
+
+    let assistantReply = "";
     try {
-      const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
       const res = await chatCompletion(apiKey, newMessages, 'gemini-3.1-pro', true);
       
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = "";
+      let hasFinished = false;
       
-      while (true) {
+      while (!hasFinished) {
         const { done, value } = await reader.read();
         if (done) break;
         buf += dec.decode(value, { stream: true });
@@ -185,14 +224,15 @@ export default function Chat({ user, showToast }) {
           if (!line.startsWith("data: ")) continue;
           const data = line.slice(6).trim();
           if (data === "[DONE]") {
-            setIsTyping(false);
-            return;
+            hasFinished = true;
+            break;
           }
           try {
             const obj = JSON.parse(data);
             if (obj.error) throw new Error(obj.error);
             if (obj.content) {
               const token = obj.content;
+              assistantReply += token;
               setMessages(prev => {
                 const newMsgs = [...prev];
                 newMsgs[assistantMsgIndex] = {
@@ -209,17 +249,52 @@ export default function Chat({ user, showToast }) {
       }
       setIsTyping(false);
 
+      // Save assistant message or create new conversation
+      if (assistantReply) {
+        if (activeConversationId) {
+          try {
+            await addMessage(apiKey, activeConversationId, 'assistant', assistantReply);
+          } catch (err) {
+            console.error("Failed to save assistant message to db:", err);
+          }
+        } else {
+          try {
+            const title = userMsgContent.substring(0, 30) + (userMsgContent.length > 30 ? '...' : '');
+            const seededMessages = [
+              { role: 'user', content: userMsgContent },
+              { role: 'assistant', content: assistantReply }
+            ];
+            const conv = await createConversation(apiKey, title, 'chat', seededMessages);
+            if (conv && (conv.conversation_id || conv.id)) {
+              navigate(`/chat/${conv.conversation_id || conv.id}`);
+            }
+          } catch (err) {
+            console.error("Failed to create conversation:", err);
+          }
+        }
+      }
+
     } catch (err) {
+      const errorText = `Error: ${err.message || 'Failed to connect to AI engine.'}`;
       setMessages(prev => {
         const newMsgs = [...prev];
         newMsgs[assistantMsgIndex] = {
           ...newMsgs[assistantMsgIndex],
-          content: `Error: ${err.message || 'Failed to connect to AI engine.'}`,
+          content: errorText,
           isError: true
         };
         return newMsgs;
       });
       setIsTyping(false);
+
+      // If active conversation and we got an error, save the error message as assistant response
+      if (activeConversationId && errorText) {
+        try {
+          await addMessage(apiKey, activeConversationId, 'assistant', errorText);
+        } catch (errDb) {
+          console.error("Failed to save error response to db:", errDb);
+        }
+      }
     }
   };
 

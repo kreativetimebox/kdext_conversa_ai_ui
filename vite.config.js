@@ -12,8 +12,28 @@ export default defineConfig({
       '/api': {
         target: 'http://185.14.252.20:8001',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        // No rewrite — gateway expects the full /api/chat, /api/translate, etc. paths
       },
+      // Proxy all other root endpoints to bypass CORS on localhost with custom ports (e.g. 5174)
+      ...[
+        '/conversations',
+        '/signup',
+        '/verify-otp',
+        '/login',
+        '/profile',
+        '/voices',
+        '/text-to-speech',
+        '/speech-to-text',
+        '/jobs',
+        '/health',
+        '/translate'
+      ].reduce((acc, route) => {
+        acc[route] = {
+          target: 'http://185.14.252.20:8001',
+          changeOrigin: true,
+        };
+        return acc;
+      }, {})
     },
   },
 })
