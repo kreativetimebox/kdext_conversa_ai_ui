@@ -16,7 +16,9 @@
 export const SERVER_BASE = 'https://aiservices.dexaitech.com';
 
 // API calls go through the Vite dev proxy or use secure reverse proxy
-const BASE_URL = 'https://aiservices.dexaitech.com';
+const BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+  ? ''
+  : 'https://aiservices.dexaitech.com';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -214,70 +216,78 @@ export async function checkDemoHealth() {
 
 /**
  * POST /conversations
- * Header: Authorization: Bearer <token>
- * Body: { title }
+ * Header: x-api-key: <apiKey>
+ * Body: { title, mode, messages }
  */
-export async function createConversation(token, title = 'New Chat') {
+export async function createConversation(apiKey, title = 'New Chat', mode = 'chat', messages = []) {
   const res = await fetch(`${BASE_URL}/conversations`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      authorization: `Bearer ${token}`
+      'x-api-key': apiKey
     },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, mode, messages }),
   });
   return handleResponse(res);
 }
 
 /**
  * GET /conversations
- * Header: Authorization: Bearer <token>
+ * Header: x-api-key: <apiKey>
  */
-export async function getConversations(token) {
+export async function getConversations(apiKey) {
   const res = await fetch(`${BASE_URL}/conversations`, {
-    headers: { authorization: `Bearer ${token}` },
+    headers: { 'x-api-key': apiKey },
   });
   return handleResponse(res);
 }
 
 /**
  * GET /conversations/{id}
- * Header: Authorization: Bearer <token>
+ * Header: x-api-key: <apiKey>
  */
-export async function getConversationDetails(token, id) {
+export async function getConversationDetails(apiKey, id) {
   const res = await fetch(`${BASE_URL}/conversations/${id}`, {
-    headers: { authorization: `Bearer ${token}` },
+    headers: { 'x-api-key': apiKey },
   });
   return handleResponse(res);
 }
 
 /**
  * PATCH /conversations/{id}
- * Header: Authorization: Bearer <token>
- * Body: { title }
+ * Header: x-api-key: <apiKey>
+ * Body: { title, mode }
  */
-export async function renameConversation(token, id, title) {
+export async function renameConversation(apiKey, id, title, mode = 'chat') {
   const res = await fetch(`${BASE_URL}/conversations/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      authorization: `Bearer ${token}`
+      'x-api-key': apiKey
     },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, mode }),
   });
   return handleResponse(res);
 }
 
 /**
  * DELETE /conversations/{id}
- * Header: Authorization: Bearer <token>
+ * Header: x-api-key: <apiKey>
  */
-export async function deleteConversation(token, id) {
+export async function deleteConversation(apiKey, id) {
   const res = await fetch(`${BASE_URL}/conversations/${id}`, {
     method: 'DELETE',
-    headers: { authorization: `Bearer ${token}` },
+    headers: { 'x-api-key': apiKey },
   });
-  return handleResponse(res);
+  if (!res.ok) {
+    let errMsg = `HTTP ${res.status}`;
+    try {
+      const data = await res.json();
+      errMsg = data?.detail || data?.message || errMsg;
+    } catch (_) {}
+    throw new Error(errMsg);
+  }
+  return true;
 }
 
 /**
