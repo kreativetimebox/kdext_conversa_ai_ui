@@ -211,6 +211,11 @@ export default function Translate({ user, showToast }) {
   // not blanked, when the new stream starts.
   const freshStreamRef = useRef(false);
   const debounceTimerRef = useRef(null);
+  // Instant (subtitle) pass bookkeeping: throttle timer, last-fire time, and
+  // which engine each request id used ('api' instant vs 'llm' refine).
+  const instantTimerRef = useRef(null);
+  const lastInstantRef = useRef(0);
+  const reqEngineRef = useRef({});
   const pingTimerRef = useRef(null);
   const reconnectDelayRef = useRef(1000);
   const reconnectTimerRef = useRef(null);
@@ -263,12 +268,17 @@ export default function Translate({ user, showToast }) {
               setTranslatedText(prev => prev + msg.content);
             }
           } else if (msg.type === 'done') {
+            const kind = reqEngineRef.current[msg.id] || 'llm';
+            delete reqEngineRef.current[msg.id];
             const cur = latestRef.current;
             setTranslatedText(msg.translation);
             setIsTranslating(false);
             if (msg.source_lang && cur.sourceLang === 'auto') {
               setDetectedLang(msg.source_lang);
             }
+            // Instant subtitle passes update the panel only — history records
+            // just the refined (pause) translations, not every keystroke.
+            if (kind === 'api') return;
 
             const sLangName = cur.sourceLang === 'auto'
               ? (msg.source_lang ? (LANGUAGES.find(l => l.code === msg.source_lang)?.name || msg.source_lang) : 'Auto')
@@ -335,9 +345,16 @@ export default function Translate({ user, showToast }) {
     };
   }, [apiKey]);
 
-  // Live translation effect triggered on typing
+  // Live typing → two-tier subtitle translation:
+  //   1) INSTANT pass: throttled fast ('api') translation on every keystroke —
+  //      full results in ~200-400ms, so the panel updates while you type.
+  //   2) REFINE pass: when typing pauses, a higher-quality LLM translation
+  //      streams in and replaces the instant one.
+  // A single LLM request per keystroke can never feel like subtitles — its
+  // time-to-first-token alone is longer than the gap between keystrokes.
   useEffect(() => {
     clearTimeout(debounceTimerRef.current);
+    clearTimeout(instantTimerRef.current);
 
     // ONLY auto-translate on typing if Live Mode is selected
     if (engine !== 'live') {
@@ -351,76 +368,74 @@ export default function Translate({ user, showToast }) {
       return;
     }
 
-    debounceTimerRef.current = setTimeout(async () => {
+    const text = sourceText.trim();
+
+    // If the socket dropped, reconnect right away so streaming resumes.
+    if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+      connectWs();
+    }
+
+    const sendOverWs = (wsEngine) => {
       seqRef.current += 1;
-      const currentSeq = seqRef.current;
-      setDetectedLang(null);
-
-      // If the socket dropped, kick off a reconnect right away so the next
-      // keystroke can stream (this attempt falls back to HTTP below).
-      if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
-        connectWs();
-      }
-
-      // Live Mode uses the streaming WebSocket with the 'llm' backend engine
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        // Keep the previous translation on screen while the new stream starts —
-        // blanking it on every keystroke is what made live mode feel like it
-        // "waits for the full sentence".
+      const id = seqRef.current;
+      reqEngineRef.current[id] = wsEngine;
+      if (wsEngine === 'llm') {
         freshStreamRef.current = true;
         setIsTranslating(true);
-        wsRef.current.send(JSON.stringify({
-          type: 'translate',
-          id: currentSeq,
-          text: sourceText.trim(),
-          target_lang: targetLang,
-          engine: 'llm'
-        }));
-      } else {
-        // Fallback to HTTP translation (keep previous text visible meanwhile)
-        setIsTranslating(true);
-        try {
-          const res = await translateText(apiKey, sourceText.trim(), sourceLang === 'auto' ? null : sourceLang, targetLang, 'llm');
-          if (currentSeq !== seqRef.current) return;
-
-          const result = res?.translation || res?.translated_text || res?.result || '';
-          const detected = res?.source_lang || res?.detected_language || null;
-
-          setTranslatedText(result);
-          setIsTranslating(false);
-          if (detected && sourceLang === 'auto') {
-            setDetectedLang(detected);
-          }
-
-          const sLangName = sourceLang === 'auto'
-            ? (detected ? (LANGUAGES.find(l => l.code === detected)?.name || detected) : 'Auto')
-            : LANGUAGES.find(l => l.code === sourceLang)?.name;
-
-          setHistory(prev => {
-            if (prev.length > 0 && prev[0].source === sourceText && prev[0].result === result) {
-              return prev;
-            }
-            return [{
-              id: Date.now(),
-              source: sourceText,
-              result,
-              sLang: sLangName,
-              tLang: LANGUAGES.find(l => l.code === targetLang)?.name,
-              sFlag: sourceLang === 'auto' ? '🔍' : LANGUAGES.find(l => l.code === sourceLang)?.flag,
-              tFlag: LANGUAGES.find(l => l.code === targetLang)?.flag,
-              engine: 'live',
-            }, ...prev].slice(0, 10);
-          });
-        } catch (err) {
-          if (currentSeq === seqRef.current) {
-            setIsTranslating(false);
-            showToast(err.message || 'Translation failed.', 'error');
-          }
-        }
       }
-    }, 250); // short debounce so streaming starts almost as you type
+      wsRef.current.send(JSON.stringify({
+        type: 'translate',
+        id,
+        text,
+        target_lang: targetLang,
+        engine: wsEngine,
+      }));
+    };
 
-    return () => clearTimeout(debounceTimerRef.current);
+    const httpInstant = async () => {
+      seqRef.current += 1;
+      const id = seqRef.current;
+      try {
+        const res = await translateText(apiKey, text, sourceLang === 'auto' ? null : sourceLang, targetLang, 'api');
+        if (id !== seqRef.current) return; // superseded by newer keystroke
+        const result = res?.translation || res?.translated_text || res?.result || '';
+        if (result) setTranslatedText(result);
+        const detected = res?.source_lang || res?.detected_language || null;
+        if (detected && sourceLang === 'auto') setDetectedLang(detected);
+        setIsTranslating(false);
+      } catch {
+        // instant pass is best-effort; the refine pass will still land
+      }
+    };
+
+    // 1) instant subtitle pass — throttled, fires immediately when possible
+    const INSTANT_MS = 200;
+    const fireInstant = () => {
+      lastInstantRef.current = Date.now();
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        sendOverWs('api');
+      } else {
+        httpInstant();
+      }
+    };
+    const since = Date.now() - lastInstantRef.current;
+    if (since >= INSTANT_MS) {
+      fireInstant();
+    } else {
+      instantTimerRef.current = setTimeout(fireInstant, INSTANT_MS - since);
+    }
+
+    // 2) refinement pass — after the user pauses, stream the LLM translation
+    debounceTimerRef.current = setTimeout(() => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        sendOverWs('llm');
+      }
+    }, 900);
+
+    return () => {
+      clearTimeout(debounceTimerRef.current);
+      clearTimeout(instantTimerRef.current);
+    };
   }, [sourceText, targetLang, engine, sourceLang, apiKey]);
 
   const handleTranslate = async () => {
@@ -767,8 +782,8 @@ export default function Translate({ user, showToast }) {
       {/* Tips bar */}
       <div style={styles.tipsBar}>
         <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
-          {engine === 'live' 
-            ? '💡 Typing automatically translates using live WebSockets stream' 
+          {engine === 'live'
+            ? '💡 Translates instantly while you type — AI refines it when you pause'
             : '💡 Press Ctrl+Enter or click Translate to submit text'}
         </span>
         <span style={{ color: '#64748b', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
