@@ -341,7 +341,7 @@ export async function chatCompletion(apiKey, messages, model = "gemini-3.1-pro",
  * Body: { text, source, target, engine }
  */
 export async function translateText(apiKey, text, source, target, engine = 'api') {
-  const res = await fetch(`${BASE_URL}/translate`, {
+  const res = await fetch(`${BASE_URL}/api/translate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
