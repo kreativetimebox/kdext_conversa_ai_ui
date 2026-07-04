@@ -202,9 +202,14 @@ export default function Translate({ user, showToast }) {
   const [history, setHistory] = useState([]);
   const [copied, setCopied] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
 
   const wsRef = useRef(null);
   const seqRef = useRef(0);
+  // True until the first delta of the current request arrives — the previous
+  // translation stays visible while typing (subtitle-style) and is replaced,
+  // not blanked, when the new stream starts.
+  const freshStreamRef = useRef(false);
   const debounceTimerRef = useRef(null);
   const pingTimerRef = useRef(null);
   const reconnectDelayRef = useRef(1000);
@@ -232,6 +237,7 @@ export default function Translate({ user, showToast }) {
       wsRef.current = ws;
 
       ws.onopen = () => {
+        setWsConnected(true);
         reconnectDelayRef.current = 1000;
         clearInterval(pingTimerRef.current);
         pingTimerRef.current = setInterval(() => {
@@ -249,7 +255,13 @@ export default function Translate({ user, showToast }) {
 
           if (msg.type === 'delta') {
             setIsTranslating(true);
-            setTranslatedText(prev => prev + msg.content);
+            if (freshStreamRef.current) {
+              // First token of a new stream replaces the previous translation.
+              freshStreamRef.current = false;
+              setTranslatedText(msg.content);
+            } else {
+              setTranslatedText(prev => prev + msg.content);
+            }
           } else if (msg.type === 'done') {
             const cur = latestRef.current;
             setTranslatedText(msg.translation);
@@ -287,6 +299,7 @@ export default function Translate({ user, showToast }) {
       };
 
       ws.onclose = (ev) => {
+        setWsConnected(false);
         clearInterval(pingTimerRef.current);
         wsRef.current = null;
         if (!shouldReconnectRef.current) return; // component unmounted / key changed
@@ -343,9 +356,18 @@ export default function Translate({ user, showToast }) {
       const currentSeq = seqRef.current;
       setDetectedLang(null);
 
+      // If the socket dropped, kick off a reconnect right away so the next
+      // keystroke can stream (this attempt falls back to HTTP below).
+      if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+        connectWs();
+      }
+
       // Live Mode uses the streaming WebSocket with the 'llm' backend engine
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        setTranslatedText('');
+        // Keep the previous translation on screen while the new stream starts —
+        // blanking it on every keystroke is what made live mode feel like it
+        // "waits for the full sentence".
+        freshStreamRef.current = true;
         setIsTranslating(true);
         wsRef.current.send(JSON.stringify({
           type: 'translate',
@@ -355,9 +377,8 @@ export default function Translate({ user, showToast }) {
           engine: 'llm'
         }));
       } else {
-        // Fallback to HTTP translation
+        // Fallback to HTTP translation (keep previous text visible meanwhile)
         setIsTranslating(true);
-        setTranslatedText('');
         try {
           const res = await translateText(apiKey, sourceText.trim(), sourceLang === 'auto' ? null : sourceLang, targetLang, 'llm');
           if (currentSeq !== seqRef.current) return;
@@ -397,7 +418,7 @@ export default function Translate({ user, showToast }) {
           }
         }
       }
-    }, 350); // 350ms debounce as per live translation guide
+    }, 250); // short debounce so streaming starts almost as you type
 
     return () => clearTimeout(debounceTimerRef.current);
   }, [sourceText, targetLang, engine, sourceLang, apiKey]);
@@ -536,10 +557,14 @@ export default function Translate({ user, showToast }) {
         @keyframes streamBlink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
         @media (max-width: 768px) {
           .translate-page { padding: 20px 14px 40px !important; }
+          .translate-page h1 { font-size: 1.35rem !important; }
+          .translate-page h1 + p { margin-left: 0 !important; font-size: 0.8rem !important; }
           .translate-panels { flex-direction: column !important; }
           .translate-panel-divider { width: 100% !important; height: 1px !important; }
           .translate-history-texts { grid-template-columns: 1fr !important; }
-          .lang-dropdown-btn { min-width: 150px !important; }
+          .lang-dropdown-btn { min-width: 140px !important; flex: 1; }
+          .translate-engine-toggle { width: 100%; }
+          .translate-engine-toggle button { flex: 1; justify-content: center; padding: 8px 8px !important; font-size: 0.78rem !important; }
         }
       `}</style>
 
@@ -554,7 +579,7 @@ export default function Translate({ user, showToast }) {
         </div>
 
         {/* Engine Toggle */}
-        <div style={styles.engineToggle}>
+        <div style={styles.engineToggle} className="translate-engine-toggle">
           <button
             onClick={() => setEngine('api')}
             style={{ ...styles.engineBtn, ...(engine === 'api' ? styles.engineBtnActive : {}) }}
@@ -746,12 +771,19 @@ export default function Translate({ user, showToast }) {
             ? '💡 Typing automatically translates using live WebSockets stream' 
             : '💡 Press Ctrl+Enter or click Translate to submit text'}
         </span>
-        <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
-          Engine: <span style={{ 
-            color: engine === 'live' ? '#0ea5e9' : engine === 'api' ? '#16a34a' : '#3b82f6', 
-            fontWeight: '600' 
+        <span style={{ color: '#64748b', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {engine === 'live' && (
+            <span title={wsConnected ? 'Streaming connected' : 'Stream offline — using standard translation'} style={{
+              width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block',
+              background: wsConnected ? '#16a34a' : '#d97706',
+              boxShadow: wsConnected ? '0 0 6px rgba(22,163,74,0.6)' : 'none',
+            }} />
+          )}
+          Engine: <span style={{
+            color: engine === 'live' ? '#0ea5e9' : engine === 'api' ? '#16a34a' : '#3b82f6',
+            fontWeight: '600'
           }}>
-            {engine === 'live' ? 'Live Mode (Stream)' : engine === 'api' ? 'Google API (Fast)' : 'AI Model (Nuanced)'}
+            {engine === 'live' ? (wsConnected ? 'Live Mode (Stream)' : 'Live Mode (offline — fallback)') : engine === 'api' ? 'Google API (Fast)' : 'AI Model (Nuanced)'}
           </span>
         </span>
       </div>

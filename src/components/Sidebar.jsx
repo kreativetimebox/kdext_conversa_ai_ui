@@ -26,7 +26,7 @@ const getGroup = (updatedAtStr) => {
   }
 };
 
-function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath, user }) {
+function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath, user, mobileOpen }) {
   const [conversations, setConversations] = useState([]);
 
   useEffect(() => {
@@ -98,7 +98,7 @@ function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath,
   });
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="sidebar-header">
         {!isCollapsed && <div className="navbar-brand">Conversa AI</div>}
         <button className="btn btn-text" onClick={toggleSidebar}>
