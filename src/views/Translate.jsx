@@ -478,7 +478,7 @@ export default function Translate({ user, showToast }) {
     if (!translatedText) return;
     setIsPlaying(true);
     try {
-      const res = await textToSpeech(apiKey, translatedText, 'divya', 'mp3');
+      const res = await textToSpeech(apiKey, translatedText, 'divya', 'wav');
       const audioUrl = buildAudioUrl(res.audio_url);
       if (audioUrl) {
         const audio = new Audio(audioUrl);
