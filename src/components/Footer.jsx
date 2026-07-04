@@ -3,16 +3,17 @@ import { Volume2 } from 'lucide-react';
 
 export default function Footer({ navigate }) {
   return (
-    <footer style={styles.footer}>
-      <div style={styles.container}>
+    <footer style={{ ...styles.footer, position: 'relative', overflow: 'hidden' }}>
+      <div className="hero-net-overlay" style={{ opacity: 0.5 }} />
+      <div style={{ ...styles.container, position: 'relative', zIndex: 1 }}>
         <div style={styles.grid}>
           {/* Logo & Description */}
           <div style={styles.brandCol} className="footer-brand-col-responsive">
-            <div onClick={() => navigate('/')} style={styles.logo} className="navbar-brand">
+            <div onClick={() => navigate('/')} style={{ ...styles.logo, cursor: 'pointer' }}>
               <div style={styles.logoIcon}>
                 <Volume2 size={16} color="#ffffff" fill="#ffffff" />
               </div>
-              <span>Conversa AI</span>
+              <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#ffffff', fontFamily: 'var(--font-heading)' }}>Conversa AI</span>
             </div>
             <p style={styles.desc}>
               AI-powered speech synthesis and voice transcribing for modern businesses and applications. Secure, fast, and compliant.
@@ -59,7 +60,7 @@ export default function Footer({ navigate }) {
           </div>
           <div style={styles.bottomLinks}>
             <span style={styles.statusDot}></span>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>All systems operational</span>
+            <span style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>All systems operational</span>
           </div>
         </div>
       </div>
@@ -69,8 +70,8 @@ export default function Footer({ navigate }) {
 
 const styles = {
   footer: {
-    borderTop: '1px solid var(--border-color)',
-    background: 'rgba(7, 6, 14, 0.5)',
+    borderTop: '1px solid rgba(37, 99, 235, 0.15)',
+    background: '#0b1120',
     padding: '64px 0 32px 0',
     marginTop: 'auto',
     width: '100%',
@@ -108,7 +109,7 @@ const styles = {
   desc: {
     fontSize: '0.9rem',
     maxWidth: '320px',
-    color: 'var(--text-secondary)',
+    color: '#cbd5e1',
     lineHeight: '1.6',
   },
   linksCol: {
@@ -119,7 +120,7 @@ const styles = {
   title: {
     fontSize: '0.95rem',
     fontWeight: '600',
-    color: 'var(--text-primary)',
+    color: '#ffffff',
     letterSpacing: '0.02em',
   },
   list: {
@@ -133,7 +134,7 @@ const styles = {
   link: {
     background: 'transparent',
     border: 'none',
-    color: 'var(--text-secondary)',
+    color: '#e2e8f0',
     cursor: 'pointer',
     fontSize: '0.88rem',
     padding: 0,
@@ -151,7 +152,7 @@ const styles = {
   },
   copyright: {
     fontSize: '0.85rem',
-    color: 'var(--text-muted)',
+    color: '#94a3b8',
   },
   bottomLinks: {
     display: 'flex',

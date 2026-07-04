@@ -42,7 +42,7 @@ export default function Documentation({ navigate, showToast }) {
 
   return (
     <div style={styles.container}>
-      <div style={styles.layout} className="docs-grid-layout">
+      <div className="docs-grid-layout">
         {/* Left Sidebar */}
         <aside style={styles.sidebar}>
           <h3 style={styles.sidebarTitle}>Documentation</h3>
@@ -420,11 +420,7 @@ const styles = {
     padding: '40px 24px 80px 24px',
     width: '100%',
   },
-  layout: {
-    display: 'grid',
-    gridTemplateColumns: '260px 1fr',
-    gap: '48px',
-  },
+  layout: {},
   sidebar: {
     display: 'flex',
     flexDirection: 'column',

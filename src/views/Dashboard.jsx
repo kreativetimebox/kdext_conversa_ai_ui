@@ -254,7 +254,7 @@ export default function Dashboard({
           {/* Quick Actions */}
           <div className="glass-card" style={styles.card}>
             <h3 style={{...styles.cardTitle, marginBottom: '16px'}}>Quick Actions</h3>
-            <div style={styles.actionsGrid}>
+            <div className="dashboard-actions-grid">
               <div onClick={() => navigate('/documentation')} style={styles.actionItem} className="glass-card-hover">
                 <BookOpen size={20} color="var(--primary-light)" />
                 <div>
@@ -555,11 +555,7 @@ const styles = {
     color: 'var(--text-muted)',
     marginTop: '2px',
   },
-  actionsGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '12px',
-  },
+  actionsGrid: {},
   actionItem: {
     display: 'flex',
     alignItems: 'center',

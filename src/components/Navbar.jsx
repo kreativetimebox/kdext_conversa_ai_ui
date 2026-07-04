@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  FileText, 
-  ChevronDown, 
-  HelpCircle, 
-  Activity, 
-  Info, 
-  Mail, 
+import {
+  FileText,
+  ChevronDown,
+  HelpCircle,
+  Activity,
+  Info,
+  Mail,
   Menu,
   X,
   Volume2
@@ -52,29 +52,29 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
 
         {/* Desktop Menu */}
         <div style={styles.navLinks} className="nav-links-desktop">
-          <button 
-            onClick={() => navigateTo('/')} 
-            style={{...styles.navLink, ...(cleanPath === '/' || cleanPath === '/home' ? styles.navLinkActive : {})}}
+          <button
+            onClick={() => navigateTo('/')}
+            style={{ ...styles.navLink, ...(cleanPath === '/' || cleanPath === '/home' ? styles.navLinkActive : {}) }}
           >
             Home
           </button>
-          
-          <button 
-            onClick={() => navigateTo('/documentation')} 
-            style={{...styles.navLink, ...((cleanPath === '/documentation' || cleanPath === '/api-reference') ? styles.navLinkActive : {})}}
+
+          <button
+            onClick={() => navigateTo('/documentation')}
+            style={{ ...styles.navLink, ...((cleanPath === '/documentation' || cleanPath === '/api-reference') ? styles.navLinkActive : {}) }}
           >
             <FileText size={16} />
             Documentation
           </button>
 
           {/* Resources Dropdown (Shared) */}
-          <div 
+          <div
             style={styles.dropdownContainer}
             onMouseEnter={onResourcesEnter}
             onMouseLeave={onResourcesLeave}
           >
             <button style={{
-              ...styles.navLink, 
+              ...styles.navLink,
               ...((['/help-center', '/system-status', '/about-us', '/contact'].includes(cleanPath)) ? styles.navLinkActive : {})
             }}>
               Resources
@@ -149,14 +149,14 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
           <button onClick={() => navigateTo('/system-status')} style={styles.mobileNavLink}>System Status</button>
           <button onClick={() => navigateTo('/about-us')} style={styles.mobileNavLink}>About Us</button>
           <button onClick={() => navigateTo('/contact')} style={styles.mobileNavLink}>Contact</button>
-          
+
           <hr style={styles.mobileDivider} />
           {user ? (
-            <button onClick={() => navigateTo('/chat')} className="btn btn-primary" style={{width: '100%'}}>Go to App</button>
+            <button onClick={() => navigateTo('/chat')} className="btn btn-primary" style={{ width: '100%' }}>Go to App</button>
           ) : (
             <div style={styles.mobileAuthBtns}>
               <button onClick={() => navigateTo('/signin')} style={styles.mobileSignInBtn}>Sign In</button>
-              <button onClick={() => navigateTo('/signup')} className="btn btn-primary" style={{width: '100%'}}>Get Started</button>
+              <button onClick={() => navigateTo('/signup')} className="btn btn-primary" style={{ width: '100%' }}>Get Started</button>
             </div>
           )}
         </div>

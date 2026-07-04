@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import { 
-  CheckCircle, 
-  ArrowRight, 
-  FileText, 
-  Coins, 
-  Receipt, 
-  Briefcase, 
-  Building, 
-  Code, 
-  Lock, 
-  Check, 
-  Plus, 
-  Minus, 
-  MessageSquare, 
+import {
+  CheckCircle,
+  ArrowRight,
+  FileText,
+  Coins,
+  Receipt,
+  Briefcase,
+  Building,
+  Code,
+  Lock,
+  Check,
+  Plus,
+  Minus,
+  MessageSquare,
   Star,
   Users,
   Volume2,
@@ -66,42 +66,69 @@ export default function LandingPage({ navigate, showToast }) {
   return (
     <div style={styles.page}>
       {/* Hero Section */}
-      <section style={styles.heroSection} className="animate-fade-in">
-        <div style={styles.heroBadge}>
-          <div style={styles.heroBadgeDot}></div>
-          <span style={styles.heroBadgeText}>Trusted by 10,000+ Developers &amp; Creators</span>
+      <section style={{ ...styles.heroSection, position: 'relative', overflow: 'hidden' }} className="animate-fade-in">
+        <div className="hero-net-overlay" />
+        <div className="hero-vertical-lines">
+          <div className="hero-v-line hero-v-line-left" />
+          <div className="hero-v-line hero-v-line-center-left" />
+          <div className="hero-v-line hero-v-line-center" />
+          <div className="hero-v-line hero-v-line-center-right" />
+          <div className="hero-v-line hero-v-line-right" />
+          <div className="hero-h-line hero-h-line-1" />
+          <div className="hero-h-line hero-h-line-2" />
+          <div className="hero-h-line hero-h-line-3" />
+          <div className="hero-h-line hero-h-line-4" />
+          {/* Grid intersections */}
+          <div className="grid-intersection" style={{ left: '25%', top: '15%' }}>+</div>
+          <div className="grid-intersection" style={{ left: '25%', top: '40%' }}>+</div>
+          <div className="grid-intersection" style={{ left: '25%', top: '65%' }}>+</div>
+          <div className="grid-intersection" style={{ left: '25%', top: '90%' }}>+</div>
+          <div className="grid-intersection" style={{ left: '50%', top: '15%' }}>+</div>
+          <div className="grid-intersection" style={{ left: '50%', top: '40%' }}>+</div>
+          <div className="grid-intersection" style={{ left: '50%', top: '65%' }}>+</div>
+          <div className="grid-intersection" style={{ left: '50%', top: '90%' }}>+</div>
+          <div className="grid-intersection" style={{ left: '75%', top: '15%' }}>+</div>
+          <div className="grid-intersection" style={{ left: '75%', top: '40%' }}>+</div>
+          <div className="grid-intersection" style={{ left: '75%', top: '65%' }}>+</div>
+          <div className="grid-intersection" style={{ left: '75%', top: '90%' }}>+</div>
         </div>
-
-        <h1 className="hero-glow-title" style={styles.heroTitle}>
-          AI-Powered Speech <br />
-          &amp; Voice Generation
-        </h1>
-
-        <p style={styles.heroSub}>
-          Automatically synthesize text into natural-sounding speech and transcribe audio streams to text. Perfect for content creators, customer support, and developers who need high-fidelity voice automation.
-        </p>
-
-        <div style={styles.heroActions}>
-          <button onClick={startTrial} className="btn btn-primary" style={styles.ctaBtn}>
-            Start Free Trial <ArrowRight size={16} />
-          </button>
-          <button onClick={viewApiDocs} className="btn btn-outline" style={styles.docsBtn}>
-            View API Docs
-          </button>
-        </div>
-
-        <div style={styles.heroBenefits}>
-          <div style={styles.benefitItem}>
-            <CheckCircle size={14} color="var(--success)" />
-            <span>No credit card required</span>
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '850px', margin: '0 auto' }}>
+          <div style={styles.heroBadge}>
+            <div style={styles.heroBadgeDot}></div>
+            <span style={styles.heroBadgeText}>Trusted by 10,000+ Developers &amp; Creators</span>
           </div>
-          <div style={styles.benefitItem}>
-            <CheckCircle size={14} color="var(--success)" />
-            <span>14-day free trial</span>
+
+          <h1 className="hero-glow-title" style={styles.heroTitle}>
+            AI-Powered Speech <br />
+            &amp; Voice Generation
+          </h1>
+
+          <p style={styles.heroSub}>
+            Automatically synthesize text into natural-sounding speech and transcribe audio streams to text. Perfect for content creators, customer support, and developers who need high-fidelity voice automation.
+          </p>
+
+          <div style={styles.heroActions}>
+            <button onClick={startTrial} className="btn btn-primary" style={styles.ctaBtn}>
+              Start Free Trial <ArrowRight size={16} />
+            </button>
+            <button onClick={viewApiDocs} className="btn btn-outline" style={styles.docsBtn}>
+              View API Docs
+            </button>
           </div>
-          <div style={styles.benefitItem}>
-            <CheckCircle size={14} color="var(--success)" />
-            <span>Cancel anytime</span>
+
+          <div style={styles.heroBenefits}>
+            <div style={styles.benefitItem}>
+              <CheckCircle size={14} color="var(--success)" />
+              <span>No credit card required</span>
+            </div>
+            <div style={styles.benefitItem}>
+              <CheckCircle size={14} color="var(--success)" />
+              <span>14-day free trial</span>
+            </div>
+            <div style={styles.benefitItem}>
+              <CheckCircle size={14} color="var(--success)" />
+              <span>Cancel anytime</span>
+            </div>
           </div>
         </div>
       </section>
@@ -168,7 +195,7 @@ export default function LandingPage({ navigate, showToast }) {
       </section>
 
       {/* Built For Every Workflow */}
-      <section style={{...styles.section, background: 'rgba(15,23,42,0.01)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)'}}>
+      <section style={{ ...styles.section, background: 'rgba(15,23,42,0.01)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Built for Every Speech Workflow</h2>
           <p style={styles.sectionDesc}>
@@ -275,7 +302,7 @@ export default function LandingPage({ navigate, showToast }) {
       </section>
 
       {/* Customer Stories / Testimonials */}
-      <section style={{...styles.section, background: 'rgba(37,99,235, 0.02)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)'}}>
+      <section style={{ ...styles.section, background: 'rgba(37,99,235, 0.02)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Trusted by Modern Content Teams</h2>
           <p style={styles.sectionDesc}>See what our partners say about the speed and vocal quality of Conversa AI.</p>
@@ -333,8 +360,8 @@ export default function LandingPage({ navigate, showToast }) {
 
         <div style={styles.faqWrapper}>
           {faqs.map((faq, idx) => (
-            <div 
-              key={idx} 
+            <div
+              key={idx}
               style={{
                 ...styles.faqItem,
                 borderColor: activeFaq === idx ? 'var(--primary)' : 'var(--border-color)',
@@ -387,8 +414,7 @@ const styles = {
     paddingBottom: '80px',
   },
   heroSection: {
-    maxWidth: '850px',
-    margin: '0 auto',
+    width: '100%',
     padding: '100px 24px 64px 24px',
     textAlign: 'center',
     display: 'flex',

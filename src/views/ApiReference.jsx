@@ -233,7 +233,7 @@ export default function ApiReference({ navigate, showToast }) {
         <span style={styles.headerInfo}>Base URL: <code>https://api.conversa.ai/v1</code></span>
       </div>
 
-      <div style={styles.layout} className="api-ref-layout-grid">
+      <div className="api-ref-layout-grid">
         {/* Sidebar Endpoints List */}
         <aside style={styles.sidebar}>
           <h3 style={styles.sidebarTitle}>Endpoints</h3>
@@ -315,7 +315,7 @@ export default function ApiReference({ navigate, showToast }) {
             </table>
 
             {/* Code Snippets Section */}
-            <div style={styles.snippetsGrid} className="api-ref-snippets-grid">
+            <div className="api-ref-snippets-grid">
               {/* cURL Example */}
               <div style={styles.snippetCol}>
                 <h4 style={styles.snippetHeader}>cURL Example</h4>
@@ -507,11 +507,7 @@ const styles = {
     fontSize: '0.85rem',
     color: 'var(--text-muted)',
   },
-  layout: {
-    display: 'grid',
-    gridTemplateColumns: '280px 1fr',
-    gap: '40px',
-  },
+  layout: {},
   sidebar: {
     display: 'flex',
     flexDirection: 'column',
@@ -665,12 +661,7 @@ const styles = {
     borderRadius: '4px',
     border: '1px solid var(--border-color)',
   },
-  snippetsGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '24px',
-    marginBottom: '48px',
-  },
+  snippetsGrid: {},
   snippetCol: {
     display: 'flex',
     flexDirection: 'column',

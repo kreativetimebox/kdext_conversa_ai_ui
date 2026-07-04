@@ -674,7 +674,7 @@ export default function Translate({ user, showToast }) {
         <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(37,99,235,0.3), transparent)' }} />
 
         {/* Text areas */}
-        <div style={styles.textPanels} className="translate-panels">
+        <div className="translate-text-panels">
           {/* Source panel */}
           <div style={styles.panel}>
             <textarea
@@ -727,7 +727,7 @@ export default function Translate({ user, showToast }) {
           </div>
 
           {/* Vertical divider */}
-          <div style={styles.panelDivider} className="translate-panel-divider" />
+          <div className="translate-panel-divider" />
 
           {/* Target panel */}
           <div style={{ ...styles.panel, background: 'rgba(37,99,235,0.03)' }}>
@@ -834,7 +834,7 @@ export default function Translate({ user, showToast }) {
                     {item.engine === 'live' ? 'LIVE' : item.engine === 'llm' ? 'AI' : 'API'}
                   </span>
                 </div>
-                <div style={styles.historyTexts} className="translate-history-texts">
+                <div className="translate-history-texts">
                   <p style={styles.historySource}>"{item.source.substring(0, 120)}{item.source.length > 120 ? '...' : ''}"</p>
                   <p style={styles.historyResult}>{item.result.substring(0, 120)}{item.result.length > 120 ? '...' : ''}</p>
                 </div>
@@ -959,21 +959,14 @@ const styles = {
     transition: 'all 0.25s ease',
     flexShrink: 0,
   },
-  textPanels: {
-    display: 'flex',
-    minHeight: '280px',
-  },
+  textPanels: {},
   panel: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
   },
-  panelDivider: {
-    width: '1px',
-    background: 'linear-gradient(180deg, transparent, rgba(37,99,235,0.3), transparent)',
-    flexShrink: 0,
-  },
+  panelDivider: {},
   textarea: {
     flex: 1,
     background: 'transparent',
@@ -1097,11 +1090,7 @@ const styles = {
     color: '#475569',
     fontWeight: '600',
   },
-  historyTexts: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '16px',
-  },
+  historyTexts: {},
   historySource: {
     fontSize: '0.9rem',
     color: '#64748b',

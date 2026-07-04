@@ -121,10 +121,10 @@ export default function SignUp({ navigate, login, showToast }) {
   };
 
   return (
-    <div style={styles.page} className="animate-fade-in">
-      <div style={styles.container}>
+    <div className="auth-page-container animate-fade-in">
+      <div className="signup-layout-container">
         {/* Left Side: Form */}
-        <div style={styles.card} className="glass-card">
+        <div className="glass-card auth-card">
           <h2 className="hero-glow-title" style={styles.title}>{showOTP ? 'Verify Email' : 'Create Account'}</h2>
           <p style={styles.sub}>
             {showOTP 
@@ -284,7 +284,7 @@ export default function SignUp({ navigate, login, showToast }) {
         </div>
 
         {/* Right Side: Benefits Panel */}
-        <div style={styles.benefitsCol}>
+        <div className="auth-benefits-col">
           <div style={styles.benefitsHeader}>
             <Sparkles size={20} color="var(--primary-light)" />
             <h3 style={styles.benefitsTitle}>What you'll get:</h3>
@@ -307,30 +307,9 @@ export default function SignUp({ navigate, login, showToast }) {
 }
 
 const styles = {
-  page: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '80px 24px',
-    width: '100%',
-    minHeight: 'calc(100vh - var(--navbar-height))',
-  },
-  container: {
-    display: 'flex',
-    gap: '48px',
-    width: '100%',
-    maxWidth: '820px',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '420px',
-    padding: '40px',
-    textAlign: 'center',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
-  },
+  page: {},
+  container: {},
+  card: {},
   title: {
     fontSize: '2rem',
     color: 'var(--text-primary)',
@@ -397,12 +376,7 @@ const styles = {
     fontWeight: '600',
     transition: 'var(--transition)',
   },
-  benefitsCol: {
-    flex: '1',
-    minWidth: '260px',
-    maxWidth: '320px',
-    textAlign: 'left',
-  },
+  benefitsCol: {},
   benefitsHeader: {
     display: 'flex',
     alignItems: 'center',

@@ -96,8 +96,8 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
   };
 
   return (
-    <div style={styles.page} className="animate-fade-in">
-      <div style={styles.card} className="glass-card">
+    <div className="auth-page-container animate-fade-in">
+      <div className="glass-card auth-card">
         <h2 style={styles.title}>{showOTP ? 'Verify Email' : 'Welcome Back'}</h2>
         <p style={styles.sub}>
           {showOTP 
@@ -251,7 +251,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
       </div>
 
       {/* Stats Bottom Strip */}
-      <div style={styles.statsStrip}>
+      <div className="auth-stats-strip">
         <div style={styles.stripItem}>
           <span style={styles.stripNum}>99.5%</span>
           <span style={styles.stripText}>Accuracy</span>
@@ -272,23 +272,8 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
 }
 
 const styles = {
-  page: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '80px 24px',
-    width: '100%',
-    minHeight: 'calc(100vh - var(--navbar-height))',
-    position: 'relative',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '420px',
-    padding: '40px',
-    textAlign: 'center',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
-  },
+  page: {},
+  card: {},
   title: {
     fontSize: '1.8rem',
     color: 'var(--text-primary)',
@@ -383,17 +368,7 @@ const styles = {
     fontSize: '0.88rem',
     color: 'var(--text-secondary)',
   },
-  statsStrip: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '24px',
-    marginTop: '40px',
-    background: 'rgba(15,23,42,0.01)',
-    border: '1px solid var(--border-color)',
-    borderRadius: '30px',
-    padding: '8px 24px',
-  },
+  statsStrip: {},
   stripItem: {
     display: 'flex',
     alignItems: 'center',
