@@ -202,15 +202,206 @@ export default function Translate({ user, showToast }) {
   const [copied, setCopied] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  const wsRef = useRef(null);
+  const seqRef = useRef(0);
+  const debounceTimerRef = useRef(null);
+  const pingTimerRef = useRef(null);
+  const reconnectDelayRef = useRef(1000);
+
+  const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
+
+  const getWsUrl = (key) => {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${proto}//${window.location.host}/ws/translate?api_key=${encodeURIComponent(key)}`;
+    } else {
+      return `wss://aiservices.dexaitech.com/ws/translate?api_key=${encodeURIComponent(key)}`;
+    }
+  };
+
+  const connectWs = () => {
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    try {
+      const wsUrlStr = getWsUrl(apiKey);
+      const ws = new WebSocket(wsUrlStr);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        reconnectDelayRef.current = 1000;
+        clearInterval(pingTimerRef.current);
+        pingTimerRef.current = setInterval(() => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 25000);
+      };
+
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === 'pong') return;
+          if (msg.id !== seqRef.current) return;
+
+          if (msg.type === 'delta') {
+            setIsTranslating(true);
+            setTranslatedText(prev => prev + msg.content);
+          } else if (msg.type === 'done') {
+            setTranslatedText(msg.translation);
+            setIsTranslating(false);
+            if (msg.source_lang && sourceLang === 'auto') {
+              setDetectedLang(msg.source_lang);
+            }
+
+            const sLangName = sourceLang === 'auto'
+              ? (msg.source_lang ? (LANGUAGES.find(l => l.code === msg.source_lang)?.name || msg.source_lang) : 'Auto')
+              : LANGUAGES.find(l => l.code === sourceLang)?.name;
+
+            setHistory(prev => {
+              if (prev.length > 0 && prev[0].source === sourceText && prev[0].result === msg.translation) {
+                return prev;
+              }
+              return [{
+                id: Date.now(),
+                source: sourceText,
+                result: msg.translation,
+                sLang: sLangName,
+                tLang: LANGUAGES.find(l => l.code === targetLang)?.name,
+                sFlag: sourceLang === 'auto' ? '🔍' : LANGUAGES.find(l => l.code === sourceLang)?.flag,
+                tFlag: LANGUAGES.find(l => l.code === targetLang)?.flag,
+                engine,
+              }, ...prev].slice(0, 10);
+            });
+          } else if (msg.type === 'error') {
+            setIsTranslating(false);
+            showToast(msg.message || 'Streaming translation error.', 'error');
+          }
+        } catch (err) {
+          console.error('WS parsing error:', err);
+        }
+      };
+
+      ws.onclose = (ev) => {
+        clearInterval(pingTimerRef.current);
+        wsRef.current = null;
+        if (ev.code === 4401) {
+          showToast('Live translation unauthorized (bad key).', 'error');
+          return;
+        }
+        setTimeout(connectWs, reconnectDelayRef.current);
+        reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, 15000);
+      };
+
+      ws.onerror = () => {
+        // ws.close will trigger auto-reconnect
+      };
+    } catch (e) {
+      console.error('WS connect failed:', e);
+    }
+  };
+
+  useEffect(() => {
+    connectWs();
+    return () => {
+      clearInterval(pingTimerRef.current);
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [apiKey]);
+
+  // Live translation effect triggered on typing
+  useEffect(() => {
+    clearTimeout(debounceTimerRef.current);
+
+    if (!sourceText.trim()) {
+      setTranslatedText('');
+      setDetectedLang(null);
+      setIsTranslating(false);
+      return;
+    }
+
+    debounceTimerRef.current = setTimeout(async () => {
+      seqRef.current += 1;
+      const currentSeq = seqRef.current;
+      setDetectedLang(null);
+
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        if (engine === 'llm') {
+          setTranslatedText('');
+        }
+        setIsTranslating(true);
+        wsRef.current.send(JSON.stringify({
+          type: 'translate',
+          id: currentSeq,
+          text: sourceText.trim(),
+          target_lang: targetLang,
+          engine: engine
+        }));
+      } else {
+        // Fallback to HTTP translation
+        setIsTranslating(true);
+        if (engine === 'llm') {
+          setTranslatedText('');
+        }
+        try {
+          const res = await translateText(apiKey, sourceText.trim(), sourceLang === 'auto' ? null : sourceLang, targetLang, engine);
+          if (currentSeq !== seqRef.current) return;
+
+          const result = res?.translation || res?.translated_text || res?.result || '';
+          const detected = res?.source_lang || res?.detected_language || null;
+
+          setTranslatedText(result);
+          setIsTranslating(false);
+          if (detected && sourceLang === 'auto') {
+            setDetectedLang(detected);
+          }
+
+          const sLangName = sourceLang === 'auto'
+            ? (detected ? (LANGUAGES.find(l => l.code === detected)?.name || detected) : 'Auto')
+            : LANGUAGES.find(l => l.code === sourceLang)?.name;
+
+          setHistory(prev => {
+            if (prev.length > 0 && prev[0].source === sourceText && prev[0].result === result) {
+              return prev;
+            }
+            return [{
+              id: Date.now(),
+              source: sourceText,
+              result,
+              sLang: sLangName,
+              tLang: LANGUAGES.find(l => l.code === targetLang)?.name,
+              sFlag: sourceLang === 'auto' ? '🔍' : LANGUAGES.find(l => l.code === sourceLang)?.flag,
+              tFlag: LANGUAGES.find(l => l.code === targetLang)?.flag,
+              engine,
+            }, ...prev].slice(0, 10);
+          });
+        } catch (err) {
+          if (currentSeq === seqRef.current) {
+            setIsTranslating(false);
+            showToast(err.message || 'Translation failed.', 'error');
+          }
+        }
+      }
+    }, 350); // 350ms debounce as per live translation guide
+
+    return () => clearTimeout(debounceTimerRef.current);
+  }, [sourceText, targetLang, engine, sourceLang, apiKey]);
+
   const handleTranslate = async () => {
     if (!sourceText.trim()) return;
-    const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
     setIsTranslating(true);
     setTranslatedText('');
     setDetectedLang(null);
+    seqRef.current += 1;
+    const currentSeq = seqRef.current;
 
     try {
-      const res = await translateText(apiKey, sourceText, sourceLang === 'auto' ? null : sourceLang, targetLang, engine);
+      const res = await translateText(apiKey, sourceText.trim(), sourceLang === 'auto' ? null : sourceLang, targetLang, engine);
+      if (currentSeq !== seqRef.current) return;
 
       const result = res?.translation || res?.translated_text || res?.result || '';
       const detected = res?.source_lang || res?.detected_language || null;
@@ -236,9 +427,13 @@ export default function Translate({ user, showToast }) {
       }, ...prev].slice(0, 10));
 
     } catch (err) {
-      showToast(err.message || 'Translation failed. Please check your connection.', 'error');
+      if (currentSeq === seqRef.current) {
+        showToast(err.message || 'Translation failed. Please check your connection.', 'error');
+      }
     } finally {
-      setIsTranslating(false);
+      if (currentSeq === seqRef.current) {
+        setIsTranslating(false);
+      }
     }
   };
 
@@ -279,7 +474,6 @@ export default function Translate({ user, showToast }) {
     if (!translatedText) return;
     setIsPlaying(true);
     try {
-      const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
       const res = await textToSpeech(apiKey, translatedText, 'divya', 'mp3');
       const audioUrl = buildAudioUrl(res.audio_url);
       if (audioUrl) {
@@ -405,6 +599,7 @@ export default function Translate({ user, showToast }) {
               onKeyDown={handleKeyDown}
               maxLength={maxChars}
               rows={8}
+              dir="auto"
             />
             <div style={styles.panelFooter}>
               <span style={{
@@ -458,7 +653,7 @@ export default function Translate({ user, showToast }) {
                   <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>Translating...</p>
                 </div>
               ) : translatedText ? (
-                <span style={{ whiteSpace: 'pre-wrap', color: '#f1f5f9' }}>{translatedText}</span>
+                <span dir="auto" style={{ whiteSpace: 'pre-wrap', color: '#f1f5f9' }}>{translatedText}</span>
               ) : (
                 <span style={{ color: '#334155', fontSize: '1rem' }}>Translation will appear here...</span>
               )}
