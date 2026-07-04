@@ -216,6 +216,7 @@ export default function Translate({ user, showToast }) {
   const instantTimerRef = useRef(null);
   const lastInstantRef = useRef(0);
   const reqEngineRef = useRef({});
+  const wsToastShownRef = useRef(false);
   const pingTimerRef = useRef(null);
   const reconnectDelayRef = useRef(1000);
   const reconnectTimerRef = useRef(null);
@@ -313,9 +314,15 @@ export default function Translate({ user, showToast }) {
         clearInterval(pingTimerRef.current);
         wsRef.current = null;
         if (!shouldReconnectRef.current) return; // component unmounted / key changed
+        console.warn('live-translate socket closed', ev.code, ev.reason || '(no reason)');
         if (ev.code === 4401) {
           showToast('Live translation unauthorized (bad key).', 'error');
           return;
+        }
+        // Explain server-reported failures once (not on every retry tick).
+        if (ev.reason && !wsToastShownRef.current) {
+          wsToastShownRef.current = true;
+          showToast(`Live stream unavailable: ${ev.reason}. Using instant fallback.`, 'error');
         }
         reconnectTimerRef.current = setTimeout(connectWs, reconnectDelayRef.current);
         reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, 15000);
@@ -541,7 +548,8 @@ export default function Translate({ user, showToast }) {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    // Live Mode translates automatically — no manual submit shortcut needed.
+    if (engine !== 'live' && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       handleTranslate();
     }
   };
@@ -680,7 +688,9 @@ export default function Translate({ user, showToast }) {
             <textarea
               className="translate-textarea"
               style={styles.textarea}
-              placeholder="Enter text to translate... (Ctrl+Enter to translate)"
+              placeholder={engine === 'live'
+                ? 'Start typing — translation appears instantly as you write...'
+                : 'Enter text to translate... (Ctrl+Enter to translate)'}
               value={sourceText}
               onChange={e => setSourceText(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -701,27 +711,45 @@ export default function Translate({ user, showToast }) {
                     <RotateCcw size={14} />
                   </button>
                 )}
-                <button
-                  onClick={handleTranslate}
-                  disabled={isTranslating || !sourceText.trim()}
-                  style={{
-                    ...styles.translateBtn,
-                    opacity: isTranslating || !sourceText.trim() ? 0.5 : 1,
-                    cursor: isTranslating || !sourceText.trim() ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {isTranslating ? (
-                    <>
-                      <span style={styles.spinner} />
-                      Translating...
-                    </>
-                  ) : (
-                    <>
-                      <Globe size={15} style={{ marginRight: '6px' }} />
-                      Translate
-                    </>
-                  )}
-                </button>
+                {engine === 'live' ? (
+                  // Live Mode translates automatically as you type — show a
+                  // status chip instead of a manual Translate button.
+                  <span style={{
+                    display: 'flex', alignItems: 'center', gap: '7px',
+                    padding: '8px 14px', borderRadius: '10px',
+                    background: 'rgba(14,165,233,0.10)',
+                    color: '#0284c7', fontSize: '0.82rem', fontWeight: 600,
+                  }}>
+                    <span style={{
+                      width: '7px', height: '7px', borderRadius: '50%',
+                      background: isTranslating ? '#0ea5e9' : '#16a34a',
+                      animation: isTranslating ? 'streamBlink 0.8s steps(2) infinite' : 'none',
+                    }} />
+                    {isTranslating ? 'Translating live…' : 'Live — just type'}
+                  </span>
+                ) : (
+                  <button
+                    onClick={handleTranslate}
+                    disabled={isTranslating || !sourceText.trim()}
+                    style={{
+                      ...styles.translateBtn,
+                      opacity: isTranslating || !sourceText.trim() ? 0.5 : 1,
+                      cursor: isTranslating || !sourceText.trim() ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {isTranslating ? (
+                      <>
+                        <span style={styles.spinner} />
+                        Translating...
+                      </>
+                    ) : (
+                      <>
+                        <Globe size={15} style={{ marginRight: '6px' }} />
+                        Translate
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -1707,3 +1707,37 @@ p {
     padding: 20px 14px 40px !important;
   }
 }
+
+@media (max-width: 600px) {
+  .translate-engine-toggle {
+    flex-direction: column !important;
+    width: 100% !important;
+    border-radius: 12px !important;
+    padding: 6px !important;
+  }
+  .translate-engine-toggle button {
+    width: 100% !important;
+    justify-content: space-between !important;
+    padding: 10px 14px !important;
+    font-size: 0.85rem !important;
+  }
+}
+
+@media (max-width: 500px) {
+  .dashboard-key-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    padding: 12px !important;
+  }
+  .dashboard-key-actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    border-top: 1px solid rgba(15, 23, 42, 0.05) !important;
+    padding-top: 8px !important;
+  }
+  .dashboard-modal-container {
+    width: calc(100% - 32px) !important;
+    padding: 20px 16px !important;
+  }
+}

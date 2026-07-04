@@ -185,7 +185,7 @@ export default function Dashboard({
             
             <div style={styles.keysList}>
               {displayKeys.map((k) => (
-                <div key={k.id} style={styles.keyRow}>
+                <div key={k.id} style={styles.keyRow} className="dashboard-key-row">
                   <div style={styles.keyMeta}>
                     <div style={styles.keyNameRow}>
                       <span style={styles.keyName}>{k.name}</span>
@@ -201,7 +201,7 @@ export default function Dashboard({
                     <div style={styles.keyCreated}>Created: {k.created}</div>
                   </div>
                   
-                  <div style={styles.keyActions}>
+                  <div style={styles.keyActions} className="dashboard-key-actions">
                     <button onClick={() => toggleKeyVisibility(k.id)} style={styles.iconBtn} className="dashboard-icon-btn" title="Toggle Visibility">
                       {k.visible ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -329,7 +329,7 @@ export default function Dashboard({
       {/* New Key Modal overlay */}
       {isModalOpen && (
         <div style={styles.modalOverlay}>
-          <div className="glass-card" style={styles.modal} className="glass-card animate-fade-in">
+          <div className="glass-card animate-fade-in dashboard-modal-container" style={styles.modal}>
             <div style={styles.modalHeader}>
               <h3 style={styles.modalTitle}>Create API Key</h3>
               <button onClick={() => setIsModalOpen(false)} style={styles.modalCloseBtn}>
