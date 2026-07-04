@@ -585,9 +585,23 @@ export default function Translate({ user, showToast }) {
           .translate-text-panels { flex-direction: column !important; }
           .translate-panel-divider { width: 100% !important; height: 1px !important; }
           .translate-history-texts { grid-template-columns: 1fr !important; }
-          .lang-dropdown-btn { min-width: 140px !important; flex: 1; }
+          .lang-dropdown-btn { min-width: 140px !important; flex: 1; width: 100% !important; }
           .translate-engine-toggle { width: 100%; }
           .translate-engine-toggle button { flex: 1; justify-content: center; padding: 8px 8px !important; font-size: 0.78rem !important; }
+        }
+        @media (max-width: 500px) {
+          .translate-lang-side {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+            width: 100% !important;
+          }
+          .translate-detected-badge {
+            width: 100% !important;
+            text-align: center !important;
+            box-sizing: border-box !important;
+            white-space: normal !important;
+          }
         }
       `}</style>
 
@@ -643,7 +657,7 @@ export default function Translate({ user, showToast }) {
         {/* Language selector bar */}
         <div style={styles.langBar}>
           {/* Source language */}
-          <div style={styles.langSide}>
+          <div style={styles.langSide} className="translate-lang-side">
             <LangDropdown
               value={sourceLang}
               onChange={setSourceLang}
@@ -651,7 +665,7 @@ export default function Translate({ user, showToast }) {
               placeholder="Detect Language"
             />
             {detectedLang && sourceLang === 'auto' && (
-              <div style={styles.detectedBadge}>
+              <div style={styles.detectedBadge} className="translate-detected-badge">
                 Detected: {LANGUAGES.find(l => l.code === detectedLang)?.flag} {LANGUAGES.find(l => l.code === detectedLang)?.name || detectedLang}
               </div>
             )}
