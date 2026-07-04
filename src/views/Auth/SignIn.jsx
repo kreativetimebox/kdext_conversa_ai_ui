@@ -364,7 +364,7 @@ const styles = {
     alignItems: 'center',
     gap: '10px',
     fontSize: '0.85rem',
-    color: '#fca5a5',
+    color: '#dc2626',
   },
   successBanner: {
     background: 'var(--success-glow)',
@@ -389,7 +389,7 @@ const styles = {
     justifyContent: 'center',
     gap: '24px',
     marginTop: '40px',
-    background: 'rgba(255,255,255,0.01)',
+    background: 'rgba(15,23,42,0.01)',
     border: '1px solid var(--border-color)',
     borderRadius: '30px',
     padding: '8px 24px',

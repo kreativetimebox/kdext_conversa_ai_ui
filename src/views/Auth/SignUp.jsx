@@ -117,7 +117,7 @@ export default function SignUp({ navigate, login, showToast }) {
     if (pwdStrength === 0) return 'transparent';
     if (pwdStrength === 1) return '#ef4444';
     if (pwdStrength === 2) return '#f59e0b';
-    return '#10b981';
+    return '#059669';
   };
 
   return (
@@ -181,9 +181,9 @@ export default function SignUp({ navigate, login, showToast }) {
                 {/* Password Strength Indicator */}
                 {formData.password.length > 0 && (
                   <div style={{ marginTop: '8px', display: 'flex', gap: '4px', height: '4px' }}>
-                    <div style={{ flex: 1, borderRadius: '2px', background: pwdStrength >= 1 ? getStrengthColor() : 'rgba(255,255,255,0.1)', transition: 'all 0.3s' }}></div>
-                    <div style={{ flex: 1, borderRadius: '2px', background: pwdStrength >= 2 ? getStrengthColor() : 'rgba(255,255,255,0.1)', transition: 'all 0.3s' }}></div>
-                    <div style={{ flex: 1, borderRadius: '2px', background: pwdStrength >= 3 ? getStrengthColor() : 'rgba(255,255,255,0.1)', transition: 'all 0.3s' }}></div>
+                    <div style={{ flex: 1, borderRadius: '2px', background: pwdStrength >= 1 ? getStrengthColor() : 'rgba(15,23,42,0.1)', transition: 'all 0.3s' }}></div>
+                    <div style={{ flex: 1, borderRadius: '2px', background: pwdStrength >= 2 ? getStrengthColor() : 'rgba(15,23,42,0.1)', transition: 'all 0.3s' }}></div>
+                    <div style={{ flex: 1, borderRadius: '2px', background: pwdStrength >= 3 ? getStrengthColor() : 'rgba(15,23,42,0.1)', transition: 'all 0.3s' }}></div>
                   </div>
                 )}
               </div>
@@ -380,7 +380,7 @@ const styles = {
     alignItems: 'center',
     gap: '10px',
     fontSize: '0.85rem',
-    color: '#fca5a5',
+    color: '#dc2626',
     textAlign: 'left',
   },
   footer: {

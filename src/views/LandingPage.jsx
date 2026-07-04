@@ -119,7 +119,7 @@ export default function LandingPage({ navigate, showToast }) {
         <div style={styles.featuresGrid}>
           {/* Card 1 */}
           <div className="glass-card glass-card-hover" style={styles.featureCard}>
-            <div style={{ ...styles.cardIconBox, background: 'rgba(139, 92, 246, 0.1)' }}>
+            <div style={{ ...styles.cardIconBox, background: 'rgba(37,99,235, 0.1)' }}>
               <Volume2 size={24} color="var(--primary)" />
             </div>
             <h3 style={styles.cardTitle}>Text to Speech</h3>
@@ -135,7 +135,7 @@ export default function LandingPage({ navigate, showToast }) {
 
           {/* Card 2 */}
           <div className="glass-card glass-card-hover" style={styles.featureCard}>
-            <div style={{ ...styles.cardIconBox, background: 'rgba(236, 72, 153, 0.1)' }}>
+            <div style={{ ...styles.cardIconBox, background: 'rgba(14,165,233, 0.1)' }}>
               <Mic size={24} color="var(--secondary)" />
             </div>
             <h3 style={styles.cardTitle}>Speech to Text</h3>
@@ -168,7 +168,7 @@ export default function LandingPage({ navigate, showToast }) {
       </section>
 
       {/* Built For Every Workflow */}
-      <section style={{...styles.section, background: 'rgba(255,255,255,0.01)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)'}}>
+      <section style={{...styles.section, background: 'rgba(15,23,42,0.01)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)'}}>
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Built for Every Speech Workflow</h2>
           <p style={styles.sectionDesc}>
@@ -275,7 +275,7 @@ export default function LandingPage({ navigate, showToast }) {
       </section>
 
       {/* Customer Stories / Testimonials */}
-      <section style={{...styles.section, background: 'rgba(139, 92, 246, 0.02)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)'}}>
+      <section style={{...styles.section, background: 'rgba(37,99,235, 0.02)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)'}}>
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Trusted by Modern Content Teams</h2>
           <p style={styles.sectionDesc}>See what our partners say about the speed and vocal quality of Conversa AI.</p>
@@ -338,7 +338,7 @@ export default function LandingPage({ navigate, showToast }) {
               style={{
                 ...styles.faqItem,
                 borderColor: activeFaq === idx ? 'var(--primary)' : 'var(--border-color)',
-                background: activeFaq === idx ? 'rgba(139, 92, 246, 0.02)' : 'transparent'
+                background: activeFaq === idx ? 'rgba(37,99,235, 0.02)' : 'transparent'
               }}
               onClick={() => toggleFaq(idx)}
             >
@@ -399,8 +399,8 @@ const styles = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '8px',
-    background: 'rgba(139, 92, 246, 0.1)',
-    border: '1px solid rgba(139, 92, 246, 0.25)',
+    background: 'rgba(37,99,235, 0.1)',
+    border: '1px solid rgba(37,99,235, 0.25)',
     padding: '6px 14px',
     borderRadius: '40px',
     marginBottom: '28px',
@@ -624,7 +624,7 @@ const styles = {
     height: '40px',
     borderRadius: '50%',
     background: 'var(--primary-glow)',
-    border: '1px solid rgba(139, 92, 246, 0.3)',
+    border: '1px solid rgba(37,99,235, 0.3)',
     color: 'var(--primary-light)',
     display: 'flex',
     alignItems: 'center',
@@ -672,7 +672,7 @@ const styles = {
     padding: '0 24px',
   },
   ctaCard: {
-    background: 'radial-gradient(circle at top right, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.03) 70%), rgba(255, 255, 255, 0.02)',
+    background: 'radial-gradient(circle at top right, rgba(37,99,235, 0.15) 0%, rgba(14,165,233, 0.03) 70%), rgba(15,23,42,0.02)',
     border: '1px solid var(--border-color)',
     borderRadius: '20px',
     padding: '64px 24px',

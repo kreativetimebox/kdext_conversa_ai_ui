@@ -462,7 +462,7 @@ const styles = {
   },
   sidebarBtnActive: {
     color: 'var(--text-primary)',
-    background: 'rgba(255, 255, 255, 0.05)',
+    background: 'rgba(15,23,42,0.05)',
     fontWeight: '600',
   },
   sidebarBtnLabel: {
@@ -508,14 +508,14 @@ const styles = {
     marginBottom: '20px',
   },
   codeBlockWrapper: {
-    background: '#07060f',
+    background: '#eef4fd',
     border: '1px solid var(--border-color)',
     borderRadius: '12px',
     overflow: 'hidden',
     marginBottom: '32px',
   },
   codeBlockHeader: {
-    background: 'rgba(255, 255, 255, 0.02)',
+    background: 'rgba(15,23,42,0.02)',
     borderBottom: '1px solid var(--border-color)',
     padding: '10px 16px',
     display: 'flex',
@@ -551,7 +551,7 @@ const styles = {
     margin: '24px 0 40px 0',
   },
   stepCard: {
-    background: 'rgba(255, 255, 255, 0.015)',
+    background: 'rgba(15,23,42,0.015)',
     border: '1px solid var(--border-color)',
     borderRadius: '12px',
     padding: '20px',
@@ -563,7 +563,7 @@ const styles = {
     right: '16px',
     fontSize: '1.8rem',
     fontWeight: '800',
-    color: 'rgba(139, 92, 246, 0.1)',
+    color: 'rgba(37,99,235, 0.1)',
   },
   stepTitle: {
     fontSize: '1rem',
@@ -598,7 +598,7 @@ const styles = {
     flexWrap: 'wrap',
   },
   apiRefBox: {
-    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(236, 72, 153, 0.03) 100%)',
+    background: 'linear-gradient(135deg, rgba(37,99,235, 0.08) 0%, rgba(14,165,233, 0.03) 100%)',
     border: '1px solid var(--border-hover)',
     borderRadius: '12px',
     padding: '24px',
@@ -656,7 +656,7 @@ const styles = {
   },
   preInstall: {
     fontFamily: 'monospace',
-    background: '#07060f',
+    background: '#eef4fd',
     padding: '10px 12px',
     borderRadius: '6px',
     fontSize: '0.82rem',

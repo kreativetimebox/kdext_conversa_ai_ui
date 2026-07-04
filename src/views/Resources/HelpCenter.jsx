@@ -108,7 +108,7 @@ export default function HelpCenter({ navigate, showToast }) {
                 style={{
                   ...styles.faqItem,
                   borderColor: activeFaq === idx ? 'var(--primary)' : 'var(--border-color)',
-                  background: activeFaq === idx ? 'rgba(139, 92, 246, 0.02)' : 'transparent'
+                  background: activeFaq === idx ? 'rgba(37,99,235, 0.02)' : 'transparent'
                 }}
               >
                 <div style={styles.faqQuestionRow}>
@@ -151,7 +151,7 @@ const styles = {
     paddingBottom: '80px',
   },
   banner: {
-    background: 'radial-gradient(circle at center, rgba(139, 92, 246, 0.1) 0%, rgba(11, 10, 22, 0) 70%)',
+    background: 'radial-gradient(circle at center, rgba(37,99,235, 0.1) 0%, rgba(255, 255, 255, 0) 70%)',
     padding: '80px 24px',
     textAlign: 'center',
     display: 'flex',
@@ -172,7 +172,7 @@ const styles = {
   searchBox: {
     display: 'flex',
     alignItems: 'center',
-    background: 'rgba(255,255,255,0.03)',
+    background: 'rgba(15,23,42,0.03)',
     border: '1px solid var(--border-color)',
     borderRadius: '40px',
     width: '100%',
@@ -214,7 +214,7 @@ const styles = {
     width: '42px',
     height: '42px',
     borderRadius: '10px',
-    background: 'rgba(139, 92, 246, 0.08)',
+    background: 'rgba(37,99,235, 0.08)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -275,7 +275,7 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: '16px',
-    background: 'radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, rgba(255,255,255,0.01) 100%)',
+    background: 'radial-gradient(circle, rgba(37,99,235, 0.05) 0%, rgba(15,23,42,0.01) 100%)',
   },
   ctaTitle: {
     fontSize: '1.5rem',

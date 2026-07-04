@@ -67,7 +67,7 @@ export default function AboutUs({ navigate }) {
       </section>
 
       {/* Our Story text */}
-      <section style={{...styles.section, borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.005)'}}>
+      <section style={{...styles.section, borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', background: 'rgba(15,23,42,0.005)'}}>
         <div style={styles.storyContent}>
           <h2 style={styles.sectionTitle}>Our Story</h2>
           <p style={styles.storyText}>
@@ -105,7 +105,7 @@ export default function AboutUs({ navigate }) {
       </section>
 
       {/* Team */}
-      <section style={{...styles.section, borderTop: '1px solid var(--border-color)', background: 'rgba(139, 92, 246, 0.01)'}}>
+      <section style={{...styles.section, borderTop: '1px solid var(--border-color)', background: 'rgba(37,99,235, 0.01)'}}>
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Leadership Team</h2>
           <p style={styles.sectionDesc}>Meet the experts behind Conversa AI's innovative technology and customer success.</p>
@@ -196,7 +196,7 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
     gap: '24px',
-    background: 'rgba(255,255,255,0.015)',
+    background: 'rgba(15,23,42,0.015)',
     border: '1px solid var(--border-color)',
     borderRadius: '16px',
     padding: '32px',
@@ -281,7 +281,7 @@ const styles = {
     width: '40px',
     height: '40px',
     borderRadius: '8px',
-    background: 'rgba(139, 92, 246, 0.08)',
+    background: 'rgba(37,99,235, 0.08)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -320,7 +320,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: '8px',
-    boxShadow: '0 4px 12px rgba(139,92,246,0.3)',
+    boxShadow: '0 4px 12px rgba(37,99,235,0.3)',
   },
   teamName: {
     fontSize: '1.15rem',
@@ -363,7 +363,7 @@ const styles = {
     padding: '0 24px',
   },
   ctaCard: {
-    background: 'radial-gradient(circle at top right, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.02) 70%), rgba(255, 255, 255, 0.015)',
+    background: 'radial-gradient(circle at top right, rgba(37,99,235, 0.1) 0%, rgba(14,165,233, 0.02) 70%), rgba(15,23,42,0.015)',
     border: '1px solid var(--border-color)',
     borderRadius: '20px',
     padding: '48px 24px',

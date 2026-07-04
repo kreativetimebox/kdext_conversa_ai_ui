@@ -12,13 +12,27 @@
 
 // ─── Base URLs ────────────────────────────────────────────────────────────────
 
+// Configured production endpoint (VITE_API_BASE_URL), falling back to the
+// known deployment so old builds keep working.
+const CONFIGURED_BASE = (import.meta.env?.VITE_API_BASE_URL || 'https://aiservices.dexaitech.com').replace(/\/+$/, '');
+
 // The real backend server (always direct, for building absolute audio URLs)
-export const SERVER_BASE = 'https://aiservices.dexaitech.com';
+export const SERVER_BASE = CONFIGURED_BASE;
 
 // API calls go through the Vite dev proxy or use secure reverse proxy
 const BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
   ? ''
-  : 'https://aiservices.dexaitech.com';
+  : CONFIGURED_BASE;
+
+// WebSocket base for live translation — same host as the API, ws(s) scheme.
+// On localhost it goes through the Vite dev proxy just like HTTP calls.
+export function getWsBaseUrl() {
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${proto}//${window.location.host}`;
+  }
+  return CONFIGURED_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -317,7 +331,10 @@ export async function chatCompletion(apiKey, messages, model = "gemini-3.1-pro",
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey
+      'x-api-key': apiKey,
+      // This UI persists chats itself via /conversations — tell the gateway
+      // not to double-save the exchange server-side.
+      'x-client-persist': '1'
     },
     body: JSON.stringify({ 
       messages, 

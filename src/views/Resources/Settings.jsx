@@ -10,14 +10,14 @@ export default function Settings({ user, showToast }) {
   useEffect(() => {
     // In a real app, this would append a class to document.body
     if (theme === 'light') {
-      document.documentElement.style.setProperty('--bg-main', '#f8fafc');
+      document.documentElement.style.setProperty('--bg-main', '#0f172a');
       document.documentElement.style.setProperty('--text-primary', '#0f172a');
       document.documentElement.style.setProperty('--text-secondary', '#475569');
       document.documentElement.style.setProperty('--bg-card', 'rgba(0, 0, 0, 0.03)');
     } else if (theme === 'contrast') {
       document.documentElement.style.setProperty('--bg-main', '#000000');
       document.documentElement.style.setProperty('--text-primary', '#ffffff');
-      document.documentElement.style.setProperty('--text-secondary', '#e2e8f0');
+      document.documentElement.style.setProperty('--text-secondary', '#1e293b');
       document.documentElement.style.setProperty('--primary', '#ffff00');
       document.documentElement.style.setProperty('--primary-light', '#ffff00');
     } else {
@@ -185,7 +185,7 @@ const styles = {
     gap: '16px',
   },
   optionCard: {
-    background: 'rgba(255, 255, 255, 0.02)',
+    background: 'rgba(15,23,42,0.02)',
     border: '1px solid var(--border-color)',
     borderRadius: '12px',
     padding: '20px',
@@ -198,9 +198,9 @@ const styles = {
     textAlign: 'center',
   },
   optionActive: {
-    background: 'rgba(139, 92, 246, 0.08)',
+    background: 'rgba(37,99,235, 0.08)',
     borderColor: 'var(--primary)',
-    boxShadow: '0 0 15px rgba(139, 92, 246, 0.1)',
+    boxShadow: '0 0 15px rgba(37,99,235, 0.1)',
   },
   optionLabel: {
     fontSize: '1.05rem',
@@ -214,7 +214,7 @@ const styles = {
   },
   divider: {
     border: 'none',
-    borderTop: '1px solid rgba(255,255,255,0.05)',
+    borderTop: '1px solid rgba(15,23,42,0.05)',
     margin: '32px 0',
   },
   formRow: {
@@ -222,7 +222,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '16px 0',
-    borderBottom: '1px solid rgba(255,255,255,0.02)',
+    borderBottom: '1px solid rgba(15,23,42,0.02)',
   },
   formLabel: {
     fontSize: '1rem',
@@ -253,7 +253,7 @@ const styles = {
     transition: 'var(--transition)',
   },
   toggleActive: {
-    background: 'rgba(255,255,255,0.1)',
+    background: 'rgba(15,23,42,0.1)',
     color: 'var(--text-primary)',
   },
   switch: {
@@ -274,7 +274,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'rgba(255,255,255,0.1)',
+    background: 'rgba(15,23,42,0.1)',
     transition: '.4s',
     borderRadius: '24px',
   },

@@ -97,7 +97,7 @@ const styles = {
     gap: '10px',
   },
   logoIcon: {
-    background: 'linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%)',
+    background: 'linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%)',
     width: '28px',
     height: '28px',
     borderRadius: '6px',

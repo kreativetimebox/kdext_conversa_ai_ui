@@ -517,9 +517,9 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         <div className="conversa-voice-card-header">
           <span className="conversa-voice-name">{v.name}</span>
           <span className="badge" style={{
-            background: v.gender === 'female' ? 'rgba(236, 72, 153, 0.1)' : 'rgba(139, 92, 246, 0.1)',
+            background: v.gender === 'female' ? 'rgba(14,165,233, 0.1)' : 'rgba(37,99,235, 0.1)',
             color: v.gender === 'female' ? 'var(--secondary)' : 'var(--primary-light)',
-            border: v.gender === 'female' ? '1px solid rgba(236, 72, 153, 0.2)' : '1px solid rgba(139, 92, 246, 0.2)'
+            border: v.gender === 'female' ? '1px solid rgba(14,165,233, 0.2)' : '1px solid rgba(37,99,235, 0.2)'
           }}>
             {v.gender?.toUpperCase()}
           </span>
@@ -668,7 +668,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
                     style={{
                       flex: 1,
                       border: audioFormat === format ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                      background: audioFormat === format ? 'rgba(139, 92, 246, 0.08)' : 'transparent',
+                      background: audioFormat === format ? 'rgba(37,99,235, 0.08)' : 'transparent',
                       color: audioFormat === format ? 'var(--text-primary)' : 'var(--text-secondary)',
                       padding: '10px',
                     }}
@@ -1057,8 +1057,8 @@ const styles = {
   hubTitle: { fontSize: '2.2rem', color: 'var(--text-primary)' },
   hubSub: { fontSize: '1rem', color: 'var(--text-secondary)' },
   hubCard: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '16px', cursor: 'pointer', minHeight: '220px' },
-  iconBoxPurple: { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(139,92,246,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  iconBoxPink:   { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(236,72,153,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  iconBoxPurple: { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(37,99,235,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  iconBoxPink:   { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(14,165,233,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: '1.2rem', color: 'var(--text-primary)' },
   cardDesc: { fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' },
   apiKeyBanner: {
@@ -1086,18 +1086,18 @@ const styles = {
   soundwave: { display: 'flex', alignItems: 'center', gap: '4px', height: '32px' },
   waveBar: { width: '4px', height: '10px', background: 'var(--primary-light)', borderRadius: '2px', animation: 'wave 1s infinite alternate ease-in-out' },
   audioPlayerBox: {
-    marginTop: '24px', background: 'rgba(139,92,246,0.03)', border: '1px solid var(--border-color)',
+    marginTop: '24px', background: 'rgba(37,99,235,0.03)', border: '1px solid var(--border-color)',
     borderRadius: '12px', padding: '16px',
   },
   audioPlayerHeader: { display: 'flex', alignItems: 'center', gap: '10px' },
   errorBanner: {
     background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
     borderRadius: '8px', padding: '12px 16px', display: 'flex', alignItems: 'center',
-    gap: '10px', fontSize: '0.85rem', color: '#fca5a5', margin: '16px 0',
+    gap: '10px', fontSize: '0.85rem', color: '#dc2626', margin: '16px 0',
   },
   sttLayout: { maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' },
   sttTabBar: {
-    display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.02)',
+    display: 'flex', gap: '4px', background: 'rgba(15,23,42,0.02)',
     border: '1px solid var(--border-color)', borderRadius: '12px', padding: '4px',
   },
   sttTab: {
@@ -1107,15 +1107,15 @@ const styles = {
     transition: 'var(--transition)',
   },
   sttTabActive: {
-    background: 'rgba(139, 92, 246, 0.15)', color: 'var(--text-primary)',
-    boxShadow: '0 0 0 1px rgba(139, 92, 246, 0.3)',
+    background: 'rgba(37,99,235, 0.15)', color: 'var(--text-primary)',
+    boxShadow: '0 0 0 1px rgba(37,99,235, 0.3)',
   },
   sttCard: { padding: '32px' },
   recordingTimer: { fontSize: '2.2rem', fontWeight: '700', color: 'var(--text-primary)', fontFamily: 'monospace', marginBottom: '8px' },
   btnGroup: { display: 'flex', gap: '10px', marginTop: '16px' },
   transcribingWrapper: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
-    padding: '20px', background: 'rgba(139,92,246,0.03)', borderRadius: '8px',
+    padding: '20px', background: 'rgba(37,99,235,0.03)', borderRadius: '8px',
     border: '1px solid var(--border-color)', width: '100%',
   },
   resultsHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' },
@@ -1128,11 +1128,11 @@ const styles = {
   resultsMeta: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' },
   metaBadge: {
     display: 'flex', alignItems: 'center', gap: '6px',
-    background: 'rgba(255,255,255,0.02)', padding: '6px 12px',
+    background: 'rgba(15,23,42,0.02)', padding: '6px 12px',
     borderRadius: '20px', border: '1px solid var(--border-color)',
   },
   transcriptBox: {
-    background: '#040308', border: '1px solid var(--border-color)',
+    background: '#eaf1fc', border: '1px solid var(--border-color)',
     borderRadius: '8px', padding: '20px',
   },
 };

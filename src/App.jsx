@@ -291,10 +291,10 @@ const styles = {
     padding: '16px 20px',
     cursor: 'pointer',
     borderLeft: '4px solid transparent',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+    boxShadow: '0 10px 25px rgba(15,23,42,0.12)',
     display: 'flex',
     alignItems: 'center',
-    background: 'rgba(15, 14, 28, 0.95)',
+    background: 'rgba(255, 255, 255, 0.96)',
     backdropFilter: 'blur(10px)',
   },
   toastText: {
