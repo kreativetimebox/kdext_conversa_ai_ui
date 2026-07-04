@@ -347,7 +347,7 @@ export async function translateText(apiKey, text, source, target, engine = 'api'
       'Content-Type': 'application/json',
       'x-api-key': apiKey
     },
-    body: JSON.stringify({ text, source, target, engine }),
+    body: JSON.stringify({ text, target_lang: target, engine }),
   });
   return handleResponse(res);
 }
