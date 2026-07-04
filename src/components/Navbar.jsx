@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  FileText, 
-  ChevronDown, 
-  HelpCircle, 
-  Activity, 
-  Info, 
-  Mail, 
+import {
+  FileText,
+  ChevronDown,
+  HelpCircle,
+  Activity,
+  Info,
+  Mail,
   Menu,
   X,
   Volume2
@@ -52,29 +52,29 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
 
         {/* Desktop Menu */}
         <div style={styles.navLinks} className="nav-links-desktop">
-          <button 
-            onClick={() => navigateTo('/')} 
-            style={{...styles.navLink, ...(cleanPath === '/' || cleanPath === '/home' ? styles.navLinkActive : {})}}
+          <button
+            onClick={() => navigateTo('/')}
+            style={{ ...styles.navLink, ...(cleanPath === '/' || cleanPath === '/home' ? styles.navLinkActive : {}) }}
           >
             Home
           </button>
-          
-          <button 
-            onClick={() => navigateTo('/documentation')} 
-            style={{...styles.navLink, ...((cleanPath === '/documentation' || cleanPath === '/api-reference') ? styles.navLinkActive : {})}}
+
+          <button
+            onClick={() => navigateTo('/documentation')}
+            style={{ ...styles.navLink, ...((cleanPath === '/documentation' || cleanPath === '/api-reference') ? styles.navLinkActive : {}) }}
           >
             <FileText size={16} />
             Documentation
           </button>
 
           {/* Resources Dropdown (Shared) */}
-          <div 
+          <div
             style={styles.dropdownContainer}
             onMouseEnter={onResourcesEnter}
             onMouseLeave={onResourcesLeave}
           >
             <button style={{
-              ...styles.navLink, 
+              ...styles.navLink,
               ...((['/help-center', '/system-status', '/about-us', '/contact'].includes(cleanPath)) ? styles.navLinkActive : {})
             }}>
               Resources
@@ -90,7 +90,7 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
                   </div>
                 </div>
                 <div onMouseDown={() => navigateTo('/system-status')} style={styles.dropdownItem}>
-                  <Activity size={16} color="#10b981" />
+                  <Activity size={16} color="#059669" />
                   <div>
                     <div style={styles.dropdownItemTitle}>System Status</div>
                     <div style={styles.dropdownItemDesc}>Real-time uptime metrics</div>
@@ -104,7 +104,7 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
                   </div>
                 </div>
                 <div onMouseDown={() => navigateTo('/contact')} style={styles.dropdownItem}>
-                  <Mail size={16} color="#ec4899" />
+                  <Mail size={16} color="#0ea5e9" />
                   <div>
                     <div style={styles.dropdownItemTitle}>Contact</div>
                     <div style={styles.dropdownItemDesc}>Get in touch with us</div>
@@ -149,14 +149,14 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
           <button onClick={() => navigateTo('/system-status')} style={styles.mobileNavLink}>System Status</button>
           <button onClick={() => navigateTo('/about-us')} style={styles.mobileNavLink}>About Us</button>
           <button onClick={() => navigateTo('/contact')} style={styles.mobileNavLink}>Contact</button>
-          
+
           <hr style={styles.mobileDivider} />
           {user ? (
-            <button onClick={() => navigateTo('/chat')} className="btn btn-primary" style={{width: '100%'}}>Go to App</button>
+            <button onClick={() => navigateTo('/chat')} className="btn btn-primary" style={{ width: '100%' }}>Go to App</button>
           ) : (
             <div style={styles.mobileAuthBtns}>
               <button onClick={() => navigateTo('/signin')} style={styles.mobileSignInBtn}>Sign In</button>
-              <button onClick={() => navigateTo('/signup')} className="btn btn-primary" style={{width: '100%'}}>Get Started</button>
+              <button onClick={() => navigateTo('/signup')} className="btn btn-primary" style={{ width: '100%' }}>Get Started</button>
             </div>
           )}
         </div>
@@ -169,7 +169,7 @@ const styles = {
   nav: {
     height: 'var(--navbar-height)',
     borderBottom: '1px solid var(--border-color)',
-    background: 'rgba(11, 10, 22, 0.7)',
+    background: 'rgba(255, 255, 255, 0.75)',
     backdropFilter: 'blur(12px)',
     WebkitBackdropFilter: 'blur(12px)',
     position: 'sticky',
@@ -188,14 +188,14 @@ const styles = {
     position: 'relative',
   },
   logoIcon: {
-    background: 'linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%)',
+    background: 'linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%)',
     width: '32px',
     height: '32px',
     borderRadius: '8px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)',
+    boxShadow: '0 2px 8px rgba(37,99,235, 0.3)',
   },
   navLinks: {
     display: 'flex',
@@ -218,7 +218,7 @@ const styles = {
   },
   navLinkActive: {
     color: 'var(--text-primary)',
-    background: 'rgba(255, 255, 255, 0.05)',
+    background: 'rgba(15,23,42,0.05)',
   },
   dropdownContainer: {
     position: 'relative',
@@ -230,11 +230,11 @@ const styles = {
     transform: 'translateX(-50%)',
     marginTop: '8px',
     width: '240px',
-    background: 'rgba(15, 14, 28, 0.95)',
+    background: 'rgba(255, 255, 255, 0.96)',
     border: '1px solid var(--border-color)',
     borderRadius: '12px',
     padding: '8px',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+    boxShadow: '0 10px 25px rgba(15,23,42,0.12)',
     backdropFilter: 'blur(20px)',
     display: 'flex',
     flexDirection: 'column',
@@ -291,13 +291,13 @@ const styles = {
     top: 'var(--navbar-height)',
     left: 0,
     width: '100%',
-    background: 'rgba(11, 10, 22, 0.98)',
+    background: 'rgba(255, 255, 255, 0.98)',
     borderBottom: '1px solid var(--border-color)',
     padding: '20px 24px',
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
-    boxShadow: '0 10px 20px rgba(0,0,0,0.5)',
+    boxShadow: '0 10px 20px rgba(15,23,42,0.12)',
     zIndex: 99,
   },
   mobileDivider: {

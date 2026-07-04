@@ -233,7 +233,7 @@ export default function ApiReference({ navigate, showToast }) {
         <span style={styles.headerInfo}>Base URL: <code>https://api.conversa.ai/v1</code></span>
       </div>
 
-      <div style={styles.layout} className="api-ref-layout-grid">
+      <div className="api-ref-layout-grid">
         {/* Sidebar Endpoints List */}
         <aside style={styles.sidebar}>
           <h3 style={styles.sidebarTitle}>Endpoints</h3>
@@ -250,9 +250,9 @@ export default function ApiReference({ navigate, showToast }) {
                 >
                   <span style={{
                     ...styles.methodBadge,
-                    backgroundColor: ep.method === 'POST' ? 'rgba(139, 92, 246, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                    backgroundColor: ep.method === 'POST' ? 'rgba(37,99,235, 0.15)' : 'rgba(59, 130, 246, 0.15)',
                     color: ep.method === 'POST' ? 'var(--primary-light)' : 'var(--info)',
-                    borderColor: ep.method === 'POST' ? 'rgba(139, 92, 246, 0.3)' : 'rgba(59, 130, 246, 0.3)',
+                    borderColor: ep.method === 'POST' ? 'rgba(37,99,235, 0.3)' : 'rgba(59, 130, 246, 0.3)',
                   }}>
                     {ep.method}
                   </span>
@@ -315,7 +315,7 @@ export default function ApiReference({ navigate, showToast }) {
             </table>
 
             {/* Code Snippets Section */}
-            <div style={styles.snippetsGrid} className="api-ref-snippets-grid">
+            <div className="api-ref-snippets-grid">
               {/* cURL Example */}
               <div style={styles.snippetCol}>
                 <h4 style={styles.snippetHeader}>cURL Example</h4>
@@ -507,11 +507,7 @@ const styles = {
     fontSize: '0.85rem',
     color: 'var(--text-muted)',
   },
-  layout: {
-    display: 'grid',
-    gridTemplateColumns: '280px 1fr',
-    gap: '40px',
-  },
+  layout: {},
   sidebar: {
     display: 'flex',
     flexDirection: 'column',
@@ -547,7 +543,7 @@ const styles = {
     transition: 'var(--transition)',
   },
   endpointBtnActive: {
-    background: 'rgba(255,255,255,0.04)',
+    background: 'rgba(15,23,42,0.04)',
     borderColor: 'var(--border-color)',
   },
   methodBadge: {
@@ -579,9 +575,9 @@ const styles = {
     fontWeight: '700',
     padding: '2px 6px',
     borderRadius: '4px',
-    background: 'rgba(236, 72, 153, 0.15)',
+    background: 'rgba(14,165,233, 0.15)',
     color: 'var(--secondary)',
-    border: '1px solid rgba(236, 72, 153, 0.3)',
+    border: '1px solid rgba(14,165,233, 0.3)',
     minWidth: '50px',
     textAlign: 'center',
   },
@@ -607,14 +603,14 @@ const styles = {
     borderRadius: '6px',
     background: 'var(--primary-glow)',
     color: 'var(--primary-light)',
-    border: '1px solid rgba(139, 92, 246, 0.3)',
+    border: '1px solid rgba(37,99,235, 0.3)',
   },
   pathLabel: {
     fontSize: '0.85rem',
     fontFamily: 'monospace',
     padding: '4px 10px',
     borderRadius: '6px',
-    background: 'rgba(255,255,255,0.03)',
+    background: 'rgba(15,23,42,0.03)',
     color: 'var(--text-primary)',
     border: '1px solid var(--border-color)',
   },
@@ -660,17 +656,12 @@ const styles = {
     color: 'var(--text-muted)',
     fontSize: '0.78rem',
     fontWeight: '500',
-    background: 'rgba(255,255,255,0.03)',
+    background: 'rgba(15,23,42,0.03)',
     padding: '2px 6px',
     borderRadius: '4px',
     border: '1px solid var(--border-color)',
   },
-  snippetsGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '24px',
-    marginBottom: '48px',
-  },
+  snippetsGrid: {},
   snippetCol: {
     display: 'flex',
     flexDirection: 'column',
@@ -682,14 +673,14 @@ const styles = {
     fontWeight: '600',
   },
   codeBlockWrapper: {
-    background: '#07060f',
+    background: '#eef4fd',
     border: '1px solid var(--border-color)',
     borderRadius: '12px',
     overflow: 'hidden',
     flex: '1',
   },
   codeHeader: {
-    background: 'rgba(255,255,255,0.015)',
+    background: 'rgba(15,23,42,0.015)',
     borderBottom: '1px solid var(--border-color)',
     padding: '10px 16px',
     display: 'flex',
@@ -723,7 +714,7 @@ const styles = {
     overflow: 'hidden',
   },
   clientHeader: {
-    background: 'rgba(255, 255, 255, 0.02)',
+    background: 'rgba(15,23,42,0.02)',
     borderBottom: '1px solid var(--border-color)',
     padding: '16px 24px',
     display: 'flex',
@@ -758,21 +749,21 @@ const styles = {
   },
   clientTabActive: {
     color: 'var(--text-primary)',
-    background: 'rgba(255,255,255,0.05)',
+    background: 'rgba(15,23,42,0.05)',
   },
   clientConsole: {
     padding: '24px',
   },
   requestUrlBar: {
     display: 'flex',
-    background: 'rgba(255, 255, 255, 0.015)',
+    background: 'rgba(15,23,42,0.015)',
     border: '1px solid var(--border-color)',
     borderRadius: 'var(--border-radius)',
     overflow: 'hidden',
     marginBottom: '20px',
   },
   requestMethod: {
-    background: 'rgba(139, 92, 246, 0.05)',
+    background: 'rgba(37,99,235, 0.05)',
     color: 'var(--primary-light)',
     padding: '12px 18px',
     fontSize: '0.88rem',
@@ -810,7 +801,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     padding: '8px 12px',
-    background: 'rgba(255,255,255,0.01)',
+    background: 'rgba(15,23,42,0.01)',
     border: '1px solid var(--border-color)',
     borderRadius: '6px',
     fontSize: '0.88rem',
@@ -825,13 +816,13 @@ const styles = {
     fontFamily: 'monospace',
   },
   consoleOutput: {
-    background: '#040308',
+    background: '#eaf1fc',
     border: '1px solid var(--border-color)',
     borderRadius: '12px',
     overflow: 'hidden',
   },
   consoleOutputHeader: {
-    background: 'rgba(255,255,255,0.01)',
+    background: 'rgba(15,23,42,0.01)',
     borderBottom: '1px solid var(--border-color)',
     padding: '10px 16px',
     fontSize: '0.78rem',

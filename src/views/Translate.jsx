@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowRightLeft, Volume2, Copy, Sparkles, CheckCircle2, Globe, ChevronDown, Zap, RotateCcw, Search, Bot } from 'lucide-react';
-import { translateText, textToSpeech, buildAudioUrl } from '../services/api';
+import { translateText, voiceTTS, getWsBaseUrl } from '../services/api';
 
 const LANGUAGES = [
   { code: 'auto', name: 'Detect Language', flag: '🔍', region: '' },
@@ -75,15 +75,16 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
       {/* Trigger button */}
       <button
         onClick={() => setOpen(!open)}
+        className="lang-dropdown-btn"
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
           padding: '10px 14px',
-          background: open ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.05)',
-          border: `1.5px solid ${open ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.12)'}`,
+          background: open ? 'rgba(37,99,235,0.12)' : 'rgba(15,23,42,0.05)',
+          border: `1.5px solid ${open ? 'rgba(37,99,235,0.5)' : 'rgba(15,23,42,0.12)'}`,
           borderRadius: '12px',
-          color: '#f1f5f9',
+          color: '#0f172a',
           cursor: 'pointer',
           fontSize: '0.95rem',
           fontWeight: '600',
@@ -94,10 +95,10 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
         }}
       >
         <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>{selected?.flag || '🌐'}</span>
-        <span style={{ flex: 1, textAlign: 'left', color: '#f1f5f9' }}>{selected?.name || placeholder}</span>
+        <span style={{ flex: 1, textAlign: 'left', color: '#0f172a' }}>{selected?.name || placeholder}</span>
         <ChevronDown
           size={16}
-          color="#a78bfa"
+          color="#3b82f6"
           style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', flexShrink: 0 }}
         />
       </button>
@@ -109,19 +110,19 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
           top: 'calc(100% + 8px)',
           left: 0,
           zIndex: 999,
-          background: 'rgba(13, 12, 28, 0.98)',
-          border: '1.5px solid rgba(139,92,246,0.3)',
+          background: 'rgba(255, 255, 255, 0.98)',
+          border: '1.5px solid rgba(37,99,235,0.3)',
           borderRadius: '16px',
-          boxShadow: '0 25px 50px rgba(0,0,0,0.7), 0 0 0 1px rgba(139,92,246,0.1)',
+          boxShadow: '0 25px 50px rgba(15,23,42,0.16), 0 0 0 1px rgba(37,99,235,0.1)',
           width: '280px',
           backdropFilter: 'blur(20px)',
           overflow: 'hidden',
           animation: 'dropdownFadeIn 0.15s ease-out',
         }}>
           {/* Search bar */}
-          <div style={{ padding: '12px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '8px', padding: '8px 12px' }}>
-              <Search size={14} color="#94a3b8" />
+          <div style={{ padding: '12px', borderBottom: '1px solid rgba(15,23,42,0.07)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(15,23,42,0.06)', borderRadius: '8px', padding: '8px 12px' }}>
+              <Search size={14} color="#475569" />
               <input
                 ref={inputRef}
                 value={search}
@@ -131,7 +132,7 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
                   background: 'transparent',
                   border: 'none',
                   outline: 'none',
-                  color: '#f1f5f9',
+                  color: '#0f172a',
                   fontSize: '0.85rem',
                   width: '100%',
                   fontFamily: 'inherit',
@@ -157,21 +158,21 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
                   gap: '12px',
                   padding: '10px 16px',
                   width: '100%',
-                  background: lang.code === value ? 'rgba(139,92,246,0.15)' : 'transparent',
+                  background: lang.code === value ? 'rgba(37,99,235,0.15)' : 'transparent',
                   border: 'none',
                   cursor: 'pointer',
-                  color: '#f1f5f9',
+                  color: '#0f172a',
                   fontSize: '0.9rem',
                   textAlign: 'left',
                   transition: 'background 0.15s ease',
-                  borderLeft: lang.code === value ? '3px solid #8b5cf6' : '3px solid transparent',
+                  borderLeft: lang.code === value ? '3px solid #2563eb' : '3px solid transparent',
                 }}
-                onMouseEnter={e => { if (lang.code !== value) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+                onMouseEnter={e => { if (lang.code !== value) e.currentTarget.style.background = 'rgba(15,23,42,0.05)'; }}
                 onMouseLeave={e => { if (lang.code !== value) e.currentTarget.style.background = 'transparent'; }}
               >
                 <span style={{ fontSize: '1.3rem', lineHeight: 1, flexShrink: 0 }}>{lang.flag}</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: lang.code === value ? '700' : '500', color: lang.code === value ? '#a78bfa' : '#f1f5f9' }}>
+                  <div style={{ fontWeight: lang.code === value ? '700' : '500', color: lang.code === value ? '#3b82f6' : '#0f172a' }}>
                     {lang.name}
                   </div>
                   {lang.region && (
@@ -179,7 +180,7 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
                   )}
                 </div>
                 {lang.code === value && (
-                  <CheckCircle2 size={14} color="#8b5cf6" style={{ flexShrink: 0 }} />
+                  <CheckCircle2 size={14} color="#2563eb" style={{ flexShrink: 0 }} />
                 )}
               </button>
             ))}
@@ -201,23 +202,35 @@ export default function Translate({ user, showToast }) {
   const [history, setHistory] = useState([]);
   const [copied, setCopied] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
 
   const wsRef = useRef(null);
   const seqRef = useRef(0);
+  // True until the first delta of the current request arrives — the previous
+  // translation stays visible while typing (subtitle-style) and is replaced,
+  // not blanked, when the new stream starts.
+  const freshStreamRef = useRef(false);
   const debounceTimerRef = useRef(null);
+  // Instant (subtitle) pass bookkeeping: throttle timer, last-fire time, and
+  // which engine each request id used ('api' instant vs 'llm' refine).
+  const instantTimerRef = useRef(null);
+  const lastInstantRef = useRef(0);
+  const reqEngineRef = useRef({});
+  const wsToastShownRef = useRef(false);
   const pingTimerRef = useRef(null);
   const reconnectDelayRef = useRef(1000);
+  const reconnectTimerRef = useRef(null);
+  const shouldReconnectRef = useRef(true);
+
+  // ws.onmessage is created once per connection, so it must read the CURRENT
+  // input state through a ref — otherwise history entries and language badges
+  // are built from the stale values captured when the socket connected.
+  const latestRef = useRef({});
+  latestRef.current = { sourceText, sourceLang, targetLang, engine };
 
   const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
 
-  const getWsUrl = (key) => {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${proto}//${window.location.host}/ws/translate?api_key=${encodeURIComponent(key)}`;
-    } else {
-      return `wss://aiservices.dexaitech.com/ws/translate?api_key=${encodeURIComponent(key)}`;
-    }
-  };
+  const getWsUrl = (key) => `${getWsBaseUrl()}/ws/translate?api_key=${encodeURIComponent(key)}`;
 
   const connectWs = () => {
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
@@ -230,6 +243,7 @@ export default function Translate({ user, showToast }) {
       wsRef.current = ws;
 
       ws.onopen = () => {
+        setWsConnected(true);
         reconnectDelayRef.current = 1000;
         clearInterval(pingTimerRef.current);
         pingTimerRef.current = setInterval(() => {
@@ -247,31 +261,43 @@ export default function Translate({ user, showToast }) {
 
           if (msg.type === 'delta') {
             setIsTranslating(true);
-            setTranslatedText(prev => prev + msg.content);
+            if (freshStreamRef.current) {
+              // First token of a new stream replaces the previous translation.
+              freshStreamRef.current = false;
+              setTranslatedText(msg.content);
+            } else {
+              setTranslatedText(prev => prev + msg.content);
+            }
           } else if (msg.type === 'done') {
+            const kind = reqEngineRef.current[msg.id] || 'llm';
+            delete reqEngineRef.current[msg.id];
+            const cur = latestRef.current;
             setTranslatedText(msg.translation);
             setIsTranslating(false);
-            if (msg.source_lang && sourceLang === 'auto') {
+            if (msg.source_lang && cur.sourceLang === 'auto') {
               setDetectedLang(msg.source_lang);
             }
+            // Instant subtitle passes update the panel only — history records
+            // just the refined (pause) translations, not every keystroke.
+            if (kind === 'api') return;
 
-            const sLangName = sourceLang === 'auto'
+            const sLangName = cur.sourceLang === 'auto'
               ? (msg.source_lang ? (LANGUAGES.find(l => l.code === msg.source_lang)?.name || msg.source_lang) : 'Auto')
-              : LANGUAGES.find(l => l.code === sourceLang)?.name;
+              : LANGUAGES.find(l => l.code === cur.sourceLang)?.name;
 
             setHistory(prev => {
-              if (prev.length > 0 && prev[0].source === sourceText && prev[0].result === msg.translation) {
+              if (prev.length > 0 && prev[0].source === cur.sourceText && prev[0].result === msg.translation) {
                 return prev;
               }
               return [{
                 id: Date.now(),
-                source: sourceText,
+                source: cur.sourceText,
                 result: msg.translation,
                 sLang: sLangName,
-                tLang: LANGUAGES.find(l => l.code === targetLang)?.name,
-                sFlag: sourceLang === 'auto' ? '🔍' : LANGUAGES.find(l => l.code === sourceLang)?.flag,
-                tFlag: LANGUAGES.find(l => l.code === targetLang)?.flag,
-                engine,
+                tLang: LANGUAGES.find(l => l.code === cur.targetLang)?.name,
+                sFlag: cur.sourceLang === 'auto' ? '🔍' : LANGUAGES.find(l => l.code === cur.sourceLang)?.flag,
+                tFlag: LANGUAGES.find(l => l.code === cur.targetLang)?.flag,
+                engine: cur.engine,
               }, ...prev].slice(0, 10);
             });
           } else if (msg.type === 'error') {
@@ -284,13 +310,21 @@ export default function Translate({ user, showToast }) {
       };
 
       ws.onclose = (ev) => {
+        setWsConnected(false);
         clearInterval(pingTimerRef.current);
         wsRef.current = null;
+        if (!shouldReconnectRef.current) return; // component unmounted / key changed
+        console.warn('live-translate socket closed', ev.code, ev.reason || '(no reason)');
         if (ev.code === 4401) {
           showToast('Live translation unauthorized (bad key).', 'error');
           return;
         }
-        setTimeout(connectWs, reconnectDelayRef.current);
+        // Explain server-reported failures once (not on every retry tick).
+        if (ev.reason && !wsToastShownRef.current) {
+          wsToastShownRef.current = true;
+          showToast(`Live stream unavailable: ${ev.reason}. Using instant fallback.`, 'error');
+        }
+        reconnectTimerRef.current = setTimeout(connectWs, reconnectDelayRef.current);
         reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, 15000);
       };
 
@@ -303,8 +337,13 @@ export default function Translate({ user, showToast }) {
   };
 
   useEffect(() => {
+    shouldReconnectRef.current = true;
     connectWs();
     return () => {
+      // Stop the reconnect loop BEFORE closing, or onclose re-opens the socket
+      // after unmount and leaks connections + state updates.
+      shouldReconnectRef.current = false;
+      clearTimeout(reconnectTimerRef.current);
       clearInterval(pingTimerRef.current);
       if (wsRef.current) {
         wsRef.current.close();
@@ -313,9 +352,16 @@ export default function Translate({ user, showToast }) {
     };
   }, [apiKey]);
 
-  // Live translation effect triggered on typing
+  // Live typing → two-tier subtitle translation:
+  //   1) INSTANT pass: throttled fast ('api') translation on every keystroke —
+  //      full results in ~200-400ms, so the panel updates while you type.
+  //   2) REFINE pass: when typing pauses, a higher-quality LLM translation
+  //      streams in and replaces the instant one.
+  // A single LLM request per keystroke can never feel like subtitles — its
+  // time-to-first-token alone is longer than the gap between keystrokes.
   useEffect(() => {
     clearTimeout(debounceTimerRef.current);
+    clearTimeout(instantTimerRef.current);
 
     // ONLY auto-translate on typing if Live Mode is selected
     if (engine !== 'live') {
@@ -329,68 +375,74 @@ export default function Translate({ user, showToast }) {
       return;
     }
 
-    debounceTimerRef.current = setTimeout(async () => {
+    const text = sourceText.trim();
+
+    // If the socket dropped, reconnect right away so streaming resumes.
+    if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+      connectWs();
+    }
+
+    const sendOverWs = (wsEngine) => {
       seqRef.current += 1;
-      const currentSeq = seqRef.current;
-      setDetectedLang(null);
-
-      // Live Mode uses the streaming WebSocket with the 'llm' backend engine
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        setTranslatedText('');
+      const id = seqRef.current;
+      reqEngineRef.current[id] = wsEngine;
+      if (wsEngine === 'llm') {
+        freshStreamRef.current = true;
         setIsTranslating(true);
-        wsRef.current.send(JSON.stringify({
-          type: 'translate',
-          id: currentSeq,
-          text: sourceText.trim(),
-          target_lang: targetLang,
-          engine: 'llm'
-        }));
-      } else {
-        // Fallback to HTTP translation
-        setIsTranslating(true);
-        setTranslatedText('');
-        try {
-          const res = await translateText(apiKey, sourceText.trim(), sourceLang === 'auto' ? null : sourceLang, targetLang, 'llm');
-          if (currentSeq !== seqRef.current) return;
-
-          const result = res?.translation || res?.translated_text || res?.result || '';
-          const detected = res?.source_lang || res?.detected_language || null;
-
-          setTranslatedText(result);
-          setIsTranslating(false);
-          if (detected && sourceLang === 'auto') {
-            setDetectedLang(detected);
-          }
-
-          const sLangName = sourceLang === 'auto'
-            ? (detected ? (LANGUAGES.find(l => l.code === detected)?.name || detected) : 'Auto')
-            : LANGUAGES.find(l => l.code === sourceLang)?.name;
-
-          setHistory(prev => {
-            if (prev.length > 0 && prev[0].source === sourceText && prev[0].result === result) {
-              return prev;
-            }
-            return [{
-              id: Date.now(),
-              source: sourceText,
-              result,
-              sLang: sLangName,
-              tLang: LANGUAGES.find(l => l.code === targetLang)?.name,
-              sFlag: sourceLang === 'auto' ? '🔍' : LANGUAGES.find(l => l.code === sourceLang)?.flag,
-              tFlag: LANGUAGES.find(l => l.code === targetLang)?.flag,
-              engine: 'live',
-            }, ...prev].slice(0, 10);
-          });
-        } catch (err) {
-          if (currentSeq === seqRef.current) {
-            setIsTranslating(false);
-            showToast(err.message || 'Translation failed.', 'error');
-          }
-        }
       }
-    }, 350); // 350ms debounce as per live translation guide
+      wsRef.current.send(JSON.stringify({
+        type: 'translate',
+        id,
+        text,
+        target_lang: targetLang,
+        engine: wsEngine,
+      }));
+    };
 
-    return () => clearTimeout(debounceTimerRef.current);
+    const httpInstant = async () => {
+      seqRef.current += 1;
+      const id = seqRef.current;
+      try {
+        const res = await translateText(apiKey, text, sourceLang === 'auto' ? null : sourceLang, targetLang, 'api');
+        if (id !== seqRef.current) return; // superseded by newer keystroke
+        const result = res?.translation || res?.translated_text || res?.result || '';
+        if (result) setTranslatedText(result);
+        const detected = res?.source_lang || res?.detected_language || null;
+        if (detected && sourceLang === 'auto') setDetectedLang(detected);
+        setIsTranslating(false);
+      } catch {
+        // instant pass is best-effort; the refine pass will still land
+      }
+    };
+
+    // 1) instant subtitle pass — throttled, fires immediately when possible
+    const INSTANT_MS = 200;
+    const fireInstant = () => {
+      lastInstantRef.current = Date.now();
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        sendOverWs('api');
+      } else {
+        httpInstant();
+      }
+    };
+    const since = Date.now() - lastInstantRef.current;
+    if (since >= INSTANT_MS) {
+      fireInstant();
+    } else {
+      instantTimerRef.current = setTimeout(fireInstant, INSTANT_MS - since);
+    }
+
+    // 2) refinement pass — after the user pauses, stream the LLM translation
+    debounceTimerRef.current = setTimeout(() => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        sendOverWs('llm');
+      }
+    }, 900);
+
+    return () => {
+      clearTimeout(debounceTimerRef.current);
+      clearTimeout(instantTimerRef.current);
+    };
   }, [sourceText, targetLang, engine, sourceLang, apiKey]);
 
   const handleTranslate = async () => {
@@ -478,15 +530,17 @@ export default function Translate({ user, showToast }) {
     if (!translatedText) return;
     setIsPlaying(true);
     try {
-      const res = await textToSpeech(apiKey, translatedText, 'divya', 'wav');
-      const audioUrl = buildAudioUrl(res.audio_url);
-      if (audioUrl) {
-        const audio = new Audio(audioUrl);
-        audio.play();
-        audio.onended = () => setIsPlaying(false);
-      } else {
+      // Edge TTS via /api/voice/tts streams audio back immediately (the
+      // gateway's /text-to-speech is an async queued job with no instant URL).
+      const blobUrl = await voiceTTS(apiKey, translatedText, targetLang);
+      const audio = new Audio(blobUrl);
+      const done = () => {
         setIsPlaying(false);
-      }
+        URL.revokeObjectURL(blobUrl);
+      };
+      audio.onended = done;
+      audio.onerror = done;
+      await audio.play();
     } catch (err) {
       showToast(err.message || 'Failed to synthesize speech.', 'error');
       setIsPlaying(false);
@@ -494,7 +548,8 @@ export default function Translate({ user, showToast }) {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    // Live Mode translates automatically — no manual submit shortcut needed.
+    if (engine !== 'live' && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       handleTranslate();
     }
   };
@@ -503,7 +558,7 @@ export default function Translate({ user, showToast }) {
   const maxChars = 5000;
 
   return (
-    <div style={styles.container} className="animate-fade-in">
+    <div style={styles.container} className="animate-fade-in translate-page">
       {/* Dropdown animation */}
       <style>{`
         @keyframes dropdownFadeIn {
@@ -512,28 +567,63 @@ export default function Translate({ user, showToast }) {
         }
         .translate-textarea::-webkit-scrollbar { width: 4px; }
         .translate-textarea::-webkit-scrollbar-track { background: transparent; }
-        .translate-textarea::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 2px; }
+        .translate-textarea::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.3); border-radius: 2px; }
+        .stream-cursor {
+          display: inline-block;
+          width: 2px;
+          height: 1.1em;
+          background: var(--primary);
+          margin-left: 2px;
+          vertical-align: text-bottom;
+          animation: streamBlink 0.8s steps(2) infinite;
+        }
+        @keyframes streamBlink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+        @media (max-width: 768px) {
+          .translate-page { padding: 20px 14px 40px !important; }
+          .translate-page h1 { font-size: 1.35rem !important; }
+          .translate-page h1 + p { margin-left: 0 !important; font-size: 0.8rem !important; }
+          .translate-text-panels { flex-direction: column !important; }
+          .translate-panel-divider { width: 100% !important; height: 1px !important; }
+          .translate-history-texts { grid-template-columns: 1fr !important; }
+          .lang-dropdown-btn { min-width: 140px !important; flex: 1; width: 100% !important; }
+          .translate-engine-toggle { width: 100%; }
+          .translate-engine-toggle button { flex: 1; justify-content: center; padding: 8px 8px !important; font-size: 0.78rem !important; }
+        }
+        @media (max-width: 500px) {
+          .translate-lang-side {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+            width: 100% !important;
+          }
+          .translate-detected-badge {
+            width: 100% !important;
+            text-align: center !important;
+            box-sizing: border-box !important;
+            white-space: normal !important;
+          }
+        }
       `}</style>
 
       {/* Header */}
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>
-            <Globe size={28} color="#8b5cf6" style={{ verticalAlign: 'middle', marginRight: '12px' }} />
+            <Globe size={28} color="#2563eb" style={{ verticalAlign: 'middle', marginRight: '12px' }} />
             Neural Translation
           </h1>
           <p style={styles.sub}>Powered by AI • Supports 25+ languages • Real-time translation</p>
         </div>
 
         {/* Engine Toggle */}
-        <div style={styles.engineToggle}>
+        <div style={styles.engineToggle} className="translate-engine-toggle">
           <button
             onClick={() => setEngine('api')}
             style={{ ...styles.engineBtn, ...(engine === 'api' ? styles.engineBtnActive : {}) }}
           >
             <Zap size={14} style={{ marginRight: '6px' }} />
             Google API
-            <span style={{ ...styles.badge, background: engine === 'api' ? '#22c55e' : '#334155' }}>Fast</span>
+            <span style={{ ...styles.badge, background: engine === 'api' ? '#16a34a' : '#94a3b8' }}>Fast</span>
           </button>
           <button
             onClick={() => setEngine('llm')}
@@ -541,22 +631,22 @@ export default function Translate({ user, showToast }) {
           >
             <Sparkles size={14} style={{ marginRight: '6px' }} />
             AI Model
-            <span style={{ ...styles.badge, background: engine === 'llm' ? '#8b5cf6' : '#334155' }}>Nuanced</span>
+            <span style={{ ...styles.badge, background: engine === 'llm' ? '#2563eb' : '#94a3b8' }}>Nuanced</span>
           </button>
           <button
             onClick={() => setEngine('live')}
             style={{ 
               ...styles.engineBtn, 
               ...(engine === 'live' ? {
-                background: 'rgba(236,72,153,0.15)',
-                color: '#f472b6',
-                boxShadow: '0 2px 8px rgba(236,72,153,0.2)',
+                background: 'rgba(14,165,233,0.15)',
+                color: '#38bdf8',
+                boxShadow: '0 2px 8px rgba(14,165,233,0.2)',
               } : {}) 
             }}
           >
             <Bot size={14} style={{ marginRight: '6px' }} />
             Live Mode
-            <span style={{ ...styles.badge, background: engine === 'live' ? '#ec4899' : '#334155' }}>Stream</span>
+            <span style={{ ...styles.badge, background: engine === 'live' ? '#0ea5e9' : '#94a3b8' }}>Stream</span>
           </button>
         </div>
       </div>
@@ -567,7 +657,7 @@ export default function Translate({ user, showToast }) {
         {/* Language selector bar */}
         <div style={styles.langBar}>
           {/* Source language */}
-          <div style={styles.langSide}>
+          <div style={styles.langSide} className="translate-lang-side">
             <LangDropdown
               value={sourceLang}
               onChange={setSourceLang}
@@ -575,7 +665,7 @@ export default function Translate({ user, showToast }) {
               placeholder="Detect Language"
             />
             {detectedLang && sourceLang === 'auto' && (
-              <div style={styles.detectedBadge}>
+              <div style={styles.detectedBadge} className="translate-detected-badge">
                 Detected: {LANGUAGES.find(l => l.code === detectedLang)?.flag} {LANGUAGES.find(l => l.code === detectedLang)?.name || detectedLang}
               </div>
             )}
@@ -588,7 +678,7 @@ export default function Translate({ user, showToast }) {
             style={styles.swapBtn}
             title="Swap languages"
           >
-            <ArrowRightLeft size={18} color="#a78bfa" />
+            <ArrowRightLeft size={18} color="#3b82f6" />
           </button>
 
           {/* Target language */}
@@ -603,16 +693,18 @@ export default function Translate({ user, showToast }) {
         </div>
 
         {/* Divider */}
-        <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(139,92,246,0.3), transparent)' }} />
+        <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(37,99,235,0.3), transparent)' }} />
 
         {/* Text areas */}
-        <div style={styles.textPanels}>
+        <div className="translate-text-panels">
           {/* Source panel */}
           <div style={styles.panel}>
             <textarea
               className="translate-textarea"
               style={styles.textarea}
-              placeholder="Enter text to translate... (Ctrl+Enter to translate)"
+              placeholder={engine === 'live'
+                ? 'Start typing — translation appears instantly as you write...'
+                : 'Enter text to translate... (Ctrl+Enter to translate)'}
               value={sourceText}
               onChange={e => setSourceText(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -633,58 +725,81 @@ export default function Translate({ user, showToast }) {
                     <RotateCcw size={14} />
                   </button>
                 )}
-                <button
-                  onClick={handleTranslate}
-                  disabled={isTranslating || !sourceText.trim()}
-                  style={{
-                    ...styles.translateBtn,
-                    opacity: isTranslating || !sourceText.trim() ? 0.5 : 1,
-                    cursor: isTranslating || !sourceText.trim() ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {isTranslating ? (
-                    <>
-                      <span style={styles.spinner} />
-                      Translating...
-                    </>
-                  ) : (
-                    <>
-                      <Globe size={15} style={{ marginRight: '6px' }} />
-                      Translate
-                    </>
-                  )}
-                </button>
+                {engine === 'live' ? (
+                  // Live Mode translates automatically as you type — show a
+                  // status chip instead of a manual Translate button.
+                  <span style={{
+                    display: 'flex', alignItems: 'center', gap: '7px',
+                    padding: '8px 14px', borderRadius: '10px',
+                    background: 'rgba(14,165,233,0.10)',
+                    color: '#0284c7', fontSize: '0.82rem', fontWeight: 600,
+                  }}>
+                    <span style={{
+                      width: '7px', height: '7px', borderRadius: '50%',
+                      background: isTranslating ? '#0ea5e9' : '#16a34a',
+                      animation: isTranslating ? 'streamBlink 0.8s steps(2) infinite' : 'none',
+                    }} />
+                    {isTranslating ? 'Translating live…' : 'Live — just type'}
+                  </span>
+                ) : (
+                  <button
+                    onClick={handleTranslate}
+                    disabled={isTranslating || !sourceText.trim()}
+                    style={{
+                      ...styles.translateBtn,
+                      opacity: isTranslating || !sourceText.trim() ? 0.5 : 1,
+                      cursor: isTranslating || !sourceText.trim() ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {isTranslating ? (
+                      <>
+                        <span style={styles.spinner} />
+                        Translating...
+                      </>
+                    ) : (
+                      <>
+                        <Globe size={15} style={{ marginRight: '6px' }} />
+                        Translate
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
           {/* Vertical divider */}
-          <div style={styles.panelDivider} />
+          <div className="translate-panel-divider" />
 
           {/* Target panel */}
-          <div style={{ ...styles.panel, background: 'rgba(139,92,246,0.03)' }}>
+          <div style={{ ...styles.panel, background: 'rgba(37,99,235,0.03)' }}>
             <div className="translate-textarea" style={{ ...styles.textarea, overflowY: 'auto', cursor: 'default' }}>
-              {isTranslating ? (
+              {translatedText ? (
+                // Show streamed tokens AS they arrive — never hide them behind a
+                // loading state. A blinking cursor marks an in-flight stream.
+                <span dir="auto" style={{ whiteSpace: 'pre-wrap', color: 'var(--text-primary)' }}>
+                  {translatedText}
+                  {isTranslating && <span className="stream-cursor" />}
+                </span>
+              ) : isTranslating ? (
                 <div style={styles.loadingState}>
                   <div style={styles.loadingDots}>
                     <span /><span /><span />
                   </div>
-                  <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>Translating...</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Translating...</p>
                 </div>
-              ) : translatedText ? (
-                <span dir="auto" style={{ whiteSpace: 'pre-wrap', color: '#f1f5f9' }}>{translatedText}</span>
               ) : (
-                <span style={{ color: '#334155', fontSize: '1rem' }}>Translation will appear here...</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>Translation will appear here...</span>
               )}
             </div>
             <div style={{ ...styles.panelFooter, justifyContent: 'flex-end' }}>
               {translatedText && (
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={handleSpeak} disabled={isPlaying} style={styles.iconActionBtn} title="Listen">
-                    <Volume2 size={14} color={isPlaying ? '#8b5cf6' : 'currentColor'} />
+                    <Volume2 size={14} color={isPlaying ? '#2563eb' : 'currentColor'} />
                   </button>
                   <button onClick={handleCopy} style={styles.iconActionBtn} title="Copy translation">
-                    {copied ? <CheckCircle2 size={14} color="#22c55e" /> : <Copy size={14} />}
+                    {copied ? <CheckCircle2 size={14} color="#16a34a" /> : <Copy size={14} />}
                   </button>
                 </div>
               )}
@@ -709,16 +824,23 @@ export default function Translate({ user, showToast }) {
       {/* Tips bar */}
       <div style={styles.tipsBar}>
         <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
-          {engine === 'live' 
-            ? '💡 Typing automatically translates using live WebSockets stream' 
+          {engine === 'live'
+            ? '💡 Translates instantly while you type — AI refines it when you pause'
             : '💡 Press Ctrl+Enter or click Translate to submit text'}
         </span>
-        <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
-          Engine: <span style={{ 
-            color: engine === 'live' ? '#ec4899' : engine === 'api' ? '#22c55e' : '#a78bfa', 
-            fontWeight: '600' 
+        <span style={{ color: '#64748b', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {engine === 'live' && (
+            <span title={wsConnected ? 'Streaming connected' : 'Stream offline — using standard translation'} style={{
+              width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block',
+              background: wsConnected ? '#16a34a' : '#d97706',
+              boxShadow: wsConnected ? '0 0 6px rgba(22,163,74,0.6)' : 'none',
+            }} />
+          )}
+          Engine: <span style={{
+            color: engine === 'live' ? '#0ea5e9' : engine === 'api' ? '#16a34a' : '#3b82f6',
+            fontWeight: '600'
           }}>
-            {engine === 'live' ? 'Live Mode (Stream)' : engine === 'api' ? 'Google API (Fast)' : 'AI Model (Nuanced)'}
+            {engine === 'live' ? (wsConnected ? 'Live Mode (Stream)' : 'Live Mode (offline — fallback)') : engine === 'api' ? 'Google API (Fast)' : 'AI Model (Nuanced)'}
           </span>
         </span>
       </div>
@@ -727,7 +849,7 @@ export default function Translate({ user, showToast }) {
       {history.length > 0 && (
         <div style={styles.historySection} className="animate-fade-in">
           <div style={styles.historyHeader}>
-            <h3 style={{ color: '#94a3b8', fontSize: '0.95rem', fontWeight: '600', margin: 0 }}>
+            <h3 style={{ color: '#475569', fontSize: '0.95rem', fontWeight: '600', margin: 0 }}>
               Recent Translations ({history.length})
             </h3>
           </div>
@@ -742,8 +864,8 @@ export default function Translate({ user, showToast }) {
                   <span style={styles.historyLangName}>{item.tLang}</span>
                   <span style={{
                     marginLeft: 'auto',
-                    background: item.engine === 'live' ? 'rgba(236,72,153,0.15)' : item.engine === 'llm' ? 'rgba(139,92,246,0.15)' : 'rgba(34,197,94,0.15)',
-                    color: item.engine === 'live' ? '#f472b6' : item.engine === 'llm' ? '#a78bfa' : '#4ade80',
+                    background: item.engine === 'live' ? 'rgba(14,165,233,0.15)' : item.engine === 'llm' ? 'rgba(37,99,235,0.15)' : 'rgba(34,197,94,0.15)',
+                    color: item.engine === 'live' ? '#38bdf8' : item.engine === 'llm' ? '#3b82f6' : '#16a34a',
                     padding: '2px 8px',
                     borderRadius: '4px',
                     fontSize: '0.7rem',
@@ -754,7 +876,7 @@ export default function Translate({ user, showToast }) {
                     {item.engine === 'live' ? 'LIVE' : item.engine === 'llm' ? 'AI' : 'API'}
                   </span>
                 </div>
-                <div style={styles.historyTexts}>
+                <div className="translate-history-texts">
                   <p style={styles.historySource}>"{item.source.substring(0, 120)}{item.source.length > 120 ? '...' : ''}"</p>
                   <p style={styles.historyResult}>{item.result.substring(0, 120)}{item.result.length > 120 ? '...' : ''}</p>
                 </div>
@@ -786,7 +908,7 @@ const styles = {
   },
   title: {
     fontSize: '2rem',
-    color: '#f1f5f9',
+    color: '#0f172a',
     marginBottom: '8px',
     fontWeight: '800',
     display: 'flex',
@@ -799,10 +921,10 @@ const styles = {
   },
   engineToggle: {
     display: 'flex',
-    background: 'rgba(255,255,255,0.03)',
+    background: 'rgba(15,23,42,0.03)',
     borderRadius: '14px',
     padding: '4px',
-    border: '1px solid rgba(255,255,255,0.08)',
+    border: '1px solid rgba(15,23,42,0.08)',
     gap: '4px',
   },
   engineBtn: {
@@ -820,9 +942,9 @@ const styles = {
     gap: '4px',
   },
   engineBtnActive: {
-    background: 'rgba(139,92,246,0.15)',
-    color: '#c4b5fd',
-    boxShadow: '0 2px 8px rgba(139,92,246,0.2)',
+    background: 'rgba(37,99,235,0.15)',
+    color: '#60a5fa',
+    boxShadow: '0 2px 8px rgba(37,99,235,0.2)',
   },
   badge: {
     marginLeft: '6px',
@@ -835,11 +957,11 @@ const styles = {
     letterSpacing: '0.04em',
   },
   card: {
-    background: 'rgba(255,255,255,0.02)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: 'rgba(15,23,42,0.02)',
+    border: '1px solid rgba(15,23,42,0.08)',
     borderRadius: '20px',
     overflow: 'visible',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+    boxShadow: '0 20px 60px rgba(15,23,42,0.10)',
   },
   langBar: {
     display: 'flex',
@@ -858,7 +980,7 @@ const styles = {
   },
   detectedBadge: {
     fontSize: '0.75rem',
-    color: '#22c55e',
+    color: '#16a34a',
     background: 'rgba(34,197,94,0.1)',
     border: '1px solid rgba(34,197,94,0.2)',
     borderRadius: '8px',
@@ -870,8 +992,8 @@ const styles = {
     width: '42px',
     height: '42px',
     borderRadius: '50%',
-    background: 'rgba(139,92,246,0.08)',
-    border: '1.5px solid rgba(139,92,246,0.25)',
+    background: 'rgba(37,99,235,0.08)',
+    border: '1.5px solid rgba(37,99,235,0.25)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -879,27 +1001,20 @@ const styles = {
     transition: 'all 0.25s ease',
     flexShrink: 0,
   },
-  textPanels: {
-    display: 'flex',
-    minHeight: '280px',
-  },
+  textPanels: {},
   panel: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
   },
-  panelDivider: {
-    width: '1px',
-    background: 'linear-gradient(180deg, transparent, rgba(139,92,246,0.3), transparent)',
-    flexShrink: 0,
-  },
+  panelDivider: {},
   textarea: {
     flex: 1,
     background: 'transparent',
     border: 'none',
     padding: '24px',
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: '1.05rem',
     lineHeight: '1.7',
     resize: 'none',
@@ -912,13 +1027,13 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderTop: '1px solid rgba(255,255,255,0.05)',
+    borderTop: '1px solid rgba(15,23,42,0.05)',
     gap: '12px',
   },
   iconActionBtn: {
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    color: '#94a3b8',
+    background: 'rgba(15,23,42,0.05)',
+    border: '1px solid rgba(15,23,42,0.1)',
+    color: '#475569',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -932,7 +1047,7 @@ const styles = {
   translateBtn: {
     display: 'flex',
     alignItems: 'center',
-    background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+    background: 'linear-gradient(135deg, #1d4ed8 0%, #1d4ed8 100%)',
     border: 'none',
     borderRadius: '10px',
     color: '#fff',
@@ -940,7 +1055,7 @@ const styles = {
     fontWeight: '700',
     fontSize: '0.9rem',
     cursor: 'pointer',
-    boxShadow: '0 4px 15px rgba(124,58,237,0.4)',
+    boxShadow: '0 4px 15px rgba(29,78,216,0.4)',
     transition: 'all 0.2s ease',
     gap: '4px',
   },
@@ -977,13 +1092,13 @@ const styles = {
     gap: '12px',
   },
   kbd: {
-    background: 'rgba(255,255,255,0.08)',
-    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'rgba(15,23,42,0.08)',
+    border: '1px solid rgba(15,23,42,0.12)',
     borderRadius: '4px',
     padding: '1px 6px',
     fontSize: '0.75rem',
     fontFamily: 'monospace',
-    color: '#94a3b8',
+    color: '#475569',
   },
   historySection: {
     marginTop: '40px',
@@ -1014,14 +1129,10 @@ const styles = {
   },
   historyLangName: {
     fontSize: '0.8rem',
-    color: '#94a3b8',
+    color: '#475569',
     fontWeight: '600',
   },
-  historyTexts: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '16px',
-  },
+  historyTexts: {},
   historySource: {
     fontSize: '0.9rem',
     color: '#64748b',
@@ -1031,7 +1142,7 @@ const styles = {
   },
   historyResult: {
     fontSize: '0.9rem',
-    color: '#e2e8f0',
+    color: '#1e293b',
     margin: 0,
     lineHeight: 1.5,
     fontWeight: '500',

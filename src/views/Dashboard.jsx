@@ -108,7 +108,7 @@ export default function Dashboard({
   };
 
   return (
-    <div style={styles.page} className="animate-fade-in">
+    <div style={styles.page} className="animate-fade-in dashboard-page">
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>Dashboard</h1>
@@ -164,14 +164,14 @@ export default function Dashboard({
           </div>
           <div style={styles.statVal}>{sttCount}</div>
           <div style={styles.statBottom}>
-            <span style={styles.statSubText} style={{ color: 'var(--success)' }}>
+            <span style={{ ...styles.statSubText, color: 'var(--success)' }}>
               {sttCount} audio transcribing jobs
             </span>
           </div>
         </div>
       </div>
 
-      <div style={styles.twoColLayout} className="dash-grid-two-columns">
+      <div className="dash-grid-two-columns">
         {/* Left Col: API Keys & Recent Actions */}
         <div style={styles.leftCol}>
           {/* API Keys Card */}
@@ -185,7 +185,7 @@ export default function Dashboard({
             
             <div style={styles.keysList}>
               {displayKeys.map((k) => (
-                <div key={k.id} style={styles.keyRow}>
+                <div key={k.id} style={styles.keyRow} className="dashboard-key-row">
                   <div style={styles.keyMeta}>
                     <div style={styles.keyNameRow}>
                       <span style={styles.keyName}>{k.name}</span>
@@ -201,7 +201,7 @@ export default function Dashboard({
                     <div style={styles.keyCreated}>Created: {k.created}</div>
                   </div>
                   
-                  <div style={styles.keyActions}>
+                  <div style={styles.keyActions} className="dashboard-key-actions">
                     <button onClick={() => toggleKeyVisibility(k.id)} style={styles.iconBtn} className="dashboard-icon-btn" title="Toggle Visibility">
                       {k.visible ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -254,7 +254,7 @@ export default function Dashboard({
           {/* Quick Actions */}
           <div className="glass-card" style={styles.card}>
             <h3 style={{...styles.cardTitle, marginBottom: '16px'}}>Quick Actions</h3>
-            <div style={styles.actionsGrid}>
+            <div className="dashboard-actions-grid">
               <div onClick={() => navigate('/documentation')} style={styles.actionItem} className="glass-card-hover">
                 <BookOpen size={20} color="var(--primary-light)" />
                 <div>
@@ -329,7 +329,7 @@ export default function Dashboard({
       {/* New Key Modal overlay */}
       {isModalOpen && (
         <div style={styles.modalOverlay}>
-          <div className="glass-card" style={styles.modal} className="glass-card animate-fade-in">
+          <div className="glass-card animate-fade-in dashboard-modal-container" style={styles.modal}>
             <div style={styles.modalHeader}>
               <h3 style={styles.modalTitle}>Create API Key</h3>
               <button onClick={() => setIsModalOpen(false)} style={styles.modalCloseBtn}>
@@ -422,10 +422,7 @@ const styles = {
   statSubText: {
     fontSize: '0.78rem',
   },
-  twoColLayout: {
-    display: 'flex',
-    gap: '24px',
-  },
+  twoColLayout: {},
   leftCol: {
     display: 'flex',
     flexDirection: 'column',
@@ -475,7 +472,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '16px',
-    background: 'rgba(255, 255, 255, 0.01)',
+    background: 'rgba(15,23,42,0.01)',
     border: '1px solid var(--border-color)',
     borderRadius: '10px',
     gap: '16px',
@@ -533,7 +530,7 @@ const styles = {
     alignItems: 'center',
     gap: '14px',
     padding: '12px 14px',
-    background: 'rgba(255,255,255,0.005)',
+    background: 'rgba(15,23,42,0.005)',
     border: '1px solid var(--border-color)',
     borderRadius: '10px',
   },
@@ -541,7 +538,7 @@ const styles = {
     width: '32px',
     height: '32px',
     borderRadius: '8px',
-    background: 'rgba(139, 92, 246, 0.08)',
+    background: 'rgba(37,99,235, 0.08)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -555,11 +552,7 @@ const styles = {
     color: 'var(--text-muted)',
     marginTop: '2px',
   },
-  actionsGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '12px',
-  },
+  actionsGrid: {},
   actionItem: {
     display: 'flex',
     alignItems: 'center',
@@ -568,7 +561,7 @@ const styles = {
     borderRadius: '10px',
     border: '1px solid var(--border-color)',
     cursor: 'pointer',
-    background: 'rgba(255,255,255,0.01)',
+    background: 'rgba(15,23,42,0.01)',
     transition: 'var(--transition)',
     textAlign: 'left',
   },
@@ -610,7 +603,7 @@ const styles = {
   progressBarBg: {
     width: '100%',
     height: '8px',
-    background: 'rgba(255,255,255,0.04)',
+    background: 'rgba(15,23,42,0.04)',
     borderRadius: '4px',
     overflow: 'hidden',
   },
@@ -626,7 +619,7 @@ const styles = {
     left: 0,
     width: '100vw',
     height: '100vh',
-    background: 'rgba(4, 3, 8, 0.8)',
+    background: 'rgba(255, 255, 255, 0.85)',
     backdropFilter: 'blur(4px)',
     display: 'flex',
     alignItems: 'center',
@@ -637,7 +630,7 @@ const styles = {
     width: '100%',
     maxWidth: '400px',
     padding: '28px',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+    boxShadow: '0 20px 40px rgba(15,23,42,0.14)',
   },
   modalHeader: {
     display: 'flex',

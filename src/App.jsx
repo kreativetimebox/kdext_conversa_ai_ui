@@ -29,6 +29,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(!!sessionStorage.getItem('access_token'));
 
   // Sync state with browser back/forward buttons
@@ -65,6 +66,7 @@ export default function App() {
   const navigate = (path) => {
     window.history.pushState(null, '', path);
     setCurrentPath(path);
+    setMobileNavOpen(false); // close the mobile drawer on any navigation
     window.scrollTo(0, 0);
   };
 
@@ -211,13 +213,22 @@ export default function App() {
 
       {useAppLayout ? (
         <>
-          <Sidebar 
-            isCollapsed={isSidebarCollapsed} 
-            toggleSidebar={toggleSidebar} 
-            onSignOut={logout} 
+          {/* Mobile-only top bar with hamburger (hidden on desktop via CSS) */}
+          <div className="mobile-topbar">
+            <button className="mobile-menu-btn" onClick={() => setMobileNavOpen(true)} aria-label="Open menu">☰</button>
+            <div className="navbar-brand">Conversa AI</div>
+          </div>
+          {mobileNavOpen && (
+            <div className="sidebar-backdrop" onClick={() => setMobileNavOpen(false)} />
+          )}
+          <Sidebar
+            isCollapsed={isSidebarCollapsed}
+            toggleSidebar={toggleSidebar}
+            onSignOut={logout}
             navigate={navigate}
             currentPath={currentPath}
             user={user}
+            mobileOpen={mobileNavOpen}
           />
           <div className="main-content">
             {renderView()}
@@ -291,10 +302,10 @@ const styles = {
     padding: '16px 20px',
     cursor: 'pointer',
     borderLeft: '4px solid transparent',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+    boxShadow: '0 10px 25px rgba(15,23,42,0.12)',
     display: 'flex',
     alignItems: 'center',
-    background: 'rgba(15, 14, 28, 0.95)',
+    background: 'rgba(255, 255, 255, 0.96)',
     backdropFilter: 'blur(10px)',
   },
   toastText: {

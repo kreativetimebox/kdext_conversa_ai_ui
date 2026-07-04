@@ -118,7 +118,7 @@ export default function Contact({ showToast }) {
                     style={{
                       ...styles.faqItem,
                       borderColor: activeFaq === idx ? 'var(--primary)' : 'var(--border-color)',
-                      background: activeFaq === idx ? 'rgba(139, 92, 246, 0.01)' : 'transparent'
+                      background: activeFaq === idx ? 'rgba(37,99,235, 0.01)' : 'transparent'
                     }}
                   >
                     <div style={styles.faqQuestionRow}>
@@ -298,7 +298,7 @@ const styles = {
     width: '36px',
     height: '36px',
     borderRadius: '8px',
-    background: 'rgba(139, 92, 246, 0.08)',
+    background: 'rgba(37,99,235, 0.08)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

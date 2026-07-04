@@ -26,7 +26,7 @@ const getGroup = (updatedAtStr) => {
   }
 };
 
-function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath, user }) {
+function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath, user, mobileOpen }) {
   const [conversations, setConversations] = useState([]);
 
   useEffect(() => {
@@ -98,7 +98,7 @@ function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath,
   });
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="sidebar-header">
         {!isCollapsed && <div className="navbar-brand">Conversa AI</div>}
         <button className="btn btn-text" onClick={toggleSidebar}>
@@ -119,6 +119,7 @@ function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath,
           </a>
         ))}
 
+        <div className="sidebar-conversations">
         {!isCollapsed && Object.keys(grouped).map(groupName => {
           const groupItems = grouped[groupName];
           if (groupItems.length === 0) return null;
@@ -167,6 +168,7 @@ function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath,
             </div>
           );
         })}
+        </div>
       </div>
 
       <div className="sidebar-footer" style={{ padding: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>

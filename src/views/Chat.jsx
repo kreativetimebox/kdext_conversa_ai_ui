@@ -32,7 +32,7 @@ const renderMarkdown = (text) => {
       return (
         <div key={index} style={styles.codeBlock}>
           <div style={styles.codeHeader}>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Code</span>
+            <span style={{ fontSize: '0.75rem', color: '#475569' }}>Code</span>
             <CopyButton text={part.content} />
           </div>
           <pre style={styles.pre}><code>{part.content}</code></pre>
@@ -71,7 +71,7 @@ const CopyButton = ({ text, variant = 'icon' }) => {
     return (
       <button onClick={handleCopy} style={styles.msgActionBtn} title="Copy response">
         {copied
-          ? <><CheckCircle2 size={13} color="#22c55e" /> <span>Copied</span></>
+          ? <><CheckCircle2 size={13} color="#16a34a" /> <span>Copied</span></>
           : <><Copy size={13} /> <span>Copy</span></>}
       </button>
     );
@@ -135,13 +135,13 @@ const SpeakButton = ({ text, apiKey, showToast }) => {
       onClick={handleSpeak}
       style={{
         ...styles.msgActionBtn,
-        color: isPlaying ? '#a78bfa' : undefined,
-        background: isPlaying ? 'rgba(139,92,246,0.15)' : undefined,
-        borderColor: isPlaying ? 'rgba(139,92,246,0.3)' : undefined,
+        color: isPlaying ? '#3b82f6' : undefined,
+        background: isPlaying ? 'rgba(37,99,235,0.15)' : undefined,
+        borderColor: isPlaying ? 'rgba(37,99,235,0.3)' : undefined,
       }}
       title={isPlaying ? 'Stop speaking' : 'Speak response'}
     >
-      <Volume2 size={13} color={isPlaying ? '#a78bfa' : undefined} />
+      <Volume2 size={13} color={isPlaying ? '#3b82f6' : undefined} />
       <span>{isPlaying ? 'Stop' : 'Speak'}</span>
     </button>
   );
@@ -202,6 +202,10 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   };
 
   const startRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast('Microphone recording is not supported in this browser. A secure HTTPS connection is required in production.', 'error');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -246,7 +250,16 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       setMediaRecorder(recorder);
       setIsRecording(true);
     } catch (err) {
-      showToast('Microphone access denied or unavailable.', 'error');
+      console.error('Microphone error:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        showToast('Microphone access was blocked. Please allow microphone permissions in your browser/site settings.', 'error');
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        showToast('No microphone found. Please connect a microphone and try again.', 'error');
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        showToast('Microphone is busy. Close other apps/tabs using the mic and try again.', 'error');
+      } else {
+        showToast('Microphone access denied or unavailable.', 'error');
+      }
     }
   };
 
@@ -308,23 +321,26 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
             hasFinished = true;
             break;
           }
+          let obj = null;
           try {
-            const obj = JSON.parse(data);
-            if (obj.error) throw new Error(obj.error);
-            if (obj.content) {
-              const token = obj.content;
-              assistantReply += token;
-              setMessages(prev => {
-                const newMsgs = [...prev];
-                newMsgs[assistantMsgIndex] = {
-                  ...newMsgs[assistantMsgIndex],
-                  content: (newMsgs[assistantMsgIndex]?.content || "") + token
-                };
-                return newMsgs;
-              });
-            }
+            obj = JSON.parse(data);
           } catch (jsonErr) {
-            // Log warning or skip invalid JSON
+            continue; // skip malformed SSE fragments
+          }
+          // Surface upstream errors instead of silently dropping them
+          // (a throw here must NOT be caught by the JSON-parse handler).
+          if (obj.error) throw new Error(obj.error);
+          if (obj.content) {
+            const token = obj.content;
+            assistantReply += token;
+            setMessages(prev => {
+              const newMsgs = [...prev];
+              newMsgs[assistantMsgIndex] = {
+                ...newMsgs[assistantMsgIndex],
+                content: (newMsgs[assistantMsgIndex]?.content || "") + token
+              };
+              return newMsgs;
+            });
           }
         }
       }
@@ -549,13 +565,13 @@ const styles = {
     width: '80px',
     height: '80px',
     borderRadius: '50%',
-    background: 'rgba(139, 92, 246, 0.1)',
-    border: '1px solid rgba(139, 92, 246, 0.2)',
+    background: 'rgba(37,99,235, 0.1)',
+    border: '1px solid rgba(37,99,235, 0.2)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: '24px',
-    boxShadow: '0 0 40px rgba(139, 92, 246, 0.15)',
+    boxShadow: '0 0 40px rgba(37,99,235, 0.15)',
   },
   suggestionGrid: {
     display: 'grid',
@@ -567,7 +583,7 @@ const styles = {
   suggestionCard: {
     textAlign: 'left',
     padding: '16px',
-    background: 'rgba(255, 255, 255, 0.02)',
+    background: 'rgba(15,23,42,0.02)',
     border: '1px solid var(--border-color)',
     cursor: 'pointer',
   },
@@ -575,20 +591,20 @@ const styles = {
     width: '32px',
     height: '32px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, var(--primary) 0%, #ec4899 100%)',
+    background: 'linear-gradient(135deg, var(--primary) 0%, #0ea5e9 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: '12px',
     flexShrink: 0,
     marginTop: '12px',
-    boxShadow: '0 0 10px rgba(139, 92, 246, 0.3)',
+    boxShadow: '0 0 10px rgba(37,99,235, 0.3)',
   },
   avatarUser: {
     width: '32px',
     height: '32px',
     borderRadius: '50%',
-    background: 'rgba(255, 255, 255, 0.1)',
+    background: 'rgba(15,23,42,0.1)',
     border: '1px solid var(--border-color)',
     display: 'flex',
     alignItems: 'center',
@@ -607,10 +623,10 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '5px',
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.1)',
+    background: 'rgba(15,23,42,0.05)',
+    border: '1px solid rgba(15,23,42,0.1)',
     borderRadius: '8px',
-    color: '#94a3b8',
+    color: '#475569',
     fontSize: '0.75rem',
     fontWeight: '600',
     padding: '5px 10px',
@@ -635,7 +651,7 @@ const styles = {
     marginTop: '12px',
     marginBottom: '12px',
     overflow: 'hidden',
-    border: '1px solid rgba(255,255,255,0.1)',
+    border: '1px solid rgba(15,23,42,0.1)',
   },
   codeHeader: {
     display: 'flex',
@@ -643,7 +659,7 @@ const styles = {
     alignItems: 'center',
     background: '#2d2d2d',
     padding: '6px 12px',
-    borderBottom: '1px solid rgba(255,255,255,0.05)',
+    borderBottom: '1px solid rgba(15,23,42,0.05)',
   },
   pre: {
     padding: '12px',
@@ -656,7 +672,7 @@ const styles = {
   copyBtn: {
     background: 'transparent',
     border: 'none',
-    color: '#94a3b8',
+    color: '#475569',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',

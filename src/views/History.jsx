@@ -398,7 +398,7 @@ const styles = {
   searchInput: {
     width: '100%',
     padding: '10px 16px 10px 38px',
-    background: 'rgba(255, 255, 255, 0.02)',
+    background: 'rgba(15,23,42,0.02)',
     border: '1px solid var(--border-color)',
     borderRadius: '8px',
     color: 'var(--text-primary)',
@@ -408,7 +408,7 @@ const styles = {
   },
   filterSelect: {
     padding: '10px 16px',
-    background: '#0b0a16',
+    background: '#f6f9fe',
     border: '1px solid var(--border-color)',
     borderRadius: '8px',
     color: 'var(--text-secondary)',
@@ -456,7 +456,7 @@ const styles = {
     left: 0,
     width: '100vw',
     height: '100vh',
-    background: 'rgba(4, 3, 8, 0.8)',
+    background: 'rgba(255, 255, 255, 0.85)',
     backdropFilter: 'blur(4px)',
     display: 'flex',
     alignItems: 'center',
@@ -467,7 +467,7 @@ const styles = {
     width: '100%',
     maxWidth: '500px',
     padding: '28px',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+    boxShadow: '0 20px 40px rgba(15,23,42,0.14)',
   },
   modalHeader: {
     display: 'flex',
@@ -514,7 +514,7 @@ const styles = {
     overflow: 'hidden',
   },
   jsonHeader: {
-    background: 'rgba(255,255,255,0.01)',
+    background: 'rgba(15,23,42,0.01)',
     borderBottom: '1px solid var(--border-color)',
     padding: '8px 12px',
     fontSize: '0.75rem',
@@ -527,7 +527,7 @@ const styles = {
   jsonPre: {
     margin: 0,
     padding: '12px',
-    background: '#040308',
+    background: '#eaf1fc',
     color: '#34d399',
     fontFamily: 'monospace',
     fontSize: '0.82rem',
