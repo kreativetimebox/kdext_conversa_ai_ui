@@ -311,7 +311,14 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia(
+        {
+          audio: {
+            autoGainControl: false,  // Prevents amplifying silence into loud static
+            noiseSuppression: true,  // Actively filters out background noise/hums
+            echoCancellation: true
+        }
+      });
       audioChunksRef.current = [];
       const mr = new MediaRecorder(stream);
       mediaRecorderRef.current = mr;
