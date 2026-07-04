@@ -119,6 +119,7 @@ function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath,
           </a>
         ))}
 
+        <div className="sidebar-conversations">
         {!isCollapsed && Object.keys(grouped).map(groupName => {
           const groupItems = grouped[groupName];
           if (groupItems.length === 0) return null;
@@ -167,6 +168,7 @@ function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath,
             </div>
           );
         })}
+        </div>
       </div>
 
       <div className="sidebar-footer" style={{ padding: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>

@@ -1282,3 +1282,54 @@ p {
   transform: none;
 }
 
+
+/* ── Responsive layer ──────────────────────────────────────────────────────── */
+
+/* Tablets & phones: sidebar becomes a compact icon rail so content keeps room */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 68px;
+    min-width: 68px;
+  }
+  .sidebar .nav-label,
+  .sidebar .navbar-brand,
+  .sidebar .sidebar-conversations {
+    display: none !important;
+  }
+  .sidebar .nav-item {
+    justify-content: center;
+    padding: 12px;
+  }
+  .sidebar-header {
+    justify-content: center;
+    padding: 0 8px;
+  }
+  .sidebar-footer .btn {
+    padding: 10px;
+  }
+
+  /* Wide tables scroll horizontally instead of breaking the layout */
+  .custom-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Chat bubbles get more room on small screens */
+  .chat-bubble {
+    max-width: 92%;
+  }
+  .chat-history {
+    padding: 16px 12px;
+  }
+  .chat-input-area {
+    padding: 12px;
+  }
+}
+
+/* Small phones: tighten global paddings inside cards */
+@media (max-width: 480px) {
+  .glass-card {
+    padding: 16px;
+  }
+}

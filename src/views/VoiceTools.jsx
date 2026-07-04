@@ -223,11 +223,19 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
       if (data?.status === 'queued' && data?.job_id) {
         showToast('TTS job queued, synthesizing...', 'info');
         let job = data;
+        // Cap polling so a stuck job can't spin this UI forever.
+        const deadline = Date.now() + 180000;
         while (job.status === 'queued' || job.status === 'processing') {
+          if (Date.now() > deadline) {
+            throw new Error('TTS job timed out after 3 minutes. Please try again.');
+          }
           await new Promise(resolve => setTimeout(resolve, 1500));
           job = await getJobStatus(user.api_key, data.job_id);
           if (job.status === 'failed') {
             throw new Error(job.error || 'Async TTS synthesis failed on worker.');
+          }
+          if (job.queue_position) {
+            setTtsError(''); // clear any stale error while waiting in queue
           }
         }
         data = job;
@@ -406,7 +414,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
       if (result?.status === 'queued' && result?.job_id) {
         showToast('STT job queued, transcribing...', 'info');
         let job = result;
+        // Cap polling so a stuck job can't spin this UI forever.
+        const deadline = Date.now() + 180000;
         while (job.status === 'queued' || job.status === 'processing') {
+          if (Date.now() > deadline) {
+            throw new Error('STT job timed out after 3 minutes. Please try again.');
+          }
           await new Promise(resolve => setTimeout(resolve, 1500));
           job = await getJobStatus(user.api_key, result.job_id);
           if (job.status === 'failed') {

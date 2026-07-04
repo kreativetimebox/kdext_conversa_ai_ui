@@ -75,6 +75,7 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
       {/* Trigger button */}
       <button
         onClick={() => setOpen(!open)}
+        className="lang-dropdown-btn"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -513,7 +514,7 @@ export default function Translate({ user, showToast }) {
   const maxChars = 5000;
 
   return (
-    <div style={styles.container} className="animate-fade-in">
+    <div style={styles.container} className="animate-fade-in translate-page">
       {/* Dropdown animation */}
       <style>{`
         @keyframes dropdownFadeIn {
@@ -533,6 +534,13 @@ export default function Translate({ user, showToast }) {
           animation: streamBlink 0.8s steps(2) infinite;
         }
         @keyframes streamBlink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+        @media (max-width: 768px) {
+          .translate-page { padding: 20px 14px 40px !important; }
+          .translate-panels { flex-direction: column !important; }
+          .translate-panel-divider { width: 100% !important; height: 1px !important; }
+          .translate-history-texts { grid-template-columns: 1fr !important; }
+          .lang-dropdown-btn { min-width: 150px !important; }
+        }
       `}</style>
 
       {/* Header */}
@@ -626,7 +634,7 @@ export default function Translate({ user, showToast }) {
         <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(37,99,235,0.3), transparent)' }} />
 
         {/* Text areas */}
-        <div style={styles.textPanels}>
+        <div style={styles.textPanels} className="translate-panels">
           {/* Source panel */}
           <div style={styles.panel}>
             <textarea
@@ -679,7 +687,7 @@ export default function Translate({ user, showToast }) {
           </div>
 
           {/* Vertical divider */}
-          <div style={styles.panelDivider} />
+          <div style={styles.panelDivider} className="translate-panel-divider" />
 
           {/* Target panel */}
           <div style={{ ...styles.panel, background: 'rgba(37,99,235,0.03)' }}>
@@ -779,7 +787,7 @@ export default function Translate({ user, showToast }) {
                     {item.engine === 'live' ? 'LIVE' : item.engine === 'llm' ? 'AI' : 'API'}
                   </span>
                 </div>
-                <div style={styles.historyTexts}>
+                <div style={styles.historyTexts} className="translate-history-texts">
                   <p style={styles.historySource}>"{item.source.substring(0, 120)}{item.source.length > 120 ? '...' : ''}"</p>
                   <p style={styles.historyResult}>{item.result.substring(0, 120)}{item.result.length > 120 ? '...' : ''}</p>
                 </div>
