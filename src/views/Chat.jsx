@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, RefreshCw } from 'lucide-react';
-import { chatCompletion, speechToText, getConversationDetails, createConversation, addMessage } from '../services/api';
+import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2 } from 'lucide-react';
+import { chatCompletion, voiceSTT, voiceTTS, getConversationDetails, createConversation, addMessage } from '../services/api';
 
 // Simple Markdown Renderer
 const renderMarkdown = (text) => {
@@ -60,16 +60,89 @@ const renderMarkdown = (text) => {
   });
 };
 
-const CopyButton = ({ text }) => {
+const CopyButton = ({ text, variant = 'icon' }) => {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+  if (variant === 'action') {
+    return (
+      <button onClick={handleCopy} style={styles.msgActionBtn} title="Copy response">
+        {copied
+          ? <><CheckCircle2 size={13} color="#22c55e" /> <span>Copied</span></>
+          : <><Copy size={13} /> <span>Copy</span></>}
+      </button>
+    );
+  }
   return (
     <button onClick={handleCopy} style={styles.copyBtn} title="Copy code">
       {copied ? <CheckCircle2 size={14} color="var(--success)" /> : <Copy size={14} />}
+    </button>
+  );
+};
+
+const SpeakButton = ({ text, apiKey, showToast }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef(null);
+  const blobUrlRef = useRef(null);
+
+  const handleSpeak = async () => {
+    // If already playing, stop it
+    if (isPlaying) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setIsPlaying(false);
+      return;
+    }
+
+    if (!text?.trim()) return;
+    setIsPlaying(true);
+
+    try {
+      // Revoke previous blob URL to free memory
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+
+      const blobUrl = await voiceTTS(apiKey, text, 'en', 'divya');
+      blobUrlRef.current = blobUrl;
+
+      const audio = new Audio(blobUrl);
+      audioRef.current = audio;
+      audio.play();
+      audio.onended = () => {
+        setIsPlaying(false);
+        audioRef.current = null;
+      };
+      audio.onerror = () => {
+        setIsPlaying(false);
+        audioRef.current = null;
+        showToast('Failed to play audio.', 'error');
+      };
+    } catch (err) {
+      setIsPlaying(false);
+      showToast(err.message || 'Speech synthesis failed.', 'error');
+    }
+  };
+
+  return (
+    <button
+      onClick={handleSpeak}
+      style={{
+        ...styles.msgActionBtn,
+        color: isPlaying ? '#a78bfa' : undefined,
+        background: isPlaying ? 'rgba(139,92,246,0.15)' : undefined,
+        borderColor: isPlaying ? 'rgba(139,92,246,0.3)' : undefined,
+      }}
+      title={isPlaying ? 'Stop speaking' : 'Speak response'}
+    >
+      <Volume2 size={13} color={isPlaying ? '#a78bfa' : undefined} />
+      <span>{isPlaying ? 'Stop' : 'Speak'}</span>
     </button>
   );
 };
@@ -139,20 +212,28 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       };
       
       recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        const file = new File([audioBlob], 'voice_input.wav', { type: 'audio/wav' });
+        const mimeType = recorder.mimeType || 'audio/wav';
+        const audioBlob = new Blob(audioChunks, { type: mimeType });
+        const ext = mimeType.includes('webm') ? 'webm' : mimeType.includes('ogg') ? 'ogg' : 'wav';
+        const file = new File([audioBlob], `voice_input.${ext}`, { type: mimeType });
         
         setIsTyping(true);
         showToast('Transcribing voice...', 'info');
         
         try {
-          const res = await speechToText(user?.api_key || 'demo', file, 'auto');
-          if (res && res.detail) {
-            setInput(prev => prev + (prev ? ' ' : '') + res.detail);
+          const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
+          // Use gateway-proxied STT endpoint (/api/voice/stt → engine :8002/v1/stt)
+          const res = await voiceSTT(apiKey, file, null);
+          // Gateway returns { text, language, words[] }
+          const transcript = res?.text || res?.detail || '';
+          if (transcript) {
+            setInput(prev => prev + (prev ? ' ' : '') + transcript);
             showToast('Voice transcribed successfully.', 'success');
+          } else {
+            showToast('No speech detected. Please try again.', 'warning');
           }
         } catch (err) {
-          showToast('Failed to transcribe voice.', 'error');
+          showToast(err.message || 'Failed to transcribe voice.', 'error');
         } finally {
           setIsTyping(false);
         }
@@ -361,9 +442,18 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
                     </div>
                   )}
                   
-                  {msg.role === 'assistant' && !isTyping && !msg.isError && (
+                  {msg.role === 'assistant' && !msg.isError && msg.content && (
                     <div style={styles.bubbleActions}>
-                      <CopyButton text={msg.content} />
+                      {!isTyping || index !== messages.length - 1 ? (
+                        <>
+                          <CopyButton text={msg.content} variant="action" />
+                          <SpeakButton
+                            text={msg.content}
+                            apiKey={user?.api_key || sessionStorage.getItem('api_key') || 'demo'}
+                            showToast={showToast}
+                          />
+                        </>
+                      ) : null}
                     </div>
                   )}
                 </div>
@@ -509,8 +599,24 @@ const styles = {
   },
   bubbleActions: {
     display: 'flex',
-    gap: '8px',
+    gap: '6px',
     marginTop: '12px',
+    flexWrap: 'wrap',
+  },
+  msgActionBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: '8px',
+    color: '#94a3b8',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    padding: '5px 10px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    fontFamily: 'inherit',
   },
   actionBtn: {
     background: 'transparent',

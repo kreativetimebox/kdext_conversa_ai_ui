@@ -33,7 +33,13 @@ export default defineConfig({
           changeOrigin: true,
         };
         return acc;
-      }, {})
+      }, {}),
+      // Proxy the WebSocket translation stream
+      '/ws/translate': {
+        target: 'http://185.14.252.20:8001',
+        changeOrigin: true,
+        ws: true,
+      }
     },
   },
 })
