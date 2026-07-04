@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowRightLeft, Volume2, Copy, Sparkles, CheckCircle2, Globe, ChevronDown, Zap, RotateCcw, Search } from 'lucide-react';
+import { ArrowRightLeft, Volume2, Copy, Sparkles, CheckCircle2, Globe, ChevronDown, Zap, RotateCcw, Search, Bot } from 'lucide-react';
 import { translateText, textToSpeech, buildAudioUrl } from '../services/api';
 
 const LANGUAGES = [
@@ -317,6 +317,11 @@ export default function Translate({ user, showToast }) {
   useEffect(() => {
     clearTimeout(debounceTimerRef.current);
 
+    // ONLY auto-translate on typing if Live Mode is selected
+    if (engine !== 'live') {
+      return;
+    }
+
     if (!sourceText.trim()) {
       setTranslatedText('');
       setDetectedLang(null);
@@ -329,26 +334,23 @@ export default function Translate({ user, showToast }) {
       const currentSeq = seqRef.current;
       setDetectedLang(null);
 
+      // Live Mode uses the streaming WebSocket with the 'llm' backend engine
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        if (engine === 'llm') {
-          setTranslatedText('');
-        }
+        setTranslatedText('');
         setIsTranslating(true);
         wsRef.current.send(JSON.stringify({
           type: 'translate',
           id: currentSeq,
           text: sourceText.trim(),
           target_lang: targetLang,
-          engine: engine
+          engine: 'llm'
         }));
       } else {
         // Fallback to HTTP translation
         setIsTranslating(true);
-        if (engine === 'llm') {
-          setTranslatedText('');
-        }
+        setTranslatedText('');
         try {
-          const res = await translateText(apiKey, sourceText.trim(), sourceLang === 'auto' ? null : sourceLang, targetLang, engine);
+          const res = await translateText(apiKey, sourceText.trim(), sourceLang === 'auto' ? null : sourceLang, targetLang, 'llm');
           if (currentSeq !== seqRef.current) return;
 
           const result = res?.translation || res?.translated_text || res?.result || '';
@@ -376,7 +378,7 @@ export default function Translate({ user, showToast }) {
               tLang: LANGUAGES.find(l => l.code === targetLang)?.name,
               sFlag: sourceLang === 'auto' ? '🔍' : LANGUAGES.find(l => l.code === sourceLang)?.flag,
               tFlag: LANGUAGES.find(l => l.code === targetLang)?.flag,
-              engine,
+              engine: 'live',
             }, ...prev].slice(0, 10);
           });
         } catch (err) {
@@ -399,8 +401,10 @@ export default function Translate({ user, showToast }) {
     seqRef.current += 1;
     const currentSeq = seqRef.current;
 
+    const activeEngine = engine === 'live' ? 'llm' : engine;
+
     try {
-      const res = await translateText(apiKey, sourceText.trim(), sourceLang === 'auto' ? null : sourceLang, targetLang, engine);
+      const res = await translateText(apiKey, sourceText.trim(), sourceLang === 'auto' ? null : sourceLang, targetLang, activeEngine);
       if (currentSeq !== seqRef.current) return;
 
       const result = res?.translation || res?.translated_text || res?.result || '';
@@ -538,6 +542,21 @@ export default function Translate({ user, showToast }) {
             <Sparkles size={14} style={{ marginRight: '6px' }} />
             AI Model
             <span style={{ ...styles.badge, background: engine === 'llm' ? '#8b5cf6' : '#334155' }}>Nuanced</span>
+          </button>
+          <button
+            onClick={() => setEngine('live')}
+            style={{ 
+              ...styles.engineBtn, 
+              ...(engine === 'live' ? {
+                background: 'rgba(236,72,153,0.15)',
+                color: '#f472b6',
+                boxShadow: '0 2px 8px rgba(236,72,153,0.2)',
+              } : {}) 
+            }}
+          >
+            <Bot size={14} style={{ marginRight: '6px' }} />
+            Live Mode
+            <span style={{ ...styles.badge, background: engine === 'live' ? '#ec4899' : '#334155' }}>Stream</span>
           </button>
         </div>
       </div>
@@ -690,11 +709,16 @@ export default function Translate({ user, showToast }) {
       {/* Tips bar */}
       <div style={styles.tipsBar}>
         <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
-          💡 Press <kbd style={styles.kbd}>Ctrl</kbd>+<kbd style={styles.kbd}>Enter</kbd> to translate instantly
+          {engine === 'live' 
+            ? '💡 Typing automatically translates using live WebSockets stream' 
+            : '💡 Press Ctrl+Enter or click Translate to submit text'}
         </span>
         <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
-          Engine: <span style={{ color: engine === 'api' ? '#22c55e' : '#a78bfa', fontWeight: '600' }}>
-            {engine === 'api' ? 'Google API (Fast)' : 'AI Model (Nuanced)'}
+          Engine: <span style={{ 
+            color: engine === 'live' ? '#ec4899' : engine === 'api' ? '#22c55e' : '#a78bfa', 
+            fontWeight: '600' 
+          }}>
+            {engine === 'live' ? 'Live Mode (Stream)' : engine === 'api' ? 'Google API (Fast)' : 'AI Model (Nuanced)'}
           </span>
         </span>
       </div>
@@ -718,8 +742,8 @@ export default function Translate({ user, showToast }) {
                   <span style={styles.historyLangName}>{item.tLang}</span>
                   <span style={{
                     marginLeft: 'auto',
-                    background: item.engine === 'llm' ? 'rgba(139,92,246,0.15)' : 'rgba(34,197,94,0.15)',
-                    color: item.engine === 'llm' ? '#a78bfa' : '#4ade80',
+                    background: item.engine === 'live' ? 'rgba(236,72,153,0.15)' : item.engine === 'llm' ? 'rgba(139,92,246,0.15)' : 'rgba(34,197,94,0.15)',
+                    color: item.engine === 'live' ? '#f472b6' : item.engine === 'llm' ? '#a78bfa' : '#4ade80',
                     padding: '2px 8px',
                     borderRadius: '4px',
                     fontSize: '0.7rem',
@@ -727,7 +751,7 @@ export default function Translate({ user, showToast }) {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                   }}>
-                    {item.engine === 'llm' ? 'AI' : 'API'}
+                    {item.engine === 'live' ? 'LIVE' : item.engine === 'llm' ? 'AI' : 'API'}
                   </span>
                 </div>
                 <div style={styles.historyTexts}>
