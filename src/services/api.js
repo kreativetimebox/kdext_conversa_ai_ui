@@ -351,3 +351,60 @@ export async function translateText(apiKey, text, source, target, engine = 'api'
   });
   return handleResponse(res);
 }
+
+// ─── Voice (Real-time via Gateway /api/voice/*) ───────────────────────────────
+
+/**
+ * POST /api/voice/stt  (requires x-api-key)
+ * Gateway proxies this to the STT engine at :8002/v1/stt
+ * Body: multipart/form-data { file, language? }
+ * Response: { text, language, words: [{word, start, end, confidence}] }
+ */
+export async function voiceSTT(apiKey, file, language = null) {
+  const formData = new FormData();
+  const filename = file.name || `voice_${Date.now()}.wav`;
+  formData.append('file', file, filename);
+  if (language && language !== 'auto') {
+    formData.append('language', language);
+  }
+  const res = await fetch(`${BASE_URL}/api/voice/stt`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey },
+    body: formData,
+  });
+  return handleResponse(res);
+}
+
+/**
+ * POST /api/voice/tts  (requires x-api-key)
+ * Gateway proxies this to the TTS engine at :8000/v1/tts
+ * Body: multipart/form-data { text, language, voice? }  (gateway uses form-data)
+ * Response: audio/wav binary bytes
+ * Returns a Blob URL that can be played by <audio>
+ */
+export async function voiceTTS(apiKey, text, language = 'en', voice = null) {
+  const formData = new FormData();
+  formData.append('text', text);
+  formData.append('language', language);
+  if (voice) formData.append('voice', voice);
+
+  const res = await fetch(`${BASE_URL}/api/voice/tts`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let errMsg = `TTS HTTP ${res.status}`;
+    try {
+      const data = await res.json();
+      errMsg = data?.detail || data?.message || errMsg;
+    } catch (_) {}
+    throw new Error(errMsg);
+  }
+
+  // Response is raw audio/wav bytes — convert to a playable blob URL
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
