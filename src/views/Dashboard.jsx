@@ -108,7 +108,7 @@ export default function Dashboard({
   };
 
   return (
-    <div style={styles.page} className="animate-fade-in">
+    <div style={styles.page} className="animate-fade-in dashboard-page">
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>Dashboard</h1>
@@ -171,7 +171,7 @@ export default function Dashboard({
         </div>
       </div>
 
-      <div style={styles.twoColLayout} className="dash-grid-two-columns">
+      <div className="dash-grid-two-columns">
         {/* Left Col: API Keys & Recent Actions */}
         <div style={styles.leftCol}>
           {/* API Keys Card */}
@@ -422,10 +422,7 @@ const styles = {
   statSubText: {
     fontSize: '0.78rem',
   },
-  twoColLayout: {
-    display: 'flex',
-    gap: '24px',
-  },
+  twoColLayout: {},
   leftCol: {
     display: 'flex',
     flexDirection: 'column',

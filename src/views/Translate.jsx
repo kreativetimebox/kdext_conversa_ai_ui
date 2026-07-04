@@ -574,7 +574,7 @@ export default function Translate({ user, showToast }) {
           .translate-page { padding: 20px 14px 40px !important; }
           .translate-page h1 { font-size: 1.35rem !important; }
           .translate-page h1 + p { margin-left: 0 !important; font-size: 0.8rem !important; }
-          .translate-panels { flex-direction: column !important; }
+          .translate-text-panels { flex-direction: column !important; }
           .translate-panel-divider { width: 100% !important; height: 1px !important; }
           .translate-history-texts { grid-template-columns: 1fr !important; }
           .lang-dropdown-btn { min-width: 140px !important; flex: 1; }
