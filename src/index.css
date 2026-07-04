@@ -1623,6 +1623,8 @@ p {
   height: 100%;
   pointer-events: none;
   z-index: 1;
+  mask-image: radial-gradient(circle at center, transparent 20%, black 50%);
+  -webkit-mask-image: radial-gradient(circle at center, transparent 20%, black 50%);
 }
 
 .hero-v-line {
