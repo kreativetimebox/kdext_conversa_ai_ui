@@ -202,6 +202,10 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   };
 
   const startRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast('Microphone recording is not supported in this browser. A secure HTTPS connection is required in production.', 'error');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -246,7 +250,16 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       setMediaRecorder(recorder);
       setIsRecording(true);
     } catch (err) {
-      showToast('Microphone access denied or unavailable.', 'error');
+      console.error('Microphone error:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        showToast('Microphone access was blocked. Please allow microphone permissions in your browser/site settings.', 'error');
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        showToast('No microphone found. Please connect a microphone and try again.', 'error');
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        showToast('Microphone is busy. Close other apps/tabs using the mic and try again.', 'error');
+      } else {
+        showToast('Microphone access denied or unavailable.', 'error');
+      }
     }
   };
 

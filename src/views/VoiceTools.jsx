@@ -304,6 +304,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
   const startRecording = async () => {
     setSttError('');
     setTranscriptResult(null);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      const msg = 'Microphone recording is not supported in this browser. A secure HTTPS connection is required in production.';
+      setSttError(msg);
+      showToast(msg, 'error');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
@@ -325,8 +331,17 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
       setSttState('recording');
       showToast('🎙️ Live recording active...', 'info');
     } catch (err) {
-      setSttError('Microphone access denied. Please allow microphone permissions in your browser.');
-      showToast('Microphone access denied.', 'error');
+      console.error('Microphone error:', err);
+      let msg = 'Microphone access denied or unavailable.';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        msg = 'Microphone access was blocked. Please allow microphone permissions in your browser/site settings.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        msg = 'No microphone found. Please connect a microphone and try again.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        msg = 'Microphone is busy. Close other apps/tabs using the mic and try again.';
+      }
+      setSttError(msg);
+      showToast(msg, 'error');
     }
   };
 

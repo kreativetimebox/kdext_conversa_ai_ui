@@ -164,7 +164,7 @@ export default function Dashboard({
           </div>
           <div style={styles.statVal}>{sttCount}</div>
           <div style={styles.statBottom}>
-            <span style={styles.statSubText} style={{ color: 'var(--success)' }}>
+            <span style={{ ...styles.statSubText, color: 'var(--success)' }}>
               {sttCount} audio transcribing jobs
             </span>
           </div>
