@@ -416,7 +416,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         result = job;
       }
 
-      const transcript = result?.detail || result?.transcript || result?.text || JSON.stringify(result);
+      const transcript = result?.detail ?? result?.transcript ?? result?.text ?? JSON.stringify(result);
       const processingTime = result?.processing_time ? `${result.processing_time.toFixed(2)}s` : '-';
       const filename = file.name || `recording.wav`;
 
