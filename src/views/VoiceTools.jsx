@@ -855,14 +855,14 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
             {/* Mode Tab Switcher */}
             <div style={styles.sttTabBar}>
               <button
-                onClick={() => { setSttMode('record'); setSttState('idle'); setReviewBlob(null); setTranscriptResult(null); setSttError(''); }}
+                onClick={() => setSttMode('record')}
                 style={{ ...styles.sttTab, ...(sttMode === 'record' ? styles.sttTabActive : {}) }}
                 type="button"
               >
                 <Mic size={15} /> Live Record
               </button>
               <button
-                onClick={() => { setSttMode('upload'); setSttState('idle'); setReviewBlob(null); setTranscriptResult(null); setSttError(''); }}
+                onClick={() => setSttMode('upload')}
                 style={{ ...styles.sttTab, ...(sttMode === 'upload' ? styles.sttTabActive : {}) }}
                 type="button"
               >
