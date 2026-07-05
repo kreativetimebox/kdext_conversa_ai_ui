@@ -899,8 +899,10 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
                 accept="audio/*"
               />
 
-              {sttState === 'reviewing' ? (
-                /* 🔎 SHARED REVIEW/TRIM PANEL (record + upload both land here) */
+              {reviewBlob ? (
+                /* 🔎 SHARED REVIEW/TRIM PANEL (record + upload both land here). Stays mounted
+                   through transcribing/completed so the same clip can be re-run to check for
+                   model hallucination — it only disappears when the panel's Close (X) is pressed. */
                 <div>
                   <h3 style={{ ...styles.cardSubHeader, marginBottom: '16px' }}>Review Audio</h3>
                   <AudioReviewPanel
@@ -912,18 +914,18 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
                     onReUpload={reviewPanelReUpload}
                     showToast={showToast}
                   />
-                  <button onClick={submitReviewedAudio} className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }} type="button">
-                    <Sparkles size={16} /> Run Transcription Models
-                  </button>
-                </div>
-
-              ) : sttState === 'transcribing' ? (
-                /* ⏳ TRANSCRIBING (shared by record + upload) */
-                <div style={styles.transcribingWrapper}>
-                  <Loader2 size={24} className="animate-spin" color="var(--primary)" />
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>
-                    {sttMode === 'record' ? 'Processing acoustic features...' : 'Uploading and parsing file chunks...'}
-                  </span>
+                  {sttState === 'transcribing' ? (
+                    <div style={{ ...styles.transcribingWrapper, marginTop: '16px' }}>
+                      <Loader2 size={24} className="animate-spin" color="var(--primary)" />
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>
+                        {sttMode === 'record' ? 'Processing acoustic features...' : 'Uploading and parsing file chunks...'}
+                      </span>
+                    </div>
+                  ) : (
+                    <button onClick={submitReviewedAudio} className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }} type="button">
+                      <Sparkles size={16} /> {sttState === 'completed' ? 'Run Again' : 'Run Transcription Models'}
+                    </button>
+                  )}
                 </div>
 
               ) : sttMode === 'record' ? (
