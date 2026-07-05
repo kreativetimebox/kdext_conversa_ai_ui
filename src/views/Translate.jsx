@@ -390,9 +390,11 @@ export default function Translate({ user, showToast }) {
       seqRef.current += 1;
       const id = seqRef.current;
       reqEngineRef.current[id] = wsEngine;
+      // Mark as translating for BOTH engines, not just 'llm' — otherwise the
+      // instant pass swaps the text in with no visible feedback at all.
+      setIsTranslating(true);
       if (wsEngine === 'llm') {
         freshStreamRef.current = true;
-        setIsTranslating(true);
       }
       wsRef.current.send(JSON.stringify({
         type: 'translate',
@@ -406,6 +408,7 @@ export default function Translate({ user, showToast }) {
     const httpInstant = async () => {
       seqRef.current += 1;
       const id = seqRef.current;
+      setIsTranslating(true);
       try {
         const res = await translateText(apiKey, text, sourceLang === 'auto' ? null : sourceLang, targetLang, 'api');
         if (id !== seqRef.current) return; // superseded by newer keystroke
@@ -416,6 +419,7 @@ export default function Translate({ user, showToast }) {
         setIsTranslating(false);
       } catch {
         // instant pass is best-effort; the refine pass will still land
+        setIsTranslating(false);
       }
     };
 
@@ -592,16 +596,6 @@ export default function Translate({ user, showToast }) {
         .translate-textarea::-webkit-scrollbar { width: 4px; }
         .translate-textarea::-webkit-scrollbar-track { background: transparent; }
         .translate-textarea::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.3); border-radius: 2px; }
-        .stream-cursor {
-          display: inline-block;
-          width: 2px;
-          height: 1.1em;
-          background: var(--primary);
-          margin-left: 2px;
-          vertical-align: text-bottom;
-          animation: streamBlink 0.8s steps(2) infinite;
-        }
-        @keyframes streamBlink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
         @media (max-width: 768px) {
           .translate-page { padding: 20px 14px 40px !important; }
           .translate-page h1 { font-size: 1.35rem !important; }
@@ -799,16 +793,20 @@ export default function Translate({ user, showToast }) {
           <div style={{ ...styles.panel, background: 'rgba(37,99,235,0.03)' }}>
             <div className="translate-textarea" style={{ ...styles.textarea, overflowY: 'auto', cursor: 'default' }}>
               {translatedText ? (
-                // Show streamed tokens AS they arrive — never hide them behind a
-                // loading state. A blinking cursor marks an in-flight stream.
+                // Show existing text AS-IS while a newer translation is in
+                // flight — never blank/replace it. A small reload-style spinner
+                // appended after the text is the only sign something's updating.
                 <span dir="auto" style={{ whiteSpace: 'pre-wrap', color: 'var(--text-primary)' }}>
                   {translatedText}
-                  {isTranslating && <span className="stream-cursor" />}
+                  {isTranslating && <span style={styles.inlineSpinner} />}
                 </span>
               ) : isTranslating ? (
                 <div style={styles.loadingState}>
-                  <div style={styles.loadingDots}>
-                    <span /><span /><span />
+                  <div className="translate-loading-wave">
+                    <div className="translate-loading-bar" />
+                    <div className="translate-loading-bar" />
+                    <div className="translate-loading-bar" />
+                    <div className="translate-loading-bar" />
                   </div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Translating...</p>
                 </div>
@@ -833,14 +831,29 @@ export default function Translate({ user, showToast }) {
 
         {/* Loading bars animation */}
         <style>{`
-          @keyframes translateLoading {
-            0% { opacity: 0.3; transform: scale(0.8); }
-            50% { opacity: 1; transform: scale(1.1); }
-            100% { opacity: 0.3; transform: scale(0.8); }
+          .translate-loading-wave {
+            width: 80px;
+            height: 32px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
           }
-          .translate-loading-dot:nth-child(1) { animation: translateLoading 1.2s ease-in-out infinite; }
-          .translate-loading-dot:nth-child(2) { animation: translateLoading 1.2s ease-in-out 0.2s infinite; }
-          .translate-loading-dot:nth-child(3) { animation: translateLoading 1.2s ease-in-out 0.4s infinite; }
+          .translate-loading-bar {
+            width: 6px;
+            height: 6px;
+            margin: 0 3px;
+            background-color: var(--primary);
+            border-radius: 3px;
+            animation: translate-loading-wave-animation 1s ease-in-out infinite;
+          }
+          .translate-loading-bar:nth-child(2) { animation-delay: 0.1s; }
+          .translate-loading-bar:nth-child(3) { animation-delay: 0.2s; }
+          .translate-loading-bar:nth-child(4) { animation-delay: 0.3s; }
+          @keyframes translate-loading-wave-animation {
+            0%   { height: 6px; }
+            50%  { height: 26px; }
+            100% { height: 6px; }
+          }
           @keyframes spin { to { transform: rotate(360deg); } }
         `}</style>
       </div>
@@ -1083,6 +1096,17 @@ const styles = {
     transition: 'all 0.2s ease',
     gap: '4px',
   },
+  inlineSpinner: {
+    display: 'inline-block',
+    width: '13px',
+    height: '13px',
+    marginLeft: '8px',
+    verticalAlign: 'middle',
+    border: '2px solid rgba(37,99,235,0.2)',
+    borderTopColor: 'var(--primary)',
+    borderRadius: '50%',
+    animation: 'spin 0.7s linear infinite',
+  },
   spinner: {
     display: 'inline-block',
     width: '14px',
@@ -1101,10 +1125,6 @@ const styles = {
     height: '100%',
     minHeight: '180px',
     gap: '16px',
-  },
-  loadingDots: {
-    display: 'flex',
-    gap: '8px',
   },
   tipsBar: {
     display: 'flex',
