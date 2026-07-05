@@ -18,6 +18,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { textToSpeech, getVoices, getDemoVoices, speechToText, demoSTT, buildAudioUrl, getJobStatus } from '../services/api';
+import AudioReviewPanel from '../components/AudioReviewPanel';
 
 // ─── Available Voices Fallback ─────────────────────────────────────────────────
 const FALLBACK_VOICES = [
@@ -113,9 +114,9 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
 
   // ── STT State ──────────────────────────────────────────────────────────────
   const [sttMode, setSttMode] = useState('record'); // 'record' | 'upload'
-  const [sttState, setSttState] = useState('idle');  // 'idle' | 'recording' | 'transcribing' | 'completed'
+  const [sttState, setSttState] = useState('idle');  // 'idle' | 'recording' | 'reviewing' | 'transcribing' | 'completed'
   const [recordingTime, setRecordingTime] = useState(0);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [reviewBlob, setReviewBlob] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [transcriptResult, setTranscriptResult] = useState(null);
   const [resultTab, setResultTab] = useState('text'); // 'text' | 'timeline'
@@ -130,7 +131,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
   useEffect(() => {
     setSubView(defaultSubView);
     setSttState('idle');
-    setSelectedFile(null);
+    setReviewBlob(null);
     setTranscriptResult(null);
     setAudioBlob(null);
     setAudioUrl(null);
@@ -327,11 +328,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
-      mr.onstop = async () => {
+      mr.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         blob.name = `recording_${Date.now()}.webm`;
-        await transcribeFile(blob, true);
+        setReviewBlob(blob);
+        setSttState('reviewing');
       };
 
       mr.start();
@@ -355,8 +357,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
   const stopRecording = () => {
     if (mediaRecorderRef.current && sttState === 'recording') {
       mediaRecorderRef.current.stop();
-      setSttState('transcribing');
-      showToast('Recording stopped. Processing audio...', 'success');
+      showToast('Recording stopped.', 'success');
     }
   };
 
@@ -366,6 +367,35 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
     }
     setSttState('idle');
     showToast('Recording cancelled.', 'info');
+  };
+
+  // ── STT: Review panel actions (shared by record + upload) ──────────────────
+  const closeReviewPanel = () => {
+    setReviewBlob(null);
+    setTranscriptResult(null);
+    setSttError('');
+    setSttState('idle');
+  };
+
+  const reviewPanelReRecord = () => {
+    setReviewBlob(null);
+    setTranscriptResult(null);
+    setSttError('');
+    setSttMode('record');
+    startRecording();
+  };
+
+  const reviewPanelReUpload = () => {
+    setReviewBlob(null);
+    setTranscriptResult(null);
+    setSttError('');
+    setSttMode('upload');
+    fileInputRef.current?.click();
+  };
+
+  const submitReviewedAudio = async () => {
+    if (!reviewBlob) return;
+    await transcribeFile(reviewBlob, sttMode === 'record');
   };
 
   // ── STT: Drag & Drop Upload ────────────────────────────────────────────────
@@ -409,15 +439,11 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
       showToast('Unsupported format. Please select an audio file (e.g. .mp3, .wav, .m4a, .ogg).', 'error');
       return;
     }
-    setSelectedFile(file);
+    setReviewBlob(file);
     setTranscriptResult(null);
     setSttError('');
+    setSttState('reviewing');
     showToast(`Loaded: ${file.name}`, 'info');
-  };
-
-  const startFileTranscription = async () => {
-    if (!selectedFile) return;
-    await transcribeFile(selectedFile, false);
   };
 
   // ── STT: Core API Transcription Call ──────────────────────────────────────
@@ -485,7 +511,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
     } catch (err) {
       const msg = err.message || 'Transcription failed.';
       setSttError(msg);
-      setSttState('idle');
+      setSttState(reviewBlob ? 'reviewing' : 'idle');
       showToast(msg, 'error');
     }
   };
@@ -829,14 +855,14 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
             {/* Mode Tab Switcher */}
             <div style={styles.sttTabBar}>
               <button
-                onClick={() => { setSttMode('record'); setSttState('idle'); setTranscriptResult(null); setSttError(''); }}
+                onClick={() => { setSttMode('record'); setSttState('idle'); setReviewBlob(null); setTranscriptResult(null); setSttError(''); }}
                 style={{ ...styles.sttTab, ...(sttMode === 'record' ? styles.sttTabActive : {}) }}
                 type="button"
               >
                 <Mic size={15} /> Live Record
               </button>
               <button
-                onClick={() => { setSttMode('upload'); setSttState('idle'); setTranscriptResult(null); setSttError(''); }}
+                onClick={() => { setSttMode('upload'); setSttState('idle'); setReviewBlob(null); setTranscriptResult(null); setSttError(''); }}
                 style={{ ...styles.sttTab, ...(sttMode === 'upload' ? styles.sttTabActive : {}) }}
                 type="button"
               >
@@ -864,8 +890,44 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
             {/* STT Operational Panel */}
             <div className="glass-card" style={styles.sttCard}>
 
-              {/* 🎙️ LIVE RECORDING LAYOUT */}
-              {sttMode === 'record' ? (
+              {/* Hidden file input — always mounted so the review panel's "switch to upload" shortcut works regardless of current mode */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+                accept="audio/*"
+              />
+
+              {sttState === 'reviewing' ? (
+                /* 🔎 SHARED REVIEW/TRIM PANEL (record + upload both land here) */
+                <div>
+                  <h3 style={{ ...styles.cardSubHeader, marginBottom: '16px' }}>Review Audio</h3>
+                  <AudioReviewPanel
+                    blob={reviewBlob}
+                    fileName={reviewBlob?.name || 'recording.wav'}
+                    onBlobChange={setReviewBlob}
+                    onClose={closeReviewPanel}
+                    onReRecord={reviewPanelReRecord}
+                    onReUpload={reviewPanelReUpload}
+                    showToast={showToast}
+                  />
+                  <button onClick={submitReviewedAudio} className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }} type="button">
+                    <Sparkles size={16} /> Run Transcription Models
+                  </button>
+                </div>
+
+              ) : sttState === 'transcribing' ? (
+                /* ⏳ TRANSCRIBING (shared by record + upload) */
+                <div style={styles.transcribingWrapper}>
+                  <Loader2 size={24} className="animate-spin" color="var(--primary)" />
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>
+                    {sttMode === 'record' ? 'Processing acoustic features...' : 'Uploading and parsing file chunks...'}
+                  </span>
+                </div>
+
+              ) : sttMode === 'record' ? (
+                /* 🎙️ LIVE RECORDING LAYOUT */
                 <div className="mic-record-wrapper">
                   <h3 style={{ ...styles.cardSubHeader, marginBottom: '8px' }}>Microphone Streaming</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '24px', textAlign: 'center' }}>
@@ -876,10 +938,9 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
                     {sttState === 'recording' && <div className="mic-halo-ring active"></div>}
                     {sttState === 'recording' && <div className="mic-halo-ring active" style={{ animationDelay: '0.6s' }}></div>}
                     {sttState === 'recording' && <div className="mic-halo-ring active" style={{ animationDelay: '1.2s' }}></div>}
-                    <button 
-                      onClick={sttState === 'recording' ? stopRecording : startRecording} 
+                    <button
+                      onClick={sttState === 'recording' ? stopRecording : startRecording}
                       className={`conversa-mic-btn ${sttState === 'recording' ? 'recording' : ''}`}
-                      disabled={sttState === 'transcribing'}
                       type="button"
                       title={sttState === 'recording' ? "Stop recording" : "Start recording"}
                     >
@@ -892,7 +953,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
                       <div className="badge badge-danger" style={{ animation: 'pulse 1s infinite alternate', marginBottom: '10px' }}>
                         🔴 RECORDING ACTIVE
                       </div>
-                      
+
                       {/* Timer */}
                       <div style={styles.recordingTimer}>
                         {String(Math.floor(recordingTime / 60)).padStart(2, '0')}:{String(recordingTime % 60).padStart(2, '0')}
@@ -901,10 +962,10 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
                       {/* Visualizer soundwave */}
                       <div className="conversa-waveform active">
                         {[...Array(12)].map((_, i) => (
-                          <div 
-                            key={i} 
-                            className="conversa-wave-bar" 
-                            style={{ animationDelay: `${i * 0.08}s` }} 
+                          <div
+                            key={i}
+                            className="conversa-wave-bar"
+                            style={{ animationDelay: `${i * 0.08}s` }}
                           />
                         ))}
                       </div>
@@ -917,15 +978,6 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
                           Finish & Process
                         </button>
                       </div>
-                    </div>
-                  )}
-
-                  {sttState === 'transcribing' && (
-                    <div style={styles.transcribingWrapper}>
-                      <Loader2 size={24} className="animate-spin" color="var(--primary)" />
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>
-                        Processing acoustic features...
-                      </span>
                     </div>
                   )}
 
@@ -949,41 +1001,16 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      onChange={handleFileChange} 
-                      style={{ display: 'none' }} 
-                      accept="audio/*" 
-                    />
                     <div className="conversa-dropzone-icon">
                       <Upload size={24} color="var(--primary-light)" />
                     </div>
                     <p className="conversa-dropzone-text">
-                      {selectedFile ? selectedFile.name : 'Drag and drop audio file here'}
+                      Drag and drop audio file here
                     </p>
                     <p className="conversa-dropzone-subtext">
-                      {selectedFile 
-                        ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB · Click to choose a different file`
-                        : 'or click to browse local files (WAV, MP3, M4A, OGG up to 25MB)'
-                      }
+                      or click to browse local files (WAV, MP3, M4A, OGG up to 25MB)
                     </p>
                   </div>
-
-                  {selectedFile && sttState !== 'transcribing' && (
-                    <button onClick={startFileTranscription} className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }} type="button">
-                      <Sparkles size={16} /> Run Transcription Models
-                    </button>
-                  )}
-
-                  {sttState === 'transcribing' && (
-                    <div style={{ ...styles.transcribingWrapper, marginTop: '16px' }}>
-                      <Loader2 size={24} className="animate-spin" color="var(--primary)" />
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>
-                        Uploading and parsing file chunks...
-                      </span>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
