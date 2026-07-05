@@ -214,6 +214,9 @@ export default function Translate({ user, showToast }) {
   // Instant (subtitle) pass bookkeeping: throttle timer, last-fire time, and
   // which engine each request id used ('api' instant vs 'llm' refine).
   const instantTimerRef = useRef(null);
+  // Polls briefly for the socket to reconnect before falling back to the
+  // slow HTTP endpoint — see RECONNECT_GRACE_MS below.
+  const graceTimerRef = useRef(null);
   const lastInstantRef = useRef(0);
   const reqEngineRef = useRef({});
   const wsToastShownRef = useRef(false);
@@ -362,6 +365,7 @@ export default function Translate({ user, showToast }) {
   useEffect(() => {
     clearTimeout(debounceTimerRef.current);
     clearTimeout(instantTimerRef.current);
+    clearTimeout(graceTimerRef.current);
 
     // ONLY auto-translate on typing if Live Mode is selected
     if (engine !== 'live') {
@@ -417,13 +421,32 @@ export default function Translate({ user, showToast }) {
 
     // 1) instant subtitle pass — throttled, fires immediately when possible
     const INSTANT_MS = 200;
+    // If the socket isn't OPEN at this exact instant, don't fall back to the
+    // HTTP endpoint right away — it re-authenticates from scratch on every
+    // call (unlike the WebSocket, which only pays that cost once, at
+    // connect time), so it's much slower. A brief grace window lets an
+    // in-progress reconnect (usually fast) land first.
+    const RECONNECT_GRACE_MS = 300;
+    const RECONNECT_POLL_MS = 50;
     const fireInstant = () => {
       lastInstantRef.current = Date.now();
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         sendOverWs('api');
-      } else {
-        httpInstant();
+        return;
       }
+      const graceDeadline = Date.now() + RECONNECT_GRACE_MS;
+      const waitForSocketOrFallback = () => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          sendOverWs('api');
+          return;
+        }
+        if (Date.now() >= graceDeadline) {
+          httpInstant();
+          return;
+        }
+        graceTimerRef.current = setTimeout(waitForSocketOrFallback, RECONNECT_POLL_MS);
+      };
+      waitForSocketOrFallback();
     };
     const since = Date.now() - lastInstantRef.current;
     if (since >= INSTANT_MS) {
@@ -442,6 +465,7 @@ export default function Translate({ user, showToast }) {
     return () => {
       clearTimeout(debounceTimerRef.current);
       clearTimeout(instantTimerRef.current);
+      clearTimeout(graceTimerRef.current);
     };
   }, [sourceText, targetLang, engine, sourceLang, apiKey]);
 
