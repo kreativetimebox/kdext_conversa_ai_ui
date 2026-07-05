@@ -126,6 +126,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const discardRecordingRef = useRef(false);
 
   // ── Deep-link sync ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -321,6 +322,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         }
       });
       audioChunksRef.current = [];
+      discardRecordingRef.current = false;
       const mr = new MediaRecorder(stream);
       mediaRecorderRef.current = mr;
 
@@ -330,6 +332,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
 
       mr.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
+        // Discarding directly stops the tracks, which also triggers this same onstop
+        // handler — skip building/showing a review clip when that happened.
+        if (discardRecordingRef.current) {
+          discardRecordingRef.current = false;
+          return;
+        }
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         blob.name = `recording_${Date.now()}.webm`;
         setReviewBlob(blob);
@@ -363,8 +371,10 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
 
   const cancelRecording = () => {
     if (mediaRecorderRef.current) {
+      discardRecordingRef.current = true;
       mediaRecorderRef.current.stream?.getTracks().forEach(t => t.stop());
     }
+    setReviewBlob(null);
     setSttState('idle');
     showToast('Recording cancelled.', 'info');
   };
