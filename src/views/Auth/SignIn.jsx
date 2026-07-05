@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, Eye, EyeOff, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { login as apiLogin, verifyOtp } from '../../services/api';
 
@@ -9,6 +9,19 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [loadingDots, setLoadingDots] = useState('.');
+
+  // Cycle the trailing dots (. / .. / ...) while a submit is in flight
+  useEffect(() => {
+    if (!isSubmitting) {
+      setLoadingDots('.');
+      return;
+    }
+    const interval = setInterval(() => {
+      setLoadingDots((prev) => (prev.length >= 3 ? '.' : prev + '.'));
+    }, 400);
+    return () => clearInterval(interval);
+  }, [isSubmitting]);
   
   // OTP State
   const [showOTP, setShowOTP] = useState(false);
@@ -187,7 +200,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
               className="btn btn-primary"
               style={{ width: '100%', padding: '12px', marginTop: '10px' }}
             >
-              {isSubmitting ? 'Signing In...' : loginSuccess ? 'Redirecting...' : 'Sign In'}
+              {isSubmitting ? `Signing In${loadingDots}` : loginSuccess ? 'Redirecting...' : 'Sign In'}
             </button>
           </form>
         ) : (
@@ -229,7 +242,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
               className="btn btn-primary"
               style={{ width: '100%', padding: '12px', marginTop: '12px' }}
             >
-              {isSubmitting ? 'Verifying...' : 'Verify & Sign In'}
+              {isSubmitting ? `Verifying${loadingDots}` : 'Verify & Sign In'}
             </button>
             
             <div style={{ textAlign: 'center', marginTop: '16px' }}>
