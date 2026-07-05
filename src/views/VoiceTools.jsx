@@ -30,10 +30,18 @@ const FALLBACK_VOICES = [
   { id: 'arjun',        name: 'Arjun',        gender: 'male',   style: 'Deep, slow',            language: 'multilingual', model: 'indic_parler' },
   { id: 'vikram',       name: 'Vikram',       gender: 'male',   style: 'Confident, expressive', language: 'multilingual', model: 'indic_parler' },
   { id: 'amir',         name: 'Amir',         gender: 'male',   style: 'Clear, slightly fast',  language: 'multilingual', model: 'indic_parler' },
-  { id: 'en_speaker_6', name: 'Bark Female 1', gender: 'female', style: 'Clear, neutral',         language: 'english',      model: 'bark' },
-  { id: 'en_speaker_9', name: 'Bark Female 2', gender: 'female', style: 'Clear, expressive',      language: 'english',      model: 'bark' },
-  { id: 'en_speaker_3', name: 'Bark Female 3', gender: 'female', style: 'Soft, warm',             language: 'english',      model: 'bark' },
-  { id: 'en_speaker_1', name: 'Bark Male 1',   gender: 'male',   style: 'Clear, slow',            language: 'english',      model: 'bark' },
+  // Qwen3-TTS-CustomVoice speakers — any speaker can render any of the 10
+  // supported global languages (cross-lingual), so these are tagged
+  // 'multilingual' like the Indic voices above, not locked to one language.
+  { id: 'vivian',   name: 'Vivian',   gender: 'female', style: 'Bright, slightly edgy young female',        language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'serena',   name: 'Serena',   gender: 'female', style: 'Warm, gentle young female',                 language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'ono_anna', name: 'Ono Anna', gender: 'female', style: 'Playful, light and nimble timbre',          language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'sohee',    name: 'Sohee',    gender: 'female', style: 'Warm, rich emotion',                        language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'uncle_fu', name: 'Uncle Fu', gender: 'male',   style: 'Seasoned, low mellow timbre',                language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'dylan',    name: 'Dylan',    gender: 'male',   style: 'Youthful, clear natural timbre',             language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'eric',     name: 'Eric',     gender: 'male',   style: 'Lively, slightly husky brightness',          language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'ryan',     name: 'Ryan',     gender: 'male',   style: 'Dynamic, strong rhythmic drive',             language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'aiden',    name: 'Aiden',    gender: 'male',   style: 'Sunny, clear midrange',                      language: 'multilingual', model: 'qwen_custom_voice' },
 ];
 
 const STT_LANGUAGES = [
@@ -89,8 +97,6 @@ const TTS_LANGUAGES = [
       { code: 'pt', name: 'Portuguese (Português)' },
       { code: 'ru', name: 'Russian (Русский)' },
       { code: 'zh', name: 'Chinese (中文)' },
-      { code: 'ar', name: 'Arabic (العربية)' },
-      { code: 'tr', name: 'Turkish (Türkçe)' },
     ]
   }
 ];
@@ -173,8 +179,8 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
     };
     const isIndic = isIndicLanguage(ttsLanguage);
     const validVoices = voices.filter(v => {
-      const isBarkVoice = v.model === 'bark' || v.id.startsWith('en_speaker');
-      return isIndic ? !isBarkVoice : isBarkVoice;
+      const isGlobalVoice = v.model === 'qwen_custom_voice';
+      return isIndic ? !isGlobalVoice : isGlobalVoice;
     });
 
     if (validVoices.length > 0) {
@@ -559,8 +565,8 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
 
   const isIndic = isIndicLanguage(ttsLanguage);
   const filteredVoices = voices.filter(v => {
-    const isBarkVoice = v.model === 'bark' || v.id.startsWith('en_speaker');
-    return isIndic ? !isBarkVoice : isBarkVoice;
+    const isGlobalVoice = v.model === 'qwen_custom_voice';
+    return isIndic ? !isGlobalVoice : isGlobalVoice;
   });
 
   const femaleVoices = filteredVoices.filter(v => v.gender?.toLowerCase() === 'female');
@@ -661,7 +667,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
               </div>
               <div>
                 <h4 style={styles.whyItemTitle}>Dynamic Multilingual Support</h4>
-                <p style={styles.whyItemText}>Handles both Indian regional dialects (Parler pipeline) and global languages (Bark pipeline).</p>
+                <p style={styles.whyItemText}>Handles both Indian regional dialects (Parler pipeline) and global languages (Qwen3-TTS pipeline).</p>
               </div>
               <div>
                 <h4 style={styles.whyItemTitle}>Automatic Segment Parsing</h4>
