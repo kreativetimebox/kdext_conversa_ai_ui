@@ -218,6 +218,10 @@ export default function Translate({ user, showToast }) {
   // slow HTTP endpoint — see RECONNECT_GRACE_MS below.
   const graceTimerRef = useRef(null);
   const lastInstantRef = useRef(0);
+  // Tracks the id of the most recent response actually applied to the UI —
+  // NOT the id of the most recently sent request. See ws.onmessage below for
+  // why the distinction matters.
+  const lastAppliedIdRef = useRef(0);
   const reqEngineRef = useRef({});
   const wsToastShownRef = useRef(false);
   const pingTimerRef = useRef(null);
@@ -260,7 +264,20 @@ export default function Translate({ user, showToast }) {
         try {
           const msg = JSON.parse(ev.data);
           if (msg.type === 'pong') return;
-          if (msg.id !== seqRef.current) return;
+          // Accept anything newer than what's already applied — NOT only a
+          // response matching the single most-recently-sent request. While
+          // typing continuously, a new instant-pass request fires roughly
+          // every 200ms; if any response takes even a little longer than
+          // that to come back, a newer request is already in flight by the
+          // time it arrives. Requiring an exact id match meant EVERY
+          // response got discarded as "stale" for as long as typing kept
+          // outrunning the round-trip time — freezing the panel on old text
+          // for seconds, not milliseconds. `id < lastAppliedIdRef` still
+          // rejects genuinely out-of-order/old arrivals; `id ===` is kept
+          // (not just `>`) so multiple 'delta' chunks of the same in-flight
+          // stream keep landing.
+          if (msg.id < lastAppliedIdRef.current) return;
+          lastAppliedIdRef.current = msg.id;
 
           if (msg.type === 'delta') {
             setIsTranslating(true);
@@ -348,6 +365,10 @@ export default function Translate({ user, showToast }) {
       shouldReconnectRef.current = false;
       clearTimeout(reconnectTimerRef.current);
       clearInterval(pingTimerRef.current);
+      // instantTimerRef isn't cleared on every keystroke (see the typing
+      // effect below) so it needs an explicit clear here on true unmount.
+      clearTimeout(instantTimerRef.current);
+      instantTimerRef.current = null;
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
@@ -364,15 +385,25 @@ export default function Translate({ user, showToast }) {
   // time-to-first-token alone is longer than the gap between keystrokes.
   useEffect(() => {
     clearTimeout(debounceTimerRef.current);
-    clearTimeout(instantTimerRef.current);
     clearTimeout(graceTimerRef.current);
+    // instantTimerRef is intentionally NOT cleared here on every keystroke —
+    // this effect re-runs on every sourceText change, and clearing it
+    // unconditionally meant a continuously-typing user (gaps shorter than
+    // the remaining throttle wait) kept cancelling and rescheduling the
+    // pending fire, so it could go several seconds without ever actually
+    // firing — the translation would sit stale with no feedback until
+    // typing paused. It's only cancelled below, on genuine resets.
 
     // ONLY auto-translate on typing if Live Mode is selected
     if (engine !== 'live') {
+      clearTimeout(instantTimerRef.current);
+      instantTimerRef.current = null;
       return;
     }
 
     if (!sourceText.trim()) {
+      clearTimeout(instantTimerRef.current);
+      instantTimerRef.current = null;
       setTranslatedText('');
       setDetectedLang(null);
       setIsTranslating(false);
@@ -386,7 +417,7 @@ export default function Translate({ user, showToast }) {
       connectWs();
     }
 
-    const sendOverWs = (wsEngine) => {
+    const sendOverWs = (wsEngine, wsText) => {
       seqRef.current += 1;
       const id = seqRef.current;
       reqEngineRef.current[id] = wsEngine;
@@ -399,23 +430,29 @@ export default function Translate({ user, showToast }) {
       wsRef.current.send(JSON.stringify({
         type: 'translate',
         id,
-        text,
-        target_lang: targetLang,
+        text: wsText,
+        target_lang: latestRef.current.targetLang,
         engine: wsEngine,
       }));
     };
 
-    const httpInstant = async () => {
+    const httpInstant = async (httpText) => {
       seqRef.current += 1;
       const id = seqRef.current;
       setIsTranslating(true);
       try {
-        const res = await translateText(apiKey, text, sourceLang === 'auto' ? null : sourceLang, targetLang, 'api');
-        if (id !== seqRef.current) return; // superseded by newer keystroke
+        const cur = latestRef.current;
+        const res = await translateText(apiKey, httpText, cur.sourceLang === 'auto' ? null : cur.sourceLang, cur.targetLang, 'api');
+        // Same "accept anything newer than what's applied" rule as
+        // ws.onmessage — an exact seqRef match would discard this response
+        // the moment any newer request had been sent, even if it's still
+        // the freshest one to actually come back.
+        if (id < lastAppliedIdRef.current) return;
+        lastAppliedIdRef.current = id;
         const result = res?.translation || res?.translated_text || res?.result || '';
         if (result) setTranslatedText(result);
         const detected = res?.source_lang || res?.detected_language || null;
-        if (detected && sourceLang === 'auto') setDetectedLang(detected);
+        if (detected && cur.sourceLang === 'auto') setDetectedLang(detected);
         setIsTranslating(false);
       } catch {
         // instant pass is best-effort; the refine pass will still land
@@ -423,7 +460,10 @@ export default function Translate({ user, showToast }) {
       }
     };
 
-    // 1) instant subtitle pass — throttled, fires immediately when possible
+    // 1) instant subtitle pass — throttled: fires at most once every
+    // INSTANT_MS, using the LATEST text at the moment it actually fires
+    // (not the text from whenever it was scheduled), so a fire deferred by
+    // continuous typing still translates what's currently on screen.
     const INSTANT_MS = 200;
     // If the socket isn't OPEN at this exact instant, don't fall back to the
     // HTTP endpoint right away — it re-authenticates from scratch on every
@@ -434,41 +474,51 @@ export default function Translate({ user, showToast }) {
     const RECONNECT_POLL_MS = 50;
     const fireInstant = () => {
       lastInstantRef.current = Date.now();
+      const latestText = latestRef.current.sourceText.trim();
+      if (!latestText) return;
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        sendOverWs('api');
+        sendOverWs('api', latestText);
         return;
       }
       const graceDeadline = Date.now() + RECONNECT_GRACE_MS;
       const waitForSocketOrFallback = () => {
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          sendOverWs('api');
+          sendOverWs('api', latestText);
           return;
         }
         if (Date.now() >= graceDeadline) {
-          httpInstant();
+          httpInstant(latestText);
           return;
         }
         graceTimerRef.current = setTimeout(waitForSocketOrFallback, RECONNECT_POLL_MS);
       };
       waitForSocketOrFallback();
     };
-    const since = Date.now() - lastInstantRef.current;
-    if (since >= INSTANT_MS) {
-      fireInstant();
-    } else {
-      instantTimerRef.current = setTimeout(fireInstant, INSTANT_MS - since);
+
+    // Only schedule/fire if nothing is already pending — a keystroke that
+    // arrives while a throttled fire is already queued just rides along
+    // with it instead of pushing it back further.
+    if (!instantTimerRef.current) {
+      const since = Date.now() - lastInstantRef.current;
+      if (since >= INSTANT_MS) {
+        fireInstant();
+      } else {
+        instantTimerRef.current = setTimeout(() => {
+          instantTimerRef.current = null;
+          fireInstant();
+        }, INSTANT_MS - since);
+      }
     }
 
     // 2) refinement pass — after the user pauses, stream the LLM translation
     debounceTimerRef.current = setTimeout(() => {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        sendOverWs('llm');
+        sendOverWs('llm', latestRef.current.sourceText.trim());
       }
     }, 900);
 
     return () => {
       clearTimeout(debounceTimerRef.current);
-      clearTimeout(instantTimerRef.current);
       clearTimeout(graceTimerRef.current);
     };
   }, [sourceText, targetLang, engine, sourceLang, apiKey]);
