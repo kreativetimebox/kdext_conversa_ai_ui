@@ -206,7 +206,7 @@ export default function Translate({ user, showToast }) {
 
   // ── Voice mode state ──────────────────────────────────────────────────────
   // Voice mode uses the SAME /ws/translate socket as text Live Mode (wsRef).
-  // The browser records mic audio in 3-second complete segments, POSTs each to
+  // The browser records mic audio in short complete segments, POSTs each to
   // the STT endpoint, then sends the transcript into wsRef for LLM translation.
   const [voiceActive, setVoiceActive] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -214,6 +214,12 @@ export default function Translate({ user, showToast }) {
   const voiceMediaRecorderRef = useRef(null);
   const voiceStreamRef = useRef(null);
   const voiceCycleTimerRef = useRef(null);
+  // Segment STT calls run in parallel, so a slow chunk must not let a later
+  // chunk's text land first: each chunk takes a sequence number and results
+  // are buffered, then appended strictly in order.
+  const voiceChunkSeqRef = useRef(0);   // next seq to assign to a recorded chunk
+  const voiceFlushSeqRef = useRef(0);   // next seq allowed to append
+  const voicePendingChunksRef = useRef({});  // seq -> transcript ('' = silent/failed)
   // ─────────────────────────────────────────────────────────────────────────
 
   const wsRef = useRef(null);
@@ -472,10 +478,45 @@ export default function Translate({ user, showToast }) {
   };
 
   // ── Voice recording handlers ──────────────────────────────────────────────
-  // Records mic audio in 3-second complete segments. Each segment is a full
+  // Records mic audio in short complete segments. Each segment is a full
   // valid audio file (stop/restart creates new headers). The complete blob is
   // POSTed to /api/voice/stt, and the returned transcript text is sent into
   // the existing /ws/translate socket for instant LLM translation.
+
+  // How long each mic segment is. Shorter = lower speech→text latency but
+  // more requests and slightly worse STT accuracy; 2s is the sweet spot.
+  const VOICE_SEGMENT_MS = 2000;
+  // Translate only the recent tail of the transcript. Sending the whole
+  // session transcript made every request slower than the last as the text
+  // grew — with a capped tail, translation latency stays constant no matter
+  // how long the session runs.
+  const VOICE_CONTEXT_CHARS = 600;
+  const voiceTranslateTail = (text) => {
+    if (text.length <= VOICE_CONTEXT_CHARS) return text;
+    const tail = text.slice(-VOICE_CONTEXT_CHARS);
+    const cut = tail.indexOf(' ');
+    return cut > 0 ? tail.slice(cut + 1) : tail; // don't start mid-word
+  };
+
+  // Append every consecutive completed chunk (in seq order) to the transcript
+  // and fire one translation for the combined new text.
+  const flushVoiceChunks = () => {
+    const pending = voicePendingChunksRef.current;
+    const parts = [];
+    while (Object.prototype.hasOwnProperty.call(pending, voiceFlushSeqRef.current)) {
+      const t = pending[voiceFlushSeqRef.current];
+      delete pending[voiceFlushSeqRef.current];
+      voiceFlushSeqRef.current += 1;
+      if (t) parts.push(t);
+    }
+    if (!parts.length) return;
+    setVoiceTranscript(prev => {
+      const accumulated = prev ? `${prev} ${parts.join(' ')}` : parts.join(' ');
+      setSourceText(accumulated);
+      sendVoiceTranslation(voiceTranslateTail(accumulated));
+      return accumulated;
+    });
+  };
 
   const startRecordingCycle = (stream) => {
     if (!voiceActiveRef.current || !stream.active) return;
@@ -489,12 +530,16 @@ export default function Translate({ user, showToast }) {
     };
 
     mr.onstop = async () => {
-      // Build a complete audio blob from this 3-second segment
+      // Build a complete audio blob from this segment
       const blob = new Blob(chunks, { type: 'audio/webm' });
       // Only process if still actively recording
       if (voiceActiveRef.current) {
         // Start next cycle immediately (don't wait for STT response)
         startRecordingCycle(stream);
+
+        // Claim this chunk's position in the transcript before the async STT
+        // call, so out-of-order completions can't scramble the word order.
+        const seq = voiceChunkSeqRef.current++;
 
         // POST to STT in parallel. This MUST be the synchronous /api/voice/stt
         // proxy (voiceSTT) — the gateway's /speech-to-text runs in async-queue
@@ -507,28 +552,25 @@ export default function Translate({ user, showToast }) {
             const file = new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
             const res = await voiceSTT(apiKey, file, langHint);
             const text = res?.text || res?.detail || res?.transcript || '';
-            if (text.trim()) {
-              setVoiceTranscript(prev => {
-                const accumulated = prev ? prev + ' ' + text.trim() : text.trim();
-                setSourceText(accumulated);
-                sendVoiceTranslation(accumulated);
-                return accumulated;
-              });
-            }
+            voicePendingChunksRef.current[seq] = text.trim();
           } catch (err) {
             console.warn('Voice STT chunk failed:', err);
+            voicePendingChunksRef.current[seq] = ''; // advance past failed chunk
           }
+        } else {
+          voicePendingChunksRef.current[seq] = ''; // silent chunk, keep order moving
         }
+        flushVoiceChunks();
       }
     };
 
     mr.start();
-    // Stop after 3 seconds → onstop fires → creates complete file → restarts
+    // Stop after the segment window → onstop fires → complete file → restart
     voiceCycleTimerRef.current = setTimeout(() => {
       if (mr.state === 'recording') {
         mr.stop();
       }
-    }, 3000);
+    }, VOICE_SEGMENT_MS);
   };
 
   const startVoiceRecording = async () => {
@@ -547,11 +589,14 @@ export default function Translate({ user, showToast }) {
         connectWs();
       }
 
-      // Reset output
+      // Reset output + chunk ordering state
       setVoiceTranscript('');
       setSourceText('');
       setTranslatedText('');
       setIsTranslating(false);
+      voiceChunkSeqRef.current = 0;
+      voiceFlushSeqRef.current = 0;
+      voicePendingChunksRef.current = {};
 
       voiceActiveRef.current = true;
       setVoiceActive(true);
