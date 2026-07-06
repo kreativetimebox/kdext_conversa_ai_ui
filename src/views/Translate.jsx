@@ -533,10 +533,24 @@ export default function Translate({ user, showToast }) {
     showToast('Recording stopped.', 'success');
   };
 
-  // Cleanup voice resources on unmount or engine switch away from 'voice'
+  // Pre-connect / disconnect the voice WS when the engine tab changes.
+  // Pre-connecting means the dot turns green immediately when the user
+  // clicks "Voice" — they don't have to press the mic first.
   useEffect(() => {
-    if (engine !== 'voice' && voiceActive) {
-      stopVoiceRecording();
+    if (engine === 'voice') {
+      // Enter voice mode: open the WS so the status dot goes green right away
+      voiceShouldReconnectRef.current = true;
+      connectVoiceWs();
+    } else {
+      // Leave voice mode: stop recording if active and close the WS
+      if (voiceActive) stopVoiceRecording();
+      voiceShouldReconnectRef.current = false;
+      clearTimeout(voiceReconnectTimerRef.current);
+      if (voiceWsRef.current) {
+        voiceWsRef.current.close();
+        voiceWsRef.current = null;
+      }
+      setVoiceWsConnected(false);
     }
   }, [engine]);
 
