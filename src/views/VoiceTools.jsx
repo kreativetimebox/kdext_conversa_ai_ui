@@ -1160,7 +1160,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
                         <div className="conversa-timeline-time">
                           {formatSegmentTime(seg.start)} &rarr; {formatSegmentTime(seg.end)}
                         </div>
-                        <div className="conversa-timeline-text">{seg.text}</div>
+                        <div className="conversa-timeline-text">{seg.text ?? seg.word ?? ''}</div>
                       </div>
                     ))}
                   </div>
