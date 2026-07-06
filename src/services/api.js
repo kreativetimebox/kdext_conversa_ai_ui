@@ -213,9 +213,12 @@ export async function demoSTT(file, language = null) {
 
 /**
  * GET /jobs/{job_id}  (requires api_key)
+ * Pass jobType ('tts' | 'stt') when known — it lets the gateway skip querying
+ * the other job table, which halves the DB work on every poll.
  */
-export async function getJobStatus(apiKey, jobId) {
-  const res = await fetch(`${BASE_URL}/jobs/${jobId}`, {
+export async function getJobStatus(apiKey, jobId, jobType = null) {
+  const qs = jobType ? `?type=${jobType}` : '';
+  const res = await fetch(`${BASE_URL}/jobs/${jobId}${qs}`, {
     headers: { 'x-api-key': apiKey },
   });
   return handleResponse(res);

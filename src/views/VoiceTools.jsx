@@ -245,14 +245,19 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         let job = data;
         // Cap polling so a stuck job can't spin this UI forever.
         const deadline = Date.now() + 180000;
+        // Adaptive polling: short jobs finish in a few seconds, so poll fast
+        // at first and back off — a fixed 1.5s interval added up to 1.5s of
+        // dead wait AFTER the job had already completed.
+        let pollDelay = 500;
         while (job.status === 'queued' || job.status === 'processing') {
           if (!isCurrent()) return; // superseded — stop polling, discard result
           if (Date.now() > deadline) {
             throw new Error('TTS job timed out after 3 minutes. Please try again.');
           }
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, pollDelay));
+          pollDelay = Math.min(pollDelay * 1.5, 1500);
           if (!isCurrent()) return;
-          job = await getJobStatus(user.api_key, data.job_id);
+          job = await getJobStatus(user.api_key, data.job_id, 'tts');
           if (job.status === 'failed') {
             throw new Error(job.error || 'Async TTS synthesis failed on worker.');
           }
@@ -511,14 +516,19 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         let job = result;
         // Cap polling so a stuck job can't spin this UI forever.
         const deadline = Date.now() + 180000;
+        // Adaptive polling: short jobs finish in a few seconds, so poll fast
+        // at first and back off — a fixed 1.5s interval added up to 1.5s of
+        // dead wait AFTER the job had already completed.
+        let pollDelay = 500;
         while (job.status === 'queued' || job.status === 'processing') {
           if (!isCurrent()) return; // superseded — stop polling, discard result
           if (Date.now() > deadline) {
             throw new Error('STT job timed out after 3 minutes. Please try again.');
           }
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, pollDelay));
+          pollDelay = Math.min(pollDelay * 1.5, 1500);
           if (!isCurrent()) return;
-          job = await getJobStatus(user.api_key, result.job_id);
+          job = await getJobStatus(user.api_key, result.job_id, 'stt');
           if (job.status === 'failed') {
             throw new Error(job.error || 'Async STT transcription failed on worker.');
           }
