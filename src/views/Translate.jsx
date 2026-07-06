@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowRightLeft, Volume2, Copy, Sparkles, CheckCircle2, Globe, ChevronDown, Zap, RotateCcw, Search, Bot } from 'lucide-react';
-import { translateText, voiceTTS, getWsBaseUrl } from '../services/api';
+import { ArrowRightLeft, Volume2, Copy, Sparkles, CheckCircle2, Globe, ChevronDown, Zap, RotateCcw, Search, Bot, Mic, MicOff } from 'lucide-react';
+import { translateText, voiceTTS, getWsBaseUrl, getVoiceTranslateWsUrl } from '../services/api';
 
 const LANGUAGES = [
   { code: 'auto', name: 'Detect Language', flag: '🔍', region: '' },
@@ -204,6 +204,18 @@ export default function Translate({ user, showToast }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
 
+  // ── Voice mode state ──────────────────────────────────────────────────────
+  const [voiceActive, setVoiceActive] = useState(false);   // mic is recording
+  const [voiceTranscript, setVoiceTranscript] = useState(''); // running STT text
+  const [voiceWsConnected, setVoiceWsConnected] = useState(false);
+  const voiceWsRef = useRef(null);
+  const voiceMediaRecorderRef = useRef(null);
+  const voiceStreamRef = useRef(null);
+  const voiceShouldReconnectRef = useRef(false);
+  const voiceReconnectTimerRef = useRef(null);
+  const voiceReconnectDelayRef = useRef(1000);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const wsRef = useRef(null);
   const seqRef = useRef(0);
   // True until the first delta of the current request arrives — the previous
@@ -375,6 +387,174 @@ export default function Translate({ user, showToast }) {
       }
     };
   }, [apiKey]);
+
+  // ── Voice WebSocket: connect to /ws/voice-translate ───────────────────────
+  const connectVoiceWs = () => {
+    if (voiceWsRef.current &&
+        (voiceWsRef.current.readyState === WebSocket.OPEN ||
+         voiceWsRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+    try {
+      const ws = new WebSocket(getVoiceTranslateWsUrl(apiKey));
+      voiceWsRef.current = ws;
+
+      ws.onopen = () => {
+        setVoiceWsConnected(true);
+        voiceReconnectDelayRef.current = 1000;
+        // Send config frame with the current target language
+        ws.send(JSON.stringify({ type: 'config', target_lang: targetLang }));
+      };
+
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === 'pong') return;
+          if (msg.type === 'transcript') {
+            setVoiceTranscript(msg.text || '');
+          } else if (msg.type === 'delta') {
+            setIsTranslating(true);
+            setTranslatedText(prev => prev + (msg.content || ''));
+          } else if (msg.type === 'done') {
+            setTranslatedText(msg.translation || '');
+            setIsTranslating(false);
+          } else if (msg.type === 'error') {
+            setIsTranslating(false);
+            showToast(msg.message || 'Voice translation error.', 'error');
+          }
+        } catch (err) {
+          console.error('voice-WS parse error:', err);
+        }
+      };
+
+      ws.onclose = (ev) => {
+        setVoiceWsConnected(false);
+        voiceWsRef.current = null;
+        if (!voiceShouldReconnectRef.current) return;
+        if (ev.code === 4401) {
+          showToast('Voice translation unauthorized (bad key).', 'error');
+          return;
+        }
+        voiceReconnectTimerRef.current = setTimeout(
+          connectVoiceWs,
+          voiceReconnectDelayRef.current
+        );
+        voiceReconnectDelayRef.current = Math.min(
+          voiceReconnectDelayRef.current * 2, 15000
+        );
+      };
+
+      ws.onerror = () => {};
+    } catch (e) {
+      console.error('Voice WS connect failed:', e);
+    }
+  };
+
+  // When target language changes while voice WS is open, re-send config
+  useEffect(() => {
+    if (voiceWsRef.current && voiceWsRef.current.readyState === WebSocket.OPEN) {
+      voiceWsRef.current.send(JSON.stringify({ type: 'config', target_lang: targetLang }));
+    }
+  }, [targetLang]);
+
+  // ── Voice recording handlers ──────────────────────────────────────────────
+  const startVoiceRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast('Microphone not supported in this browser.', 'error');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { autoGainControl: false, noiseSuppression: true, echoCancellation: true },
+      });
+      voiceStreamRef.current = stream;
+
+      // Ensure voice WS is connected
+      voiceShouldReconnectRef.current = true;
+      connectVoiceWs();
+
+      // Reset output
+      setVoiceTranscript('');
+      setTranslatedText('');
+      setIsTranslating(false);
+
+      // MediaRecorder fires ondataavailable every 2 s → send binary chunk
+      const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      voiceMediaRecorderRef.current = mr;
+
+      mr.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0 &&
+            voiceWsRef.current &&
+            voiceWsRef.current.readyState === WebSocket.OPEN) {
+          voiceWsRef.current.send(e.data);
+        }
+      };
+
+      mr.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+      };
+
+      mr.start(2000); // timeslice = 2000 ms
+      setVoiceActive(true);
+      showToast('🎙️ Voice translation active — speak now', 'info');
+    } catch (err) {
+      let msg = 'Microphone access denied or unavailable.';
+      if (err.name === 'NotAllowedError') {
+        msg = 'Microphone access blocked. Allow it in browser settings.';
+      } else if (err.name === 'NotFoundError') {
+        msg = 'No microphone found. Connect one and try again.';
+      }
+      showToast(msg, 'error');
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (voiceMediaRecorderRef.current &&
+        voiceMediaRecorderRef.current.state !== 'inactive') {
+      voiceMediaRecorderRef.current.stop();
+    }
+    voiceMediaRecorderRef.current = null;
+    if (voiceStreamRef.current) {
+      voiceStreamRef.current.getTracks().forEach(t => t.stop());
+      voiceStreamRef.current = null;
+    }
+    // Keep WS open briefly so last chunk's translation can arrive, then close
+    setTimeout(() => {
+      voiceShouldReconnectRef.current = false;
+      clearTimeout(voiceReconnectTimerRef.current);
+      if (voiceWsRef.current) {
+        voiceWsRef.current.close();
+        voiceWsRef.current = null;
+      }
+      setVoiceWsConnected(false);
+    }, 3000);
+    setVoiceActive(false);
+    setIsTranslating(false);
+    showToast('Recording stopped.', 'success');
+  };
+
+  // Cleanup voice resources on unmount or engine switch away from 'voice'
+  useEffect(() => {
+    if (engine !== 'voice' && voiceActive) {
+      stopVoiceRecording();
+    }
+  }, [engine]);
+
+  useEffect(() => {
+    return () => {
+      voiceShouldReconnectRef.current = false;
+      clearTimeout(voiceReconnectTimerRef.current);
+      if (voiceMediaRecorderRef.current) {
+        try { voiceMediaRecorderRef.current.stop(); } catch (_) {}
+      }
+      if (voiceStreamRef.current) {
+        voiceStreamRef.current.getTracks().forEach(t => t.stop());
+      }
+      if (voiceWsRef.current) {
+        voiceWsRef.current.close();
+      }
+    };
+  }, []);
 
   // Live typing → two-tier subtitle translation:
   //   1) INSTANT pass: throttled fast ('api') translation on every keystroke —
@@ -716,6 +896,21 @@ export default function Translate({ user, showToast }) {
             Live Mode
             <span style={{ ...styles.badge, background: engine === 'live' ? '#0ea5e9' : '#94a3b8' }}>Stream</span>
           </button>
+          <button
+            onClick={() => setEngine('voice')}
+            style={{
+              ...styles.engineBtn,
+              ...(engine === 'voice' ? {
+                background: 'rgba(239,68,68,0.12)',
+                color: '#f87171',
+                boxShadow: '0 2px 8px rgba(239,68,68,0.18)',
+              } : {})
+            }}
+          >
+            <Mic size={14} style={{ marginRight: '6px' }} />
+            Voice
+            <span style={{ ...styles.badge, background: engine === 'voice' ? '#ef4444' : '#94a3b8' }}>Live</span>
+          </button>
         </div>
       </div>
 
@@ -767,28 +962,100 @@ export default function Translate({ user, showToast }) {
         <div className="translate-text-panels">
           {/* Source panel */}
           <div style={styles.panel}>
-            <textarea
-              className="translate-textarea"
-              style={styles.textarea}
-              placeholder={engine === 'live'
-                ? 'Start typing — translation appears instantly as you write...'
-                : 'Enter text to translate... (Ctrl+Enter to translate)'}
-              value={sourceText}
-              onChange={e => setSourceText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              maxLength={maxChars}
-              rows={8}
-              dir="auto"
-            />
-            <div style={styles.panelFooter}>
-              <span style={{
-                fontSize: '0.8rem',
-                color: charCount > maxChars * 0.9 ? '#f59e0b' : '#64748b',
+            {engine === 'voice' ? (
+              // ── Voice mode: mic UI + live transcript display ──────────────
+              <div style={{
+                flex: 1, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                padding: '24px', gap: '20px', minHeight: '200px',
               }}>
-                {charCount.toLocaleString()} / {maxChars.toLocaleString()}
-              </span>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {sourceText && (
+                {/* Mic button */}
+                <button
+                  onClick={voiceActive ? stopVoiceRecording : startVoiceRecording}
+                  title={voiceActive ? 'Stop recording' : 'Start recording'}
+                  style={{
+                    width: '80px', height: '80px', borderRadius: '50%',
+                    border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: voiceActive
+                      ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                      : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                    boxShadow: voiceActive
+                      ? '0 0 0 8px rgba(239,68,68,0.2), 0 8px 24px rgba(239,68,68,0.4)'
+                      : '0 8px 24px rgba(37,99,235,0.4)',
+                    transition: 'all 0.3s ease',
+                    animation: voiceActive ? 'voicePulse 1.4s ease-in-out infinite' : 'none',
+                  }}
+                >
+                  {voiceActive
+                    ? <MicOff size={32} color="#fff" />
+                    : <Mic size={32} color="#fff" />}
+                </button>
+
+                {/* Status label */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  fontSize: '0.85rem', fontWeight: 600,
+                  color: voiceActive ? '#ef4444' : '#64748b',
+                }}>
+                  {voiceActive && (
+                    <span style={{
+                      width: '8px', height: '8px', borderRadius: '50%',
+                      background: '#ef4444',
+                      animation: 'streamBlink 0.8s steps(2) infinite',
+                      display: 'inline-block',
+                    }} />
+                  )}
+                  {voiceActive ? 'Recording — speak now…' : 'Tap the mic to start'}
+                </div>
+
+                {/* Live transcript */}
+                {voiceTranscript && (
+                  <div style={{
+                    width: '100%', background: 'rgba(37,99,235,0.05)',
+                    border: '1px solid rgba(37,99,235,0.15)',
+                    borderRadius: '12px', padding: '14px 18px',
+                    fontSize: '0.95rem', lineHeight: '1.6',
+                    color: '#1e293b', whiteSpace: 'pre-wrap',
+                  }} dir="auto">
+                    <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>TRANSCRIPT</span>
+                    {voiceTranscript}
+                  </div>
+                )}
+
+                {/* WS status */}
+                <div style={{ fontSize: '0.75rem', color: voiceWsConnected ? '#16a34a' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: voiceWsConnected ? '#16a34a' : '#94a3b8', display: 'inline-block' }} />
+                  {voiceWsConnected ? 'Stream connected' : 'Stream offline'}
+                </div>
+              </div>
+            ) : (
+              // ── Text / Live mode: normal editable textarea ────────────────
+              <textarea
+                className="translate-textarea"
+                style={styles.textarea}
+                placeholder={engine === 'live'
+                  ? 'Start typing — translation appears instantly as you write...'
+                  : 'Enter text to translate... (Ctrl+Enter to translate)'}
+                value={sourceText}
+                onChange={e => setSourceText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                maxLength={maxChars}
+                rows={8}
+                dir="auto"
+              />
+            )}
+            <div style={styles.panelFooter}>
+              {engine !== 'voice' && (
+                <span style={{
+                  fontSize: '0.8rem',
+                  color: charCount > maxChars * 0.9 ? '#f59e0b' : '#64748b',
+                }}>
+                  {charCount.toLocaleString()} / {maxChars.toLocaleString()}
+                </span>
+              )}
+              <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+                {engine !== 'voice' && sourceText && (
                   <button onClick={handleClear} style={styles.iconActionBtn} title="Clear">
                     <RotateCcw size={14} />
                   </button>
@@ -809,7 +1076,7 @@ export default function Translate({ user, showToast }) {
                     }} />
                     {isTranslating ? 'Translating live…' : 'Live — just type'}
                   </span>
-                ) : (
+                ) : engine === 'voice' ? null : (
                   <button
                     onClick={handleTranslate}
                     disabled={isTranslating || !sourceText.trim()}
@@ -879,7 +1146,7 @@ export default function Translate({ user, showToast }) {
           </div>
         </div>
 
-        {/* Loading bars animation */}
+        {/* Loading bars animation + voice pulse */}
         <style>{`
           .translate-loading-wave {
             width: 80px;
@@ -905,6 +1172,11 @@ export default function Translate({ user, showToast }) {
             100% { height: 6px; }
           }
           @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes voicePulse {
+            0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.5), 0 8px 24px rgba(239,68,68,0.4); }
+            70%  { box-shadow: 0 0 0 16px rgba(239,68,68,0), 0 8px 24px rgba(239,68,68,0.4); }
+            100% { box-shadow: 0 0 0 0 rgba(239,68,68,0), 0 8px 24px rgba(239,68,68,0.4); }
+          }
         `}</style>
       </div>
 
@@ -913,6 +1185,8 @@ export default function Translate({ user, showToast }) {
         <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
           {engine === 'live'
             ? '💡 Translates instantly while you type — AI refines it when you pause'
+            : engine === 'voice'
+            ? '💡 Speak naturally — each ~2 s of audio is transcribed and translated live'
             : '💡 Press Ctrl+Enter or click Translate to submit text'}
         </span>
         <span style={{ color: '#64748b', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -923,11 +1197,22 @@ export default function Translate({ user, showToast }) {
               boxShadow: wsConnected ? '0 0 6px rgba(22,163,74,0.6)' : 'none',
             }} />
           )}
+          {engine === 'voice' && (
+            <span title={voiceWsConnected ? 'Voice stream connected' : 'Voice stream offline'} style={{
+              width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block',
+              background: voiceWsConnected ? '#16a34a' : '#d97706',
+              boxShadow: voiceWsConnected ? '0 0 6px rgba(22,163,74,0.6)' : 'none',
+            }} />
+          )}
           Engine: <span style={{
-            color: engine === 'live' ? '#0ea5e9' : engine === 'api' ? '#16a34a' : '#3b82f6',
+            color: engine === 'live' ? '#0ea5e9' : engine === 'voice' ? '#f87171' : engine === 'api' ? '#16a34a' : '#3b82f6',
             fontWeight: '600'
           }}>
-            {engine === 'live' ? (wsConnected ? 'Live Mode (Stream)' : 'Live Mode (offline — fallback)') : engine === 'api' ? 'Google API (Fast)' : 'AI Model (Nuanced)'}
+            {engine === 'live'
+              ? (wsConnected ? 'Live Mode (Stream)' : 'Live Mode (offline — fallback)')
+              : engine === 'voice'
+              ? (voiceActive ? '🎙️ Voice (Recording)' : 'Voice (Ready)')
+              : engine === 'api' ? 'Google API (Fast)' : 'AI Model (Nuanced)'}
           </span>
         </span>
       </div>

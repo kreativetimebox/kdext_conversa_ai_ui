@@ -34,6 +34,13 @@ export function getWsBaseUrl() {
   return CONFIGURED_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
 }
 
+// WebSocket URL for the live voice-translation endpoint.
+// The browser cannot set custom headers on WebSocket connections, so the
+// API key is passed as a query parameter — same pattern as /ws/translate.
+export function getVoiceTranslateWsUrl(apiKey) {
+  return `${getWsBaseUrl()}/ws/voice-translate?api_key=${encodeURIComponent(apiKey)}`;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function handleResponse(res) {
