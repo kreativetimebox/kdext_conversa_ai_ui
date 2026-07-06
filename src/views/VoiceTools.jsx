@@ -133,9 +133,18 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const discardRecordingRef = useRef(false);
+  // Generation counters for the async job-polling loops. Each submission takes
+  // the next generation; anything that invalidates the in-flight request
+  // (closing the panel, recording a new clip, loading another file) bumps the
+  // counter so a superseded loop stops polling and never applies a PREVIOUS
+  // recording's transcript/audio to the current one.
+  const sttGenRef = useRef(0);
+  const ttsGenRef = useRef(0);
 
   // ── Deep-link sync ──────────────────────────────────────────────────────────
   useEffect(() => {
+    sttGenRef.current += 1;
+    ttsGenRef.current += 1;
     setSubView(defaultSubView);
     setSttState('idle');
     setReviewBlob(null);
@@ -217,6 +226,9 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
       return;
     }
 
+    const gen = ++ttsGenRef.current;
+    const isCurrent = () => gen === ttsGenRef.current;
+
     setIsSynthesizing(true);
     setTtsError('');
     setAudioBlob(null);
@@ -234,10 +246,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         // Cap polling so a stuck job can't spin this UI forever.
         const deadline = Date.now() + 180000;
         while (job.status === 'queued' || job.status === 'processing') {
+          if (!isCurrent()) return; // superseded — stop polling, discard result
           if (Date.now() > deadline) {
             throw new Error('TTS job timed out after 3 minutes. Please try again.');
           }
           await new Promise(resolve => setTimeout(resolve, 1500));
+          if (!isCurrent()) return;
           job = await getJobStatus(user.api_key, data.job_id);
           if (job.status === 'failed') {
             throw new Error(job.error || 'Async TTS synthesis failed on worker.');
@@ -248,6 +262,8 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         }
         data = job;
       }
+
+      if (!isCurrent()) return;
 
       if (!data?.audio_url) {
         throw new Error('No audio URL returned by server.');
@@ -281,11 +297,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         setHistoryData(prev => [entry, ...prev]);
       }
     } catch (err) {
+      if (!isCurrent()) return;
       const msg = err.message || 'TTS synthesis failed.';
       setTtsError(msg);
       showToast(msg, 'error');
     } finally {
-      setIsSynthesizing(false);
+      if (isCurrent()) setIsSynthesizing(false);
     }
   };
 
@@ -300,7 +317,9 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
   };
 
   const handleClearTTS = () => {
+    ttsGenRef.current += 1; // cancel any in-flight synthesis polling
     setText('');
+    setIsSynthesizing(false);
     setAudioBlob(null);
     setAudioUrl(null);
     setIsPlaying(false);
@@ -310,6 +329,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
 
   // ── STT: Microphone Recording ────────────────────────────────────────────
   const startRecording = async () => {
+    sttGenRef.current += 1; // a new clip supersedes any in-flight transcription
     setSttError('');
     setTranscriptResult(null);
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -376,6 +396,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
   };
 
   const cancelRecording = () => {
+    sttGenRef.current += 1;
     if (mediaRecorderRef.current) {
       discardRecordingRef.current = true;
       mediaRecorderRef.current.stream?.getTracks().forEach(t => t.stop());
@@ -387,6 +408,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
 
   // ── STT: Review panel actions (shared by record + upload) ──────────────────
   const closeReviewPanel = () => {
+    sttGenRef.current += 1; // stop any in-flight polling for the discarded clip
     setReviewBlob(null);
     setTranscriptResult(null);
     setSttError('');
@@ -455,6 +477,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
       showToast('Unsupported format. Please select an audio file (e.g. .mp3, .wav, .m4a, .ogg).', 'error');
       return;
     }
+    sttGenRef.current += 1; // a new clip supersedes any in-flight transcription
     setReviewBlob(file);
     setTranscriptResult(null);
     setSttError('');
@@ -464,8 +487,16 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
 
   // ── STT: Core API Transcription Call ──────────────────────────────────────
   const transcribeFile = async (file, fromMic = false) => {
+    // Take the next generation: if the user closes the panel, re-records, or
+    // submits another clip while this one is still transcribing, the counter
+    // moves on and this call must never touch state again — otherwise a slow
+    // job from a PREVIOUS recording pops in as the current recording's result.
+    const gen = ++sttGenRef.current;
+    const isCurrent = () => gen === sttGenRef.current;
+
     setSttState('transcribing');
     setSttError('');
+    setTranscriptResult(null);
 
     try {
       let result;
@@ -481,10 +512,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         // Cap polling so a stuck job can't spin this UI forever.
         const deadline = Date.now() + 180000;
         while (job.status === 'queued' || job.status === 'processing') {
+          if (!isCurrent()) return; // superseded — stop polling, discard result
           if (Date.now() > deadline) {
             throw new Error('STT job timed out after 3 minutes. Please try again.');
           }
           await new Promise(resolve => setTimeout(resolve, 1500));
+          if (!isCurrent()) return;
           job = await getJobStatus(user.api_key, result.job_id);
           if (job.status === 'failed') {
             throw new Error(job.error || 'Async STT transcription failed on worker.');
@@ -492,6 +525,8 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         }
         result = job;
       }
+
+      if (!isCurrent()) return;
 
       const transcript = result?.detail ?? result?.transcript ?? result?.text ?? JSON.stringify(result);
       const processingTime = result?.processing_time ? `${result.processing_time.toFixed(2)}s` : '-';
@@ -525,6 +560,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         setHistoryData(prev => [entry, ...prev]);
       }
     } catch (err) {
+      if (!isCurrent()) return;
       const msg = err.message || 'Transcription failed.';
       setSttError(msg);
       setSttState(reviewBlob ? 'reviewing' : 'idle');

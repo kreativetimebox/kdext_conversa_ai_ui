@@ -157,6 +157,9 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const abortControllerRef = useRef(null);
+  // Bumped on every new recording so a slow transcription from a PREVIOUS
+  // recording can't append its (stale) text after a newer one has started.
+  const voiceGenRef = useRef(0);
 
   const pathParts = currentPath ? currentPath.split('/') : [];
   const activeConversationId = pathParts.length > 2 ? pathParts[2] : null;
@@ -210,11 +213,12 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
       const audioChunks = [];
-      
+      const gen = ++voiceGenRef.current;
+
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunks.push(e.data);
       };
-      
+
       recorder.onstop = async () => {
         const mimeType = recorder.mimeType || 'audio/wav';
         const audioBlob = new Blob(audioChunks, { type: mimeType });
@@ -228,6 +232,9 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
           const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
           // Use gateway-proxied STT endpoint (/api/voice/stt → engine :8002/v1/stt)
           const res = await voiceSTT(apiKey, file, null);
+          // Discard if a newer recording started while this one transcribed —
+          // otherwise the previous recording's text lands as the current one.
+          if (gen !== voiceGenRef.current) return;
           // Gateway returns { text, language, words[] }
           const transcript = res?.text || res?.detail || '';
           if (transcript) {
@@ -237,9 +244,10 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
             showToast('No speech detected. Please try again.', 'warning');
           }
         } catch (err) {
+          if (gen !== voiceGenRef.current) return;
           showToast(err.message || 'Failed to transcribe voice.', 'error');
         } finally {
-          setIsTyping(false);
+          if (gen === voiceGenRef.current) setIsTyping(false);
         }
         
         // Stop all tracks
