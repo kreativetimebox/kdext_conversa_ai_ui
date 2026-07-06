@@ -44,6 +44,9 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
       sessionStorage.setItem('access_token', data.access_token);
       sessionStorage.setItem('api_key', data.api_key);
 
+      // Brief pause so the success state is visible, then navigate. This was
+      // 1200ms — a full extra second of artificial wait the user felt as
+      // "login is slow"; 400ms still flashes the confirmation without dragging.
       setTimeout(() => {
         login({
           name: email.split('@')[0].split('.').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' '),
@@ -52,7 +55,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
           access_token: data.access_token,
         });
         navigate(redirectPath || '/dashboard');
-      }, 1200);
+      }, 400);
 
     } catch (err) {
       const msg = err.message || 'Invalid email or password. Please try again.';
@@ -97,7 +100,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
           access_token: data.access_token,
         });
         navigate(redirectPath || '/dashboard');
-      }, 1200);
+      }, 400);
 
     } catch (err) {
       const msg = err.message || 'OTP verification failed. Please try again.';
