@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowRightLeft, Volume2, Copy, Sparkles, CheckCircle2, Globe, ChevronDown, Zap, RotateCcw, Search, Bot, Mic, MicOff } from 'lucide-react';
-import { translateText, voiceTTS, getWsBaseUrl, getVoiceTranslateWsUrl } from '../services/api';
+import { translateText, voiceTTS, speechToText, getWsBaseUrl } from '../services/api';
 
 const LANGUAGES = [
   { code: 'auto', name: 'Detect Language', flag: '🔍', region: '' },
@@ -205,15 +205,15 @@ export default function Translate({ user, showToast }) {
   const [wsConnected, setWsConnected] = useState(false);
 
   // ── Voice mode state ──────────────────────────────────────────────────────
-  const [voiceActive, setVoiceActive] = useState(false);   // mic is recording
-  const [voiceTranscript, setVoiceTranscript] = useState(''); // running STT text
-  const [voiceWsConnected, setVoiceWsConnected] = useState(false);
-  const voiceWsRef = useRef(null);
+  // Voice mode uses the SAME /ws/translate socket as text Live Mode (wsRef).
+  // The browser records mic audio in 3-second complete segments, POSTs each to
+  // the STT endpoint, then sends the transcript into wsRef for LLM translation.
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const voiceActiveRef = useRef(false);  // ref so async callbacks see latest value
   const voiceMediaRecorderRef = useRef(null);
   const voiceStreamRef = useRef(null);
-  const voiceShouldReconnectRef = useRef(false);
-  const voiceReconnectTimerRef = useRef(null);
-  const voiceReconnectDelayRef = useRef(1000);
+  const voiceCycleTimerRef = useRef(null);
   // ─────────────────────────────────────────────────────────────────────────
 
   const wsRef = useRef(null);
@@ -388,76 +388,85 @@ export default function Translate({ user, showToast }) {
     };
   }, [apiKey]);
 
-  // ── Voice WebSocket: connect to /ws/voice-translate ───────────────────────
-  const connectVoiceWs = () => {
-    if (voiceWsRef.current &&
-        (voiceWsRef.current.readyState === WebSocket.OPEN ||
-         voiceWsRef.current.readyState === WebSocket.CONNECTING)) {
+  // ── Voice: send transcript through the EXISTING /ws/translate socket ────────
+  // Reuses the same wsRef that text Live Mode uses. The existing ws.onmessage
+  // handler already processes delta/done/error frames → target panel updates.
+  const sendVoiceTranslation = (text) => {
+    if (!text || !text.trim()) return;
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      // If the translate socket isn't open, reconnect it
+      connectWs();
       return;
     }
-    try {
-      const ws = new WebSocket(getVoiceTranslateWsUrl(apiKey));
-      voiceWsRef.current = ws;
-
-      ws.onopen = () => {
-        setVoiceWsConnected(true);
-        voiceReconnectDelayRef.current = 1000;
-        // Send config frame with the current target language
-        ws.send(JSON.stringify({ type: 'config', target_lang: targetLang }));
-      };
-
-      ws.onmessage = (ev) => {
-        try {
-          const msg = JSON.parse(ev.data);
-          if (msg.type === 'pong') return;
-          if (msg.type === 'transcript') {
-            setVoiceTranscript(msg.text || '');
-          } else if (msg.type === 'delta') {
-            setIsTranslating(true);
-            setTranslatedText(prev => prev + (msg.content || ''));
-          } else if (msg.type === 'done') {
-            setTranslatedText(msg.translation || '');
-            setIsTranslating(false);
-          } else if (msg.type === 'error') {
-            setIsTranslating(false);
-            showToast(msg.message || 'Voice translation error.', 'error');
-          }
-        } catch (err) {
-          console.error('voice-WS parse error:', err);
-        }
-      };
-
-      ws.onclose = (ev) => {
-        setVoiceWsConnected(false);
-        voiceWsRef.current = null;
-        if (!voiceShouldReconnectRef.current) return;
-        if (ev.code === 4401) {
-          showToast('Voice translation unauthorized (bad key).', 'error');
-          return;
-        }
-        voiceReconnectTimerRef.current = setTimeout(
-          connectVoiceWs,
-          voiceReconnectDelayRef.current
-        );
-        voiceReconnectDelayRef.current = Math.min(
-          voiceReconnectDelayRef.current * 2, 15000
-        );
-      };
-
-      ws.onerror = () => {};
-    } catch (e) {
-      console.error('Voice WS connect failed:', e);
-    }
+    seqRef.current += 1;
+    const id = seqRef.current;
+    reqEngineRef.current[id] = 'llm';
+    freshStreamRef.current = true;
+    setIsTranslating(true);
+    wsRef.current.send(JSON.stringify({
+      type: 'translate',
+      id,
+      text: text.trim(),
+      target_lang: targetLang,
+      engine: 'llm',
+    }));
   };
 
-  // When target language changes while voice WS is open, re-send config
-  useEffect(() => {
-    if (voiceWsRef.current && voiceWsRef.current.readyState === WebSocket.OPEN) {
-      voiceWsRef.current.send(JSON.stringify({ type: 'config', target_lang: targetLang }));
-    }
-  }, [targetLang]);
-
   // ── Voice recording handlers ──────────────────────────────────────────────
+  // Records mic audio in 3-second complete segments. Each segment is a full
+  // valid audio file (stop/restart creates new headers). The complete blob is
+  // POSTed to /api/voice/stt, and the returned transcript text is sent into
+  // the existing /ws/translate socket for instant LLM translation.
+
+  const startRecordingCycle = (stream) => {
+    if (!voiceActiveRef.current || !stream.active) return;
+
+    const chunks = [];
+    const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    voiceMediaRecorderRef.current = mr;
+
+    mr.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    mr.onstop = async () => {
+      // Build a complete audio blob from this 3-second segment
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      // Only process if still actively recording
+      if (voiceActiveRef.current) {
+        // Start next cycle immediately (don't wait for STT response)
+        startRecordingCycle(stream);
+
+        // POST to STT in parallel
+        if (blob.size > 500) { // skip near-empty chunks
+          try {
+            const langHint = sourceLang === 'auto' ? null : sourceLang;
+            const res = await speechToText(apiKey, blob, langHint);
+            const text = res?.text || res?.detail || res?.transcript || '';
+            if (text.trim()) {
+              setVoiceTranscript(prev => {
+                const accumulated = prev ? prev + ' ' + text.trim() : text.trim();
+                setSourceText(accumulated);
+                sendVoiceTranslation(accumulated);
+                return accumulated;
+              });
+            }
+          } catch (err) {
+            console.warn('Voice STT chunk failed:', err);
+          }
+        }
+      }
+    };
+
+    mr.start();
+    // Stop after 3 seconds → onstop fires → creates complete file → restarts
+    voiceCycleTimerRef.current = setTimeout(() => {
+      if (mr.state === 'recording') {
+        mr.stop();
+      }
+    }, 3000);
+  };
+
   const startVoiceRecording = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showToast('Microphone not supported in this browser.', 'error');
@@ -469,34 +478,23 @@ export default function Translate({ user, showToast }) {
       });
       voiceStreamRef.current = stream;
 
-      // Ensure voice WS is connected
-      voiceShouldReconnectRef.current = true;
-      connectVoiceWs();
+      // Make sure the existing translate WS is connected
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        connectWs();
+      }
 
       // Reset output
       setVoiceTranscript('');
+      setSourceText('');
       setTranslatedText('');
       setIsTranslating(false);
 
-      // MediaRecorder fires ondataavailable every 2 s → send binary chunk
-      const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      voiceMediaRecorderRef.current = mr;
-
-      mr.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0 &&
-            voiceWsRef.current &&
-            voiceWsRef.current.readyState === WebSocket.OPEN) {
-          voiceWsRef.current.send(e.data);
-        }
-      };
-
-      mr.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-      };
-
-      mr.start(2000); // timeslice = 2000 ms
+      voiceActiveRef.current = true;
       setVoiceActive(true);
       showToast('🎙️ Voice translation active — speak now', 'info');
+
+      // Start the record → STT → translate cycle
+      startRecordingCycle(stream);
     } catch (err) {
       let msg = 'Microphone access denied or unavailable.';
       if (err.name === 'NotAllowedError') {
@@ -509,63 +507,38 @@ export default function Translate({ user, showToast }) {
   };
 
   const stopVoiceRecording = () => {
+    voiceActiveRef.current = false;
+    setVoiceActive(false);
+    clearTimeout(voiceCycleTimerRef.current);
     if (voiceMediaRecorderRef.current &&
         voiceMediaRecorderRef.current.state !== 'inactive') {
-      voiceMediaRecorderRef.current.stop();
+      try { voiceMediaRecorderRef.current.stop(); } catch (_) {}
     }
     voiceMediaRecorderRef.current = null;
     if (voiceStreamRef.current) {
       voiceStreamRef.current.getTracks().forEach(t => t.stop());
       voiceStreamRef.current = null;
     }
-    // Keep WS open briefly so last chunk's translation can arrive, then close
-    setTimeout(() => {
-      voiceShouldReconnectRef.current = false;
-      clearTimeout(voiceReconnectTimerRef.current);
-      if (voiceWsRef.current) {
-        voiceWsRef.current.close();
-        voiceWsRef.current = null;
-      }
-      setVoiceWsConnected(false);
-    }, 3000);
-    setVoiceActive(false);
     setIsTranslating(false);
     showToast('Recording stopped.', 'success');
   };
 
-  // Pre-connect / disconnect the voice WS when the engine tab changes.
-  // Pre-connecting means the dot turns green immediately when the user
-  // clicks "Voice" — they don't have to press the mic first.
+  // Cleanup voice on engine switch away or unmount
   useEffect(() => {
-    if (engine === 'voice') {
-      // Enter voice mode: open the WS so the status dot goes green right away
-      voiceShouldReconnectRef.current = true;
-      connectVoiceWs();
-    } else {
-      // Leave voice mode: stop recording if active and close the WS
-      if (voiceActive) stopVoiceRecording();
-      voiceShouldReconnectRef.current = false;
-      clearTimeout(voiceReconnectTimerRef.current);
-      if (voiceWsRef.current) {
-        voiceWsRef.current.close();
-        voiceWsRef.current = null;
-      }
-      setVoiceWsConnected(false);
+    if (engine !== 'voice' && voiceActiveRef.current) {
+      stopVoiceRecording();
     }
   }, [engine]);
 
   useEffect(() => {
     return () => {
-      voiceShouldReconnectRef.current = false;
-      clearTimeout(voiceReconnectTimerRef.current);
+      voiceActiveRef.current = false;
+      clearTimeout(voiceCycleTimerRef.current);
       if (voiceMediaRecorderRef.current) {
         try { voiceMediaRecorderRef.current.stop(); } catch (_) {}
       }
       if (voiceStreamRef.current) {
         voiceStreamRef.current.getTracks().forEach(t => t.stop());
-      }
-      if (voiceWsRef.current) {
-        voiceWsRef.current.close();
       }
     };
   }, []);
@@ -1037,10 +1010,10 @@ export default function Translate({ user, showToast }) {
                   </div>
                 )}
 
-                {/* WS status */}
-                <div style={{ fontSize: '0.75rem', color: voiceWsConnected ? '#16a34a' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: voiceWsConnected ? '#16a34a' : '#94a3b8', display: 'inline-block' }} />
-                  {voiceWsConnected ? 'Stream connected' : 'Stream offline'}
+                {/* WS status — uses the existing translate WS (same as text Live Mode) */}
+                <div style={{ fontSize: '0.75rem', color: wsConnected ? '#16a34a' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: wsConnected ? '#16a34a' : '#94a3b8', display: 'inline-block' }} />
+                  {wsConnected ? 'Stream connected' : 'Stream offline'}
                 </div>
               </div>
             ) : (
@@ -1212,10 +1185,10 @@ export default function Translate({ user, showToast }) {
             }} />
           )}
           {engine === 'voice' && (
-            <span title={voiceWsConnected ? 'Voice stream connected' : 'Voice stream offline'} style={{
+            <span title={wsConnected ? 'Voice stream connected' : 'Voice stream offline'} style={{
               width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block',
-              background: voiceWsConnected ? '#16a34a' : '#d97706',
-              boxShadow: voiceWsConnected ? '0 0 6px rgba(22,163,74,0.6)' : 'none',
+              background: wsConnected ? '#16a34a' : '#d97706',
+              boxShadow: wsConnected ? '0 0 6px rgba(22,163,74,0.6)' : 'none',
             }} />
           )}
           Engine: <span style={{
