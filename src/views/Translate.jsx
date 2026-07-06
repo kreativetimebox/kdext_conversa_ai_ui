@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowRightLeft, Volume2, Copy, Sparkles, CheckCircle2, Globe, ChevronDown, Zap, RotateCcw, Search, Bot, Mic, MicOff } from 'lucide-react';
-import { translateText, voiceTTS, speechToText, getWsBaseUrl } from '../services/api';
+import { translateText, voiceTTS, voiceSTT, getWsBaseUrl } from '../services/api';
 
 const LANGUAGES = [
   { code: 'auto', name: 'Detect Language', flag: '🔍', region: '' },
@@ -249,6 +249,50 @@ export default function Translate({ user, showToast }) {
 
   const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
 
+  // ── Client-side translation cache ──────────────────────────────────────────
+  // Live Mode re-requests the same (engine, target, text) constantly: the
+  // instant pass re-fires while typing pauses/resumes, the refine pass re-runs
+  // when the effect's deps change without the text changing, and re-typed text
+  // repeats earlier requests verbatim. Serving those from a small LRU makes
+  // them instant and skips the network round-trip entirely.
+  const translationCacheRef = useRef(new Map());
+  const CACHE_MAX = 200;
+  const cacheKey = (kind, target, text) => `${kind}|${target}|${text}`;
+  const cacheGet = (kind, target, text) =>
+    translationCacheRef.current.get(cacheKey(kind, target, text));
+  const cacheSet = (kind, target, text, translation) => {
+    if (!translation) return;
+    const m = translationCacheRef.current;
+    const k = cacheKey(kind, target, text);
+    if (m.has(k)) m.delete(k); // re-insert so Map order stays LRU
+    m.set(k, translation);
+    if (m.size > CACHE_MAX) m.delete(m.keys().next().value);
+  };
+  // Remembers each in-flight WS request's text/target so the 'done' frame can
+  // be written into the cache (the response itself doesn't echo the input).
+  const reqMetaRef = useRef({});
+
+  const pushHistory = (cur, translation, detectedCode = null) => {
+    const sLangName = cur.sourceLang === 'auto'
+      ? (detectedCode ? (LANGUAGES.find(l => l.code === detectedCode)?.name || detectedCode) : 'Auto')
+      : LANGUAGES.find(l => l.code === cur.sourceLang)?.name;
+    setHistory(prev => {
+      if (prev.length > 0 && prev[0].source === cur.sourceText && prev[0].result === translation) {
+        return prev;
+      }
+      return [{
+        id: Date.now(),
+        source: cur.sourceText,
+        result: translation,
+        sLang: sLangName,
+        tLang: LANGUAGES.find(l => l.code === cur.targetLang)?.name,
+        sFlag: cur.sourceLang === 'auto' ? '🔍' : LANGUAGES.find(l => l.code === cur.sourceLang)?.flag,
+        tFlag: LANGUAGES.find(l => l.code === cur.targetLang)?.flag,
+        engine: cur.engine,
+      }, ...prev].slice(0, 10);
+    });
+  };
+
   const getWsUrl = (key) => `${getWsBaseUrl()}/ws/translate?api_key=${encodeURIComponent(key)}`;
 
   const connectWs = () => {
@@ -303,6 +347,11 @@ export default function Translate({ user, showToast }) {
           } else if (msg.type === 'done') {
             const kind = reqEngineRef.current[msg.id] || 'llm';
             delete reqEngineRef.current[msg.id];
+            const meta = reqMetaRef.current[msg.id];
+            delete reqMetaRef.current[msg.id];
+            if (meta && msg.translation) {
+              cacheSet(kind, meta.target, meta.text, msg.translation);
+            }
             const cur = latestRef.current;
             setTranslatedText(msg.translation);
             setIsTranslating(false);
@@ -313,26 +362,10 @@ export default function Translate({ user, showToast }) {
             // just the refined (pause) translations, not every keystroke.
             if (kind === 'api') return;
 
-            const sLangName = cur.sourceLang === 'auto'
-              ? (msg.source_lang ? (LANGUAGES.find(l => l.code === msg.source_lang)?.name || msg.source_lang) : 'Auto')
-              : LANGUAGES.find(l => l.code === cur.sourceLang)?.name;
-
-            setHistory(prev => {
-              if (prev.length > 0 && prev[0].source === cur.sourceText && prev[0].result === msg.translation) {
-                return prev;
-              }
-              return [{
-                id: Date.now(),
-                source: cur.sourceText,
-                result: msg.translation,
-                sLang: sLangName,
-                tLang: LANGUAGES.find(l => l.code === cur.targetLang)?.name,
-                sFlag: cur.sourceLang === 'auto' ? '🔍' : LANGUAGES.find(l => l.code === cur.sourceLang)?.flag,
-                tFlag: LANGUAGES.find(l => l.code === cur.targetLang)?.flag,
-                engine: cur.engine,
-              }, ...prev].slice(0, 10);
-            });
+            pushHistory(cur, msg.translation, msg.source_lang);
           } else if (msg.type === 'error') {
+            delete reqEngineRef.current[msg.id];
+            delete reqMetaRef.current[msg.id];
             setIsTranslating(false);
             showToast(msg.message || 'Streaming translation error.', 'error');
           }
@@ -391,23 +424,49 @@ export default function Translate({ user, showToast }) {
   // ── Voice: send transcript through the EXISTING /ws/translate socket ────────
   // Reuses the same wsRef that text Live Mode uses. The existing ws.onmessage
   // handler already processes delta/done/error frames → target panel updates.
-  const sendVoiceTranslation = (text) => {
+  const sendVoiceTranslation = async (text) => {
     if (!text || !text.trim()) return;
+    const trimmed = text.trim();
+    // Read languages through latestRef — this function is called from
+    // MediaRecorder callbacks whose closures were captured when recording
+    // started, so `targetLang` from the render scope can be stale.
+    const target = latestRef.current.targetLang;
+
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      // If the translate socket isn't open, reconnect it
+      // Socket down: reconnect for the NEXT segment, but translate THIS one
+      // over HTTP instead of silently dropping it.
       connectWs();
+      seqRef.current += 1;
+      const id = seqRef.current;
+      setIsTranslating(true);
+      try {
+        const cur = latestRef.current;
+        const res = await translateText(apiKey, trimmed, cur.sourceLang === 'auto' ? null : cur.sourceLang, target, 'llm');
+        const result = res?.translation || res?.translated_text || res?.result || '';
+        if (id < lastAppliedIdRef.current) return;
+        lastAppliedIdRef.current = id;
+        if (result) {
+          setTranslatedText(result);
+          cacheSet('llm', target, trimmed, result);
+        }
+      } catch (err) {
+        console.warn('Voice HTTP translate fallback failed:', err);
+      } finally {
+        setIsTranslating(false);
+      }
       return;
     }
     seqRef.current += 1;
     const id = seqRef.current;
     reqEngineRef.current[id] = 'llm';
+    reqMetaRef.current[id] = { text: trimmed, target };
     freshStreamRef.current = true;
     setIsTranslating(true);
     wsRef.current.send(JSON.stringify({
       type: 'translate',
       id,
-      text: text.trim(),
-      target_lang: targetLang,
+      text: trimmed,
+      target_lang: target,
       engine: 'llm',
     }));
   };
@@ -437,11 +496,16 @@ export default function Translate({ user, showToast }) {
         // Start next cycle immediately (don't wait for STT response)
         startRecordingCycle(stream);
 
-        // POST to STT in parallel
+        // POST to STT in parallel. This MUST be the synchronous /api/voice/stt
+        // proxy (voiceSTT) — the gateway's /speech-to-text runs in async-queue
+        // mode and only returns {job_id, status:"queued"}, never a transcript,
+        // so using it here made voice mode silently produce nothing.
         if (blob.size > 500) { // skip near-empty chunks
           try {
-            const langHint = sourceLang === 'auto' ? null : sourceLang;
-            const res = await speechToText(apiKey, blob, langHint);
+            const curLang = latestRef.current.sourceLang;
+            const langHint = curLang === 'auto' ? null : curLang;
+            const file = new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
+            const res = await voiceSTT(apiKey, file, langHint);
             const text = res?.text || res?.detail || res?.transcript || '';
             if (text.trim()) {
               setVoiceTranscript(prev => {
@@ -588,6 +652,7 @@ export default function Translate({ user, showToast }) {
       seqRef.current += 1;
       const id = seqRef.current;
       reqEngineRef.current[id] = wsEngine;
+      reqMetaRef.current[id] = { text: wsText, target: latestRef.current.targetLang };
       // Mark as translating for BOTH engines, not just 'llm' — otherwise the
       // instant pass swaps the text in with no visible feedback at all.
       setIsTranslating(true);
@@ -603,6 +668,16 @@ export default function Translate({ user, showToast }) {
       }));
     };
 
+    // Serve a repeat request straight from the cache: apply it as if it were
+    // the newest response so older in-flight replies can't overwrite it.
+    const applyCached = (cached) => {
+      seqRef.current += 1;
+      lastAppliedIdRef.current = seqRef.current;
+      freshStreamRef.current = false;
+      setTranslatedText(cached);
+      setIsTranslating(false);
+    };
+
     const httpInstant = async (httpText) => {
       seqRef.current += 1;
       const id = seqRef.current;
@@ -614,9 +689,10 @@ export default function Translate({ user, showToast }) {
         // ws.onmessage — an exact seqRef match would discard this response
         // the moment any newer request had been sent, even if it's still
         // the freshest one to actually come back.
+        const result = res?.translation || res?.translated_text || res?.result || '';
+        if (result) cacheSet('api', cur.targetLang, httpText, result);
         if (id < lastAppliedIdRef.current) return;
         lastAppliedIdRef.current = id;
-        const result = res?.translation || res?.translated_text || res?.result || '';
         if (result) setTranslatedText(result);
         const detected = res?.source_lang || res?.detected_language || null;
         if (detected && cur.sourceLang === 'auto') setDetectedLang(detected);
@@ -643,6 +719,15 @@ export default function Translate({ user, showToast }) {
       lastInstantRef.current = Date.now();
       const latestText = latestRef.current.sourceText.trim();
       if (!latestText) return;
+      // Prefer the refined LLM result if this exact text was already
+      // translated (better quality than a fresh instant pass), else reuse a
+      // previous instant result — either way, no network round-trip.
+      const cached = cacheGet('llm', latestRef.current.targetLang, latestText)
+        || cacheGet('api', latestRef.current.targetLang, latestText);
+      if (cached) {
+        applyCached(cached);
+        return;
+      }
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         sendOverWs('api', latestText);
         return;
@@ -679,8 +764,16 @@ export default function Translate({ user, showToast }) {
 
     // 2) refinement pass — after the user pauses, stream the LLM translation
     debounceTimerRef.current = setTimeout(() => {
+      const refineText = latestRef.current.sourceText.trim();
+      if (!refineText) return;
+      const cachedLlm = cacheGet('llm', latestRef.current.targetLang, refineText);
+      if (cachedLlm) {
+        applyCached(cachedLlm);
+        pushHistory(latestRef.current, cachedLlm);
+        return;
+      }
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        sendOverWs('llm', latestRef.current.sourceText.trim());
+        sendOverWs('llm', refineText);
       }
     }, 900);
 
@@ -692,19 +785,31 @@ export default function Translate({ user, showToast }) {
 
   const handleTranslate = async () => {
     if (!sourceText.trim()) return;
+    const activeEngine = engine === 'live' ? 'llm' : engine;
+
+    // Repeat of an already-translated text → answer from cache, no request.
+    const cached = cacheGet(activeEngine, targetLang, sourceText.trim());
+    if (cached) {
+      seqRef.current += 1;
+      lastAppliedIdRef.current = seqRef.current;
+      setTranslatedText(cached);
+      setIsTranslating(false);
+      pushHistory(latestRef.current, cached, detectedLang);
+      return;
+    }
+
     setIsTranslating(true);
     setTranslatedText('');
     setDetectedLang(null);
     seqRef.current += 1;
     const currentSeq = seqRef.current;
 
-    const activeEngine = engine === 'live' ? 'llm' : engine;
-
     try {
       const res = await translateText(apiKey, sourceText.trim(), sourceLang === 'auto' ? null : sourceLang, targetLang, activeEngine);
+      const result = res?.translation || res?.translated_text || res?.result || '';
+      if (result) cacheSet(activeEngine, targetLang, sourceText.trim(), result);
       if (currentSeq !== seqRef.current) return;
 
-      const result = res?.translation || res?.translated_text || res?.result || '';
       const detected = res?.source_lang || res?.detected_language || null;
 
       setTranslatedText(result);
