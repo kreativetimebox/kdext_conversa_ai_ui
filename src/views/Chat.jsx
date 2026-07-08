@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import logo from '../assets/logo.svg';
 import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2 } from 'lucide-react';
 import { chatCompletion, voiceSTT, voiceTTS, getConversationDetails, createConversation, addMessage } from '../services/api';
 
@@ -416,9 +417,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
         <div className="chat-history">
           {messages.length === 0 ? (
             <div style={styles.emptyState} className="animate-fade-in">
-              <div style={styles.logoCircle}>
-                <Bot size={40} color="var(--primary-light)" />
-              </div>
+              <img src={logo} alt="Conversa AI" style={{ width: '64px', height: '64px', marginBottom: '16px' }} />
               <h2 style={{ fontSize: '1.8rem', marginBottom: '8px', color: 'var(--text-primary)' }}>
                 How can I help you today?
               </h2>

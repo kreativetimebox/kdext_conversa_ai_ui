@@ -1,4 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import logo from '../assets/logo.svg';
+import {
+  MessageSquare,
+  Globe,
+  LayoutDashboard,
+  Mic,
+  History,
+  User,
+  Settings,
+  LogOut,
+  ChevronLeft
+} from 'lucide-react';
 import { getConversations, deleteConversation } from '../services/api';
 
 const getGroup = (updatedAtStr) => {
@@ -73,11 +85,11 @@ function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath,
   };
 
   const navItems = [
-    { path: '/chat', label: 'Chat', icon: '💬' },
-    { path: '/translate', label: 'Translate', icon: '🌐' },
-    { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-    { path: '/services/hub', label: 'Voice Tools', icon: '🎙️' },
-    { path: '/history', label: 'History Logs', icon: '🕰️' }
+    { path: '/chat', label: 'Chat', icon: <MessageSquare size={20} /> },
+    { path: '/translate', label: 'Translate', icon: <Globe size={20} /> },
+    { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    { path: '/services/hub', label: 'Voice Tools', icon: <Mic size={20} /> },
+    { path: '/history', label: 'History Logs', icon: <History size={20} /> }
   ];
 
   // Group conversations by time period
@@ -100,9 +112,14 @@ function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath,
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="sidebar-header">
-        {!isCollapsed && <div className="navbar-brand">Conversa AI</div>}
-        <button className="btn btn-text" onClick={toggleSidebar}>
-          {isCollapsed ? '▶' : '◀'}
+        {!isCollapsed && (
+          <div className="navbar-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <img src={logo} alt="Conversa AI" style={{ width: '28px', height: '28px' }} />
+            <span>Conversa AI</span>
+          </div>
+        )}
+        <button className="sidebar-toggle-btn" aria-label="Toggle Sidebar" onClick={toggleSidebar}>
+          <ChevronLeft size={18} style={{ transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }} />
         </button>
       </div>
       
@@ -172,13 +189,13 @@ function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath,
       </div>
 
       <div className="sidebar-footer" style={{ padding: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-         <a
+          <a
             onClick={(e) => { e.preventDefault(); navigate('/profile'); }}
             href="/profile"
             className="nav-item"
             style={{ padding: '8px 12px' }}
           >
-            <span className="nav-icon">👤</span>
+            <span className="nav-icon"><User size={20} /></span>
             <span className="nav-label">Profile</span>
           </a>
           <a
@@ -187,11 +204,11 @@ function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath,
             className="nav-item"
             style={{ padding: '8px 12px' }}
           >
-            <span className="nav-icon">⚙️</span>
+            <span className="nav-icon"><Settings size={20} /></span>
             <span className="nav-label">Settings</span>
           </a>
-          <button className="btn btn-outline" style={{ width: '100%', marginTop: '8px' }} onClick={onSignOut}>
-            <span className="nav-icon">🚪</span>
+          <button className="sign-out-btn" onClick={onSignOut}>
+            <span className="nav-icon"><LogOut size={20} /></span>
             <span className="nav-label">Sign Out</span>
           </button>
       </div>

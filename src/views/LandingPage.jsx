@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   CheckCircle,
   ArrowRight,
@@ -19,6 +19,62 @@ import {
   Mic,
   Sparkles
 } from 'lucide-react';
+
+const AnimatedStat = ({ target, suffix = '', decimals = 0, useComma = false, style }) => {
+  const [count, setCount] = useState(0);
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const nodeRef = useRef(null);
+
+  useEffect(() => {
+    if (hasAnimated) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setHasAnimated(true);
+          observer.disconnect();
+          
+          let startTimestamp = null;
+          const duration = 1500;
+
+          const step = (timestamp) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            
+            // easeOutExpo
+            const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+            
+            setCount(easeProgress * target);
+            
+            if (progress < 1) {
+              window.requestAnimationFrame(step);
+            } else {
+              setCount(target);
+            }
+          };
+          window.requestAnimationFrame(step);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (nodeRef.current) {
+      observer.observe(nodeRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [target, hasAnimated]);
+
+  const formattedValue = useComma
+    ? Number(count.toFixed(decimals)).toLocaleString()
+    : count.toFixed(decimals);
+
+  return (
+    <div ref={nodeRef} style={style}>
+      {formattedValue}{suffix}
+    </div>
+  );
+};
 
 export default function LandingPage({ navigate, showToast }) {
   const [activeFaq, setActiveFaq] = useState(null);
@@ -244,34 +300,34 @@ export default function LandingPage({ navigate, showToast }) {
 
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>
-            <div style={styles.statNum}>50M+</div>
+            <AnimatedStat target={50} suffix="M+" style={styles.statNum} />
             <div style={styles.statLabel}>Audio Seconds Processed</div>
           </div>
           <div style={styles.statCard}>
-            <div style={styles.statNum}>99.5%</div>
+            <AnimatedStat target={99.5} decimals={1} suffix="%" style={styles.statNum} />
             <div style={styles.statLabel}>Word Accuracy Rate</div>
           </div>
           <div style={styles.statCard}>
-            <div style={styles.statNum}>10,000+</div>
+            <AnimatedStat target={10000} useComma={true} suffix="+" style={styles.statNum} />
             <div style={styles.statLabel}>Active Accounts</div>
           </div>
           <div style={styles.statCard}>
-            <div style={styles.statNum}>50+</div>
+            <AnimatedStat target={50} suffix="+" style={styles.statNum} />
             <div style={styles.statLabel}>Languages Supported</div>
           </div>
         </div>
 
         <div style={{ ...styles.statsGrid, marginTop: '30px', borderTop: '1px solid var(--border-color)', paddingTop: '30px' }}>
           <div style={styles.secondaryStatCard}>
-            <div style={styles.secondaryStatNum}>85%</div>
+            <AnimatedStat target={85} suffix="%" style={styles.secondaryStatNum} />
             <div style={styles.secondaryStatLabel}>Reduction in Dubbing Cost</div>
           </div>
           <div style={styles.secondaryStatCard}>
-            <div style={styles.secondaryStatNum}>50ms</div>
+            <AnimatedStat target={50} suffix="ms" style={styles.secondaryStatNum} />
             <div style={styles.secondaryStatLabel}>Synthesis Average Latency</div>
           </div>
           <div style={styles.secondaryStatCard}>
-            <div style={styles.secondaryStatNum}>24/7</div>
+            <AnimatedStat target={24} suffix="/7" style={styles.secondaryStatNum} />
             <div style={styles.secondaryStatLabel}>API Availability</div>
           </div>
         </div>
@@ -585,7 +641,7 @@ const styles = {
   },
   statLabel: {
     fontSize: '0.9rem',
-    color: 'var(--text-muted)',
+    color: '#334155',
     fontWeight: '500',
   },
   secondaryStatCard: {
@@ -599,7 +655,7 @@ const styles = {
   },
   secondaryStatLabel: {
     fontSize: '0.85rem',
-    color: 'var(--text-muted)',
+    color: '#334155',
   },
   whyGrid: {
     display: 'grid',

@@ -16,7 +16,8 @@ import {
   Shield,
   CreditCard,
   X,
-  Mic
+  Mic,
+  Timer
 } from 'lucide-react';
 import { getProfile } from '../services/api';
 
@@ -134,7 +135,7 @@ export default function Dashboard({
         <div className="glass-card" style={styles.statCard}>
           <div style={styles.statTop}>
             <span style={styles.statLabel}>Audio Seconds</span>
-            <TrendingUp size={18} color="var(--primary-light)" />
+            <Timer size={18} color="var(--primary-light)" />
           </div>
           <div style={styles.statVal}>{totalSeconds}s</div>
           <div style={styles.statBottom}>
@@ -160,12 +161,12 @@ export default function Dashboard({
         <div className="glass-card" style={styles.statCard}>
           <div style={styles.statTop}>
             <span style={styles.statLabel}>Speech to Text</span>
-            <TrendingUp size={18} color="var(--success)" />
+            <Mic size={18} color="var(--primary-light)" />
           </div>
           <div style={styles.statVal}>{sttCount}</div>
           <div style={styles.statBottom}>
-            <span style={{ ...styles.statSubText, color: 'var(--success)' }}>
-              {sttCount} audio transcribing jobs
+            <span style={styles.statSubText}>
+              {sttCount} transcription jobs
             </span>
           </div>
         </div>
@@ -256,7 +257,7 @@ export default function Dashboard({
             <h3 style={{...styles.cardTitle, marginBottom: '16px'}}>Quick Actions</h3>
             <div className="dashboard-actions-grid">
               <div onClick={() => navigate('/documentation')} style={styles.actionItem} className="glass-card-hover">
-                <BookOpen size={20} color="var(--primary-light)" />
+                <BookOpen size={18} color="var(--primary-light)" />
                 <div>
                   <div style={styles.actionTitle}>API Docs</div>
                   <div style={styles.actionDesc}>View integration guides</div>
@@ -264,7 +265,7 @@ export default function Dashboard({
               </div>
               
               <div onClick={() => navigate('/history')} style={styles.actionItem} className="glass-card-hover">
-                <History size={20} color="var(--primary-light)" />
+                <History size={18} color="var(--primary-light)" />
                 <div>
                   <div style={styles.actionTitle}>History</div>
                   <div style={styles.actionDesc}>All processed tasks</div>
@@ -272,7 +273,7 @@ export default function Dashboard({
               </div>
 
               <div onClick={() => navigate('/documentation')} style={styles.actionItem} className="glass-card-hover">
-                <Shield size={20} color="var(--primary-light)" />
+                <Shield size={18} color="var(--primary-light)" />
                 <div>
                   <div style={styles.actionTitle}>Usage Analytics</div>
                   <div style={styles.actionDesc}>Monitor API keys metrics</div>
@@ -280,7 +281,7 @@ export default function Dashboard({
               </div>
 
               <div onClick={() => showToast('Upgrades to Pro plan are currently managed on sandbox mode', 'info')} style={styles.actionItem} className="glass-card-hover">
-                <CreditCard size={20} color="var(--primary-light)" />
+                <CreditCard size={18} color="var(--primary-light)" />
                 <div>
                   <div style={styles.actionTitle}>Upgrade Plan</div>
                   <div style={styles.actionDesc}>Unlock speech capacities</div>

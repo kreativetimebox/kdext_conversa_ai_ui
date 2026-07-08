@@ -1,4 +1,5 @@
 import React from 'react';
+import logo from '../assets/logo.svg';
 import { Volume2 } from 'lucide-react';
 
 export default function Footer({ navigate }) {
@@ -10,9 +11,7 @@ export default function Footer({ navigate }) {
           {/* Logo & Description */}
           <div style={styles.brandCol} className="footer-brand-col-responsive">
             <div onClick={() => navigate('/')} style={{ ...styles.logo, cursor: 'pointer' }}>
-              <div style={styles.logoIcon}>
-                <Volume2 size={16} color="#ffffff" fill="#ffffff" />
-              </div>
+              <img src={logo} alt="Conversa AI" style={{ width: '32px', height: '32px' }} />
               <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#ffffff', fontFamily: 'var(--font-heading)' }}>Conversa AI</span>
             </div>
             <p style={styles.desc}>

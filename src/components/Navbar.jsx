@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import logo from '../assets/logo.svg';
 import {
   FileText,
   ChevronDown,
@@ -44,9 +45,7 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
       <div style={styles.navContainer}>
         {/* Brand Logo */}
         <div onClick={() => navigateTo('/')} className="navbar-brand">
-          <div style={styles.logoIcon}>
-            <Volume2 size={18} color="#ffffff" fill="#ffffff" />
-          </div>
+          <img src={logo} alt="Conversa AI" style={{ width: '32px', height: '32px' }} />
           <span>Conversa AI</span>
         </div>
 
