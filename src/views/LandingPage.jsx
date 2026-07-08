@@ -641,7 +641,7 @@ const styles = {
   },
   statLabel: {
     fontSize: '0.9rem',
-    color: '#334155',
+    color: 'var(--text-secondary)',
     fontWeight: '500',
   },
   secondaryStatCard: {
@@ -655,7 +655,7 @@ const styles = {
   },
   secondaryStatLabel: {
     fontSize: '0.85rem',
-    color: '#334155',
+    color: 'var(--text-secondary)',
   },
   whyGrid: {
     display: 'grid',

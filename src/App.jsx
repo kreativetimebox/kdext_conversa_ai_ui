@@ -28,7 +28,7 @@ export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [user, setUser] = useState(null);
   const [toasts, setToasts] = useState([]);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(window.innerWidth < 1024);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(!!sessionStorage.getItem('access_token'));
 
@@ -40,6 +40,23 @@ export default function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Initialize theme from localStorage on startup
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('conversa_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
+  // Auto-collapse sidebar on tablet view
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024 && !isSidebarCollapsed) {
+        setIsSidebarCollapsed(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isSidebarCollapsed]);
 
   // Session Recovery
   useEffect(() => {
