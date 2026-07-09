@@ -84,7 +84,7 @@ const CopyButton = ({ text, variant = 'icon' }) => {
   );
 };
 
-const SpeakButton = ({ text, apiKey, showToast }) => {
+const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
   const blobUrlRef = useRef(null);
@@ -122,11 +122,15 @@ const SpeakButton = ({ text, apiKey, showToast }) => {
         URL.revokeObjectURL(blobUrlRef.current);
         blobUrlRef.current = null;
       }
-
+if (currentAudioRef.current) {
+  currentAudioRef.current.pause();
+  currentAudioRef.current.currentTime = 0;
+}
       const blobUrl = await voiceTTS(apiKey, text, 'en', 'divya');
       blobUrlRef.current = blobUrl;
 
       const audio = new Audio(blobUrl);
+      currentAudioRef.current = audio;
       audioRef.current = audio;
       audio.play();
       audio.onended = () => {
@@ -171,6 +175,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const currentAudioRef = useRef(null);
   // Bumped on every new recording so a slow transcription from a PREVIOUS
   // recording can't append its (stale) text after a newer one has started.
   const voiceGenRef = useRef(0);
@@ -429,35 +434,29 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       <div className="chat-container">
         <div className="chat-history">
           {messages.length === 0 ? (
-            <div style={styles.emptyState} className="animate-fade-in">
-              <img src={logo} alt="Conversa AI" style={{ width: '64px', height: '64px', marginBottom: '16px' }} />
-              <h2 className="chat-hero-title">
-                How can I help you today?
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
-                Start a conversation or choose a suggestion below.
-              </p>
-              
-              <div style={styles.suggestionGrid}>
-                {[
-                  { title: "Generate TTS Script", desc: "Write a script for voice synthesis" },
-                  { title: "Analyze audio logs", desc: "Summarize call center transcriptions" },
-                  { title: "Write a React component", desc: "For a dashboard interface" },
-                  { title: "Translate document", desc: "English to Spanish (Latin America)" }
-                ].map((s, i) => (
-                  <button 
-                    key={i} 
-                    style={styles.suggestionCard}
-                    onClick={() => setInput(s.title + " - " + s.desc)}
-                    className="glass-card-hover glass-card"
-                  >
-                    <div style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>{s.title}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{s.desc}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
+  <div style={styles.emptyState}>
+    <img
+      src={logo}
+      alt="Conversa AI"
+      style={{
+        width: "64px",
+        height: "64px",
+        marginBottom: "20px",
+      }}
+    />
+
+    <h2
+      style={{
+        fontSize: "2rem",
+        color: "var(--text-primary)",
+        fontWeight: 600,
+      }}
+    >
+      How can I help you today?
+    </h2>
+  </div>
+) : (
+          
             messages.map((msg, index) => (
               <div key={index} className={`chat-bubble-wrapper ${msg.role} animate-fade-in`}>
                 {msg.role === 'assistant' && (
@@ -487,6 +486,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
                             text={msg.content}
                             apiKey={user?.api_key || sessionStorage.getItem('api_key') || 'demo'}
                             showToast={showToast}
+                            currentAudioRef={currentAudioRef}
                           />
                         </>
                       ) : null}
@@ -615,20 +615,7 @@ const styles = {
     marginBottom: '24px',
     boxShadow: '0 0 40px rgba(37,99,235, 0.15)',
   },
-  suggestionGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: '16px',
-    width: '100%',
-    maxWidth: '800px',
-  },
-  suggestionCard: {
-    textAlign: 'left',
-    padding: '16px',
-    background: 'rgba(15,23,42,0.02)',
-    border: '1px solid var(--border-color)',
-    cursor: 'pointer',
-  },
+
   avatarAi: {
     width: '32px',
     height: '32px',
