@@ -216,10 +216,12 @@ export default function Translate({ user, showToast }) {
   const voiceCycleTimerRef = useRef(null);
   // Segment STT calls run in parallel, so a slow chunk must not let a later
   // chunk's text land first: each chunk takes a sequence number and results
-  // are buffered, then appended strictly in order.
+  // are buffered, then appended in order — but only up to a bounded wait, so
+  // one slow chunk (common on CPU STT) can't stall everything behind it.
   const voiceChunkSeqRef = useRef(0);   // next seq to assign to a recorded chunk
   const voiceFlushSeqRef = useRef(0);   // next seq allowed to append
   const voicePendingChunksRef = useRef({});  // seq -> transcript ('' = silent/failed)
+  const voiceGapTimerRef = useRef(null);     // watchdog for a stuck/slow chunk
   // ─────────────────────────────────────────────────────────────────────────
 
   const wsRef = useRef(null);
@@ -519,10 +521,23 @@ export default function Translate({ user, showToast }) {
     return cut > 0 ? tail.slice(cut + 1) : tail; // don't start mid-word
   };
 
+  // Longest we'll hold finished chunks waiting for an earlier slow one before
+  // giving up on it and moving on — keeps subtitles flowing on slow CPU STT.
+  const VOICE_MAX_GAP_WAIT_MS = 1200;
+
   // Append every consecutive completed chunk (in seq order) to the transcript
-  // and fire one translation for the combined new text.
+  // and fire one translation for the combined new text. If a later chunk is
+  // ready but an earlier one is still missing, wait only VOICE_MAX_GAP_WAIT_MS
+  // for it, then skip it — a single slow STT call must NOT freeze the stream
+  // (the old behaviour, which made live translation crawl on CPU STT).
   const flushVoiceChunks = () => {
     const pending = voicePendingChunksRef.current;
+    // Drop anything already behind the flush pointer (e.g. a skipped laggard
+    // that arrived late) so it can't leak.
+    for (const k of Object.keys(pending)) {
+      if (Number(k) < voiceFlushSeqRef.current) delete pending[k];
+    }
+
     const parts = [];
     while (Object.prototype.hasOwnProperty.call(pending, voiceFlushSeqRef.current)) {
       const t = pending[voiceFlushSeqRef.current];
@@ -530,13 +545,30 @@ export default function Translate({ user, showToast }) {
       voiceFlushSeqRef.current += 1;
       if (t) parts.push(t);
     }
-    if (!parts.length) return;
-    setVoiceTranscript(prev => {
-      const accumulated = prev ? `${prev} ${parts.join(' ')}` : parts.join(' ');
-      setSourceText(accumulated);
-      sendVoiceTranslation(voiceTranslateTail(accumulated));
-      return accumulated;
-    });
+
+    if (parts.length) {
+      setVoiceTranscript(prev => {
+        const accumulated = prev ? `${prev} ${parts.join(' ')}` : parts.join(' ');
+        setSourceText(accumulated);
+        sendVoiceTranslation(voiceTranslateTail(accumulated));
+        return accumulated;
+      });
+    }
+
+    // Watchdog: later chunks are waiting on a missing earlier one. Don't stall
+    // indefinitely — after a bounded wait, skip the laggard and flush the rest.
+    clearTimeout(voiceGapTimerRef.current);
+    if (Object.keys(pending).length > 0) {
+      voiceGapTimerRef.current = setTimeout(() => {
+        if (
+          !Object.prototype.hasOwnProperty.call(pending, voiceFlushSeqRef.current) &&
+          Object.keys(pending).length > 0
+        ) {
+          voiceFlushSeqRef.current += 1; // give up on the slow/missing chunk
+          flushVoiceChunks();
+        }
+      }, VOICE_MAX_GAP_WAIT_MS);
+    }
   };
 
   const startRecordingCycle = (stream) => {
@@ -666,6 +698,7 @@ export default function Translate({ user, showToast }) {
     voiceActiveRef.current = false;
     setVoiceActive(false);
     clearTimeout(voiceCycleTimerRef.current);
+    clearTimeout(voiceGapTimerRef.current);
     if (voiceMediaRecorderRef.current &&
         voiceMediaRecorderRef.current.state !== 'inactive') {
       try { voiceMediaRecorderRef.current.stop(); } catch (_) {}
