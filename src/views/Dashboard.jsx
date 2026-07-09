@@ -3,7 +3,8 @@ import {
   Plus, Copy, Check, Eye, EyeOff, Trash2, TrendingUp, Volume2, Activity,
   ArrowRight, BookOpen, History, Shield, CreditCard, X, Mic, BarChart2, Globe
 } from 'lucide-react';
-import { getProfile } from '../services/api';
+// YAHAN CHANGE HUA HAI: getConversations ko import kiya hai
+import { getProfile, getConversations } from '../services/api';
 
 export default function Dashboard({ 
   navigate, user, apiKeys, setApiKeys, historyData = [], toasts, showToast 
@@ -13,25 +14,37 @@ export default function Dashboard({
   const [newKeyName, setNewKeyName] = useState('');
   const [profile, setProfile] = useState(user);
   
-  // Analytics State
+  const [realHistoryData, setRealHistoryData] = useState([]);
+  
   const [timeFilter, setTimeFilter] = useState('30d');
   const [selectedApiKey, setSelectedApiKey] = useState('all');
   const [hoveredBar, setHoveredBar] = useState(null);
 
+  // YAHAN API CALL HUI HAI
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchDashboardData = async () => {
       const token = sessionStorage.getItem('access_token');
       if (token) {
         try {
-          const data = await getProfile(token);
-          setProfile(data);
+          // A. Pehle Profile fetch karo
+          const profileData = await getProfile(token);
+          setProfile(profileData);
+
+          // B. Ab sahi API (/conversations) call karo Profile ki API key use karke
+          if (profileData && profileData.api_key) {
+            const logsData = await getConversations(profileData.api_key);
+            
+            const finalLogs = Array.isArray(logsData) ? logsData : (logsData?.items || logsData?.data || []);
+            setRealHistoryData(finalLogs.length > 0 ? finalLogs : historyData);
+          }
         } catch (e) {
-          console.error("Failed to load profile:", e);
+          console.error("Failed to load dashboard data from API:", e);
+          setRealHistoryData(historyData); // Error aaye toh dummy data dikhao
         }
       }
     };
-    fetchProfile();
-  }, [user]);
+    fetchDashboardData();
+  }, [user, historyData]);
   
   const displayKeys = apiKeys.map((k, index) => {
     if (index === 0 && profile?.api_key) return { ...k, key: profile.api_key };
@@ -43,10 +56,10 @@ export default function Dashboard({
     let aggregated = {};
     let realDataExists = false;
 
-    historyData.forEach((item) => {
+    realHistoryData.forEach((item) => {
       if (selectedApiKey !== 'all' && item.api_key && item.api_key !== selectedApiKey) return;
 
-      const itemDate = new Date(item.submitted || item.created_at || now);
+      const itemDate = new Date(item.submitted || item.created_at || item.updated_at || now);
       let label = '';
 
       if (timeFilter === '24h') {
@@ -62,16 +75,18 @@ export default function Dashboard({
       if (label) {
         realDataExists = true;
         if (!aggregated[label]) aggregated[label] = { tts: 0, stt: 0, trans: 0, total: 0 };
+        
         if (item.type === 'Text to Speech') aggregated[label].tts += 1;
         else if (item.type === 'Speech to Text') aggregated[label].stt += 1;
-        else if (item.type === 'Translation' || item.engine) aggregated[label].trans += 1;
+        else if (item.type === 'Translation' || item.mode === 'translate') aggregated[label].trans += 1;
+        else aggregated[label].trans += 1;
+
         aggregated[label].total += 1;
       }
     });
 
     if (!realDataExists) {
       const m = selectedApiKey === 'all' ? 1 : 0.4; 
-
       if (timeFilter === '24h') {
         return [
           { label: '04:00', stt: Math.ceil(2 * m), tts: Math.ceil(4 * m), trans: Math.ceil(3 * m), total: Math.ceil(9 * m) },
@@ -96,14 +111,13 @@ export default function Dashboard({
       }
     }
     return Object.keys(aggregated).map(key => ({ label: key, ...aggregated[key] }));
-  }, [historyData, timeFilter, selectedApiKey]);
+  }, [realHistoryData, timeFilter, selectedApiKey]);
 
   const dynamicTotal = chartData.reduce((acc, curr) => acc + curr.total, 0);
   const dynamicTTS = chartData.reduce((acc, curr) => acc + (curr.tts || 0), 0);
   const dynamicSTT = chartData.reduce((acc, curr) => acc + (curr.stt || 0), 0);
   const dynamicTrans = chartData.reduce((acc, curr) => acc + (curr.trans || 0), 0);
 
-  // Calculate Y-Axis Max Value (Rounded up for clean grid lines)
   let rawMax = Math.max(...chartData.map(d => d.total), 10);
   const maxChartValue = Math.ceil(rawMax / 10) * 10; 
 
@@ -148,7 +162,6 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Global Filter Bar */}
       <div className="glass-card" style={{ ...styles.card, padding: '16px 24px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Activity size={20} color="var(--primary-light)" />
@@ -172,7 +185,6 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Dynamic Stats Grid */}
       <div style={styles.statsGrid}>
         <div className="glass-card" style={styles.statCard}>
           <div style={styles.statTop}><span style={styles.statLabel}>Total Requests</span><Activity size={18} color="var(--primary-light)" /></div>
@@ -199,7 +211,6 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* CHART SECTION WITH X AND Y AXES */}
       <div className="glass-card" style={{ ...styles.card, marginBottom: '32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
           <BarChart2 size={20} color="var(--primary-light)" />
@@ -207,21 +218,17 @@ export default function Dashboard({
         </div>
 
         <div style={styles.chartWrapper}>
-          {/* Y-Axis (Number of Requests) */}
           <div style={styles.yAxis}>
             <span>{maxChartValue}</span>
             <span>{Math.ceil(maxChartValue / 2)}</span>
             <span>0</span>
           </div>
 
-          {/* Chart Area */}
           <div style={styles.chartArea}>
-            {/* Grid Lines */}
             <div style={{ ...styles.gridLine, top: 0 }}></div>
             <div style={{ ...styles.gridLine, top: '50%' }}></div>
             <div style={{ ...styles.gridLine, bottom: '28px', borderTopStyle: 'solid' }}></div>
 
-            {/* Bars and X-Axis (Date) */}
             <div style={styles.chartBars}>
               {chartData.map((d, idx) => {
                 const heightPercent = Math.min((d.total / maxChartValue) * 100, 100);
@@ -245,7 +252,6 @@ export default function Dashboard({
                     <div style={styles.barTrack}>
                       <div style={{ ...styles.barFill, height: `${Math.max(heightPercent, 5)}%` }} />
                     </div>
-                    {/* X-Axis Label */}
                     <span style={styles.barLabel}>{d.label}</span>
                   </div>
                 );
@@ -327,8 +333,6 @@ const styles = {
   filterGroup: { display: 'flex', background: 'rgba(15,23,42,0.04)', borderRadius: '8px', padding: '3px', gap: '2px' },
   filterBtn: { background: 'transparent', border: 'none', padding: '6px 12px', fontSize: '0.78rem', borderRadius: '6px', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: '500' },
   filterBtnActive: { background: 'var(--primary)', color: '#ffffff', fontWeight: '600' },
-  
-  // Updated Chart Styles for Axes
   chartWrapper: { display: 'flex', height: '220px', marginTop: '20px', gap: '16px' },
   yAxis: { display: 'flex', flexDirection: 'column', justifyContent: 'space-between', paddingBottom: '28px', color: 'var(--text-muted)', fontSize: '0.75rem', minWidth: '25px', textAlign: 'right', fontWeight: '500' },
   chartArea: { flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' },
@@ -339,7 +343,6 @@ const styles = {
   barFill: { width: '100%', background: 'linear-gradient(180deg, var(--primary-light), var(--primary))', borderRadius: '6px', transition: 'height 0.4s ease' },
   barLabel: { position: 'absolute', bottom: '-24px', fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontWeight: '500' },
   barTooltip: { position: 'absolute', background: 'rgba(15,23,42,0.95)', color: '#fff', fontSize: '0.75rem', padding: '8px 12px', borderRadius: '6px', whiteSpace: 'nowrap', transition: 'opacity 0.2s, bottom 0.3s ease', pointerEvents: 'none', zIndex: 10, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
-  
   newKeyBtn: { padding: '6px 12px', fontSize: '0.82rem' },
   keysList: { display: 'flex', flexDirection: 'column', gap: '14px' },
   keyRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(15,23,42,0.01)', border: '1px solid var(--border-color)', borderRadius: '10px', gap: '16px', flexWrap: 'wrap' },

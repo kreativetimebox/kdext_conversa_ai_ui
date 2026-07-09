@@ -424,4 +424,21 @@ export async function voiceTTS(apiKey, text, language = 'en', voice = null) {
   const blob = await res.blob();
   return URL.createObjectURL(blob);
 }
+// ─── Analytics & History ──────────────────────────────────────────────────────
+
+/**
+ * GET /history
+ * Header: Authorization: Bearer <token>
+ * Fetch all processed tasks (TTS, STT, Translation) for the dashboard charts.
+ */
+export async function getHistoryLogs(token) {
+  const res = await fetch(`${BASE_URL}/history`, {
+    method: 'GET',
+    headers: { 
+      'Content-Type': 'application/json',
+      'authorization': `Bearer ${token}` 
+    },
+  });
+  return handleResponse(res);
+}
 
