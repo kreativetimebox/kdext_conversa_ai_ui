@@ -653,15 +653,15 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
   };
 
   return (
-    <div style={{ width: '100%', height: '100%', overflowY: 'auto', paddingBottom: '80px' }} className="animate-fade-in">
+    <div className="page-container animate-fade-in voice-tools-page">
 
       {/* ═══════════════════ HUB VIEW ═══════════════════ */}
       {subView === 'hub' ? (
         <div style={styles.container}>
           <div style={styles.hubHeader}>
-            <span className="badge badge-purple">AI Voice Suite</span>
-            <h1 style={styles.hubTitle}>Conversa Voice Tools</h1>
-            <p style={styles.hubSub}>High-fidelity neural Speech-to-Text and Text-to-Speech models integrated dynamically.</p>
+            <span className="badge badge-purple" style={{ marginBottom: '8px' }}>AI Voice Suite</span>
+            <h1 className="page-title">Conversa Voice Tools</h1>
+            <p className="page-subtitle">High-fidelity neural Speech-to-Text and Text-to-Speech models integrated dynamically.</p>
           </div>
 
           <div className="voice-hub-grid">
@@ -726,12 +726,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
       /* ═══════════════════ TTS VIEW ═══════════════════ */
       ) : subView === 'tts' ? (
         <div style={styles.container}>
-          <div style={styles.subHeader}>
+          <div className="page-header" style={styles.subHeader}>
             <button onClick={() => setSubView('hub')} style={styles.backBtn} className="voice-back-btn">
               <ArrowLeft size={16} /> Back to Hub
             </button>
-            <h1 style={{ ...styles.hubTitle, marginTop: '20px' }}>Text to Speech</h1>
-            <p style={styles.hubSub}>Synthesize premium neural audio files from plain text.</p>
+            <h1 className="page-title" style={{ marginTop: '16px' }}>Text to Speech</h1>
+            <p className="page-subtitle">Synthesize premium neural audio files from plain text.</p>
           </div>
 
           <div className="glass-card" style={styles.ttsCard}>
@@ -905,12 +905,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
       /* ═══════════════════ STT VIEW ═══════════════════ */
       ) : (
         <div style={styles.container}>
-          <div style={styles.subHeader}>
+          <div className="page-header" style={styles.subHeader}>
             <button onClick={() => setSubView('hub')} style={styles.backBtn} className="voice-back-btn">
               <ArrowLeft size={16} /> Back to Hub
             </button>
-            <h1 style={{ ...styles.hubTitle, marginTop: '20px' }}>Speech to Text</h1>
-            <p style={styles.hubSub}>Transcribe dynamic vocal streams or upload existing audio files.</p>
+            <h1 className="page-title" style={{ marginTop: '16px' }}>Speech to Text</h1>
+            <p className="page-subtitle">Transcribe dynamic vocal streams or upload existing audio files.</p>
           </div>
 
           <div style={styles.sttLayout}>
@@ -1175,13 +1175,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
 }
 
 const styles = {
-  container: { maxWidth: 'var(--max-width)', margin: '0 auto', padding: '40px 24px' },
+  container: { maxWidth: 'var(--max-width)', margin: '0 auto' },
   hubHeader: {
     textAlign: 'center', maxWidth: '600px', margin: '0 auto 48px auto',
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
   },
-  hubTitle: { fontSize: '2.2rem', color: 'var(--text-primary)' },
-  hubSub: { fontSize: '1rem', color: 'var(--text-secondary)' },
+
   hubCard: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '16px', cursor: 'pointer', minHeight: '220px' },
   iconBoxPurple: { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(37,99,235,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   iconBoxPink:   { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(14,165,233,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },

@@ -10,6 +10,8 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [error, setError] = useState('');
   const [loadingDots, setLoadingDots] = useState('.');
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
   // Cycle the trailing dots (. / .. / ...) while a submit is in flight
   useEffect(() => {
@@ -127,7 +129,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
             <div className="form-group">
               <label className="form-label">Email Address</label>
               <div style={styles.inputWrapper}>
-                <Mail size={16} color="var(--text-muted)" style={styles.inputIcon} />
+                <Mail size={16} color={emailFocused ? "var(--primary)" : "var(--text-muted)"} style={styles.inputIcon} />
                 <input
                   type="email"
                   required
@@ -136,6 +138,8 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
                   placeholder="Enter your email"
                   className="form-input"
                   style={styles.input}
+                  onFocus={() => setEmailFocused(true)}
+                  onBlur={() => setEmailFocused(false)}
                 />
               </div>
             </div>
@@ -144,7 +148,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
             <div className="form-group">
               <label className="form-label">Password</label>
               <div style={styles.inputWrapper}>
-                <Lock size={16} color="var(--text-muted)" style={styles.inputIcon} />
+                <Lock size={16} color={passwordFocused ? "var(--primary)" : "var(--text-muted)"} style={styles.inputIcon} />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
@@ -153,6 +157,8 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
                   placeholder="Enter your password"
                   className="form-input"
                   style={styles.input}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
                 />
                 <button
                   type="button"
@@ -312,6 +318,7 @@ const styles = {
     position: 'absolute',
     left: '16px',
     pointerEvents: 'none',
+    transition: 'var(--transition)',
   },
   input: {
     paddingLeft: '44px',

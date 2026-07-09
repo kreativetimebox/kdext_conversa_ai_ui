@@ -27,10 +27,10 @@ export default function Settings({ user, showToast }) {
   };
 
   return (
-    <div style={styles.container} className="animate-fade-in">
-      <div style={styles.header}>
-        <h2 style={styles.title}>Preferences</h2>
-        <p style={styles.sub}>Customize your Conversa AI workspace</p>
+    <div className="page-container animate-fade-in settings-page">
+      <div className="page-header">
+        <h1 className="page-title">Preferences</h1>
+        <p className="page-subtitle">Customize your Conversa AI workspace</p>
       </div>
 
       <div style={styles.card} className="glass-card">
@@ -139,26 +139,6 @@ export default function Settings({ user, showToast }) {
 }
 
 const styles = {
-  container: {
-    padding: '32px 40px',
-    height: '100%',
-    overflowY: 'auto',
-    maxWidth: '900px',
-    margin: '0 auto',
-    width: '100%',
-  },
-  header: {
-    marginBottom: '32px',
-  },
-  title: {
-    fontSize: '2rem',
-    color: 'var(--text-primary)',
-    marginBottom: '8px',
-  },
-  sub: {
-    color: 'var(--text-secondary)',
-    fontSize: '1rem',
-  },
   card: {
     padding: '32px',
     borderRadius: '16px',

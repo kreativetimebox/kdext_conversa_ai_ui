@@ -64,10 +64,10 @@ export default function History({ historyData, showToast }) {
   };
 
   return (
-    <div style={styles.page} className="animate-fade-in">
-      <div style={styles.header}>
-        <h1 style={styles.title}>Processing History</h1>
-        <p style={styles.sub}>View and track all your speech synthesis and voice transcribing activities.</p>
+    <div className="page-container animate-fade-in history-page">
+      <div className="page-header">
+        <h1 className="page-title">Processing History</h1>
+        <p className="page-subtitle">View and track all your speech synthesis and voice transcribing activities.</p>
       </div>
 
       {/* Tabs */}
@@ -236,7 +236,7 @@ export default function History({ historyData, showToast }) {
       {/* Details Modal */}
       {selectedDoc && (
         <div style={styles.modalOverlay}>
-          <div className="glass-card" style={styles.modal} className="glass-card animate-fade-in">
+          <div className="glass-card animate-fade-in" style={styles.modal}>
             <div style={styles.modalHeader}>
               <h3 style={styles.modalTitle}>Audio Job Details</h3>
               <button onClick={() => setSelectedDoc(null)} style={styles.modalCloseBtn} className="history-modal-close-btn">
@@ -309,26 +309,8 @@ export default function History({ historyData, showToast }) {
 }
 
 const styles = {
-  page: {
-    maxWidth: 'var(--max-width)',
-    margin: '0 auto',
-    padding: '40px 24px 80px 24px',
-    width: '100%',
-    height: '100%',
-    overflowY: 'auto',
-  },
-  header: {
-    marginBottom: '32px',
-  },
-  title: {
-    fontSize: '2rem',
-    color: 'var(--text-primary)',
-    marginBottom: '8px',
-  },
-  sub: {
-    fontSize: '0.92rem',
-    color: 'var(--text-secondary)',
-  },
+
+
   overviewTab: {
     display: 'flex',
     flexDirection: 'column',
