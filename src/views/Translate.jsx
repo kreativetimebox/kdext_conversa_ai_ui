@@ -208,6 +208,7 @@ export default function Translate({ user, showToast }) {
   const [history, setHistory] = useState([]);
   const [copied, setCopied] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef(null); // tracks the current TTS Audio object so we can stop it on unmount
   const [wsConnected, setWsConnected] = useState(false);
 
   // ── Voice mode state ──────────────────────────────────────────────────────
@@ -437,6 +438,13 @@ export default function Translate({ user, showToast }) {
       // effect below) so it needs an explicit clear here on true unmount.
       clearTimeout(instantTimerRef.current);
       instantTimerRef.current = null;
+      // Stop any in-progress TTS audio so it doesn't keep playing after
+      // the user navigates to another page.
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
@@ -1034,15 +1042,24 @@ export default function Translate({ user, showToast }) {
 
   const handleSpeak = async () => {
     if (!translatedText) return;
+    // Stop any currently playing audio before starting a new one.
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current = null;
+      setIsPlaying(false);
+    }
     setIsPlaying(true);
     try {
       // Edge TTS via /api/voice/tts streams audio back immediately (the
       // gateway's /text-to-speech is an async queued job with no instant URL).
       const blobUrl = await voiceTTS(apiKey, translatedText, targetLang);
       const audio = new Audio(blobUrl);
+      audioRef.current = audio;
       const done = () => {
         setIsPlaying(false);
         URL.revokeObjectURL(blobUrl);
+        audioRef.current = null;
       };
       audio.onended = done;
       audio.onerror = done;

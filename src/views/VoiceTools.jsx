@@ -22,26 +22,26 @@ import AudioReviewPanel from '../components/AudioReviewPanel';
 
 // ─── Available Voices Fallback ─────────────────────────────────────────────────
 const FALLBACK_VOICES = [
-  { id: 'divya',        name: 'Divya',        gender: 'female', style: 'Monotone, fast',       language: 'multilingual', model: 'indic_parler' },
-  { id: 'sita',         name: 'Sita',         gender: 'female', style: 'Calm, slow',            language: 'multilingual', model: 'indic_parler' },
-  { id: 'meera',        name: 'Meera',        gender: 'female', style: 'Expressive, warm',      language: 'multilingual', model: 'indic_parler' },
-  { id: 'priya',        name: 'Priya',        gender: 'female', style: 'Clear, professional',   language: 'multilingual', model: 'indic_parler' },
-  { id: 'rohit',        name: 'Rohit',        gender: 'male',   style: 'Calm, neutral',         language: 'multilingual', model: 'indic_parler' },
-  { id: 'arjun',        name: 'Arjun',        gender: 'male',   style: 'Deep, slow',            language: 'multilingual', model: 'indic_parler' },
-  { id: 'vikram',       name: 'Vikram',       gender: 'male',   style: 'Confident, expressive', language: 'multilingual', model: 'indic_parler' },
-  { id: 'amir',         name: 'Amir',         gender: 'male',   style: 'Clear, slightly fast',  language: 'multilingual', model: 'indic_parler' },
+  { id: 'divya', name: 'Divya', gender: 'female', style: 'Monotone, fast', language: 'multilingual', model: 'indic_parler' },
+  { id: 'sita', name: 'Sita', gender: 'female', style: 'Calm, slow', language: 'multilingual', model: 'indic_parler' },
+  { id: 'meera', name: 'Meera', gender: 'female', style: 'Expressive, warm', language: 'multilingual', model: 'indic_parler' },
+  { id: 'priya', name: 'Priya', gender: 'female', style: 'Clear, professional', language: 'multilingual', model: 'indic_parler' },
+  { id: 'rohit', name: 'Rohit', gender: 'male', style: 'Calm, neutral', language: 'multilingual', model: 'indic_parler' },
+  { id: 'arjun', name: 'Arjun', gender: 'male', style: 'Deep, slow', language: 'multilingual', model: 'indic_parler' },
+  { id: 'vikram', name: 'Vikram', gender: 'male', style: 'Confident, expressive', language: 'multilingual', model: 'indic_parler' },
+  { id: 'amir', name: 'Amir', gender: 'male', style: 'Clear, slightly fast', language: 'multilingual', model: 'indic_parler' },
   // Qwen3-TTS-CustomVoice speakers — any speaker can render any of the 10
   // supported global languages (cross-lingual), so these are tagged
   // 'multilingual' like the Indic voices above, not locked to one language.
-  { id: 'vivian',   name: 'Vivian',   gender: 'female', style: 'Bright, slightly edgy young female',        language: 'multilingual', model: 'qwen_custom_voice' },
-  { id: 'serena',   name: 'Serena',   gender: 'female', style: 'Warm, gentle young female',                 language: 'multilingual', model: 'qwen_custom_voice' },
-  { id: 'ono_anna', name: 'Ono Anna', gender: 'female', style: 'Playful, light and nimble timbre',          language: 'multilingual', model: 'qwen_custom_voice' },
-  { id: 'sohee',    name: 'Sohee',    gender: 'female', style: 'Warm, rich emotion',                        language: 'multilingual', model: 'qwen_custom_voice' },
-  { id: 'uncle_fu', name: 'Uncle Fu', gender: 'male',   style: 'Seasoned, low mellow timbre',                language: 'multilingual', model: 'qwen_custom_voice' },
-  { id: 'dylan',    name: 'Dylan',    gender: 'male',   style: 'Youthful, clear natural timbre',             language: 'multilingual', model: 'qwen_custom_voice' },
-  { id: 'eric',     name: 'Eric',     gender: 'male',   style: 'Lively, slightly husky brightness',          language: 'multilingual', model: 'qwen_custom_voice' },
-  { id: 'ryan',     name: 'Ryan',     gender: 'male',   style: 'Dynamic, strong rhythmic drive',             language: 'multilingual', model: 'qwen_custom_voice' },
-  { id: 'aiden',    name: 'Aiden',    gender: 'male',   style: 'Sunny, clear midrange',                      language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'vivian', name: 'Vivian', gender: 'female', style: 'Bright, slightly edgy young female', language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'serena', name: 'Serena', gender: 'female', style: 'Warm, gentle young female', language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'ono_anna', name: 'Ono Anna', gender: 'female', style: 'Playful, light and nimble timbre', language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'sohee', name: 'Sohee', gender: 'female', style: 'Warm, rich emotion', language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'uncle_fu', name: 'Uncle Fu', gender: 'male', style: 'Seasoned, low mellow timbre', language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'dylan', name: 'Dylan', gender: 'male', style: 'Youthful, clear natural timbre', language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'eric', name: 'Eric', gender: 'male', style: 'Lively, slightly husky brightness', language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'ryan', name: 'Ryan', gender: 'male', style: 'Dynamic, strong rhythmic drive', language: 'multilingual', model: 'qwen_custom_voice' },
+  { id: 'aiden', name: 'Aiden', gender: 'male', style: 'Sunny, clear midrange', language: 'multilingual', model: 'qwen_custom_voice' },
 ];
 
 const STT_LANGUAGES = [
@@ -154,6 +154,16 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
     setSttError('');
     setTtsError('');
   }, [defaultSubView]);
+
+  // ── Stop audio on unmount (user navigates to another page) ──────────────────
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+    };
+  }, []);
 
   // ── Dynamic Voice Fetching ──────────────────────────────────────────────────
   useEffect(() => {
@@ -284,7 +294,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
       setTimeout(() => {
         if (audioRef.current) {
           audioRef.current.load();
-          audioRef.current.play().catch(() => {});
+          audioRef.current.play().catch(() => { });
           setIsPlaying(true);
         }
       }, 200);
@@ -350,8 +360,8 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
             autoGainControl: false,  // Prevents amplifying silence into loud static
             noiseSuppression: true,  // Actively filters out background noise/hums
             echoCancellation: true
-        }
-      });
+          }
+        });
       audioChunksRef.current = [];
       discardRecordingRef.current = false;
       const mr = new MediaRecorder(stream);
@@ -723,7 +733,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
           </div>
         </div>
 
-      /* ═══════════════════ TTS VIEW ═══════════════════ */
+        /* ═══════════════════ TTS VIEW ═══════════════════ */
       ) : subView === 'tts' ? (
         <div style={styles.container}>
           <div className="page-header" style={styles.subHeader}>
@@ -759,7 +769,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
             {/* Premium Voice Selector */}
             <div className="form-group" style={{ marginTop: '24px' }}>
               <label className="form-label">Available Speaker Voices</label>
-              
+
               {femaleVoices.length > 0 && (
                 <div style={{ marginBottom: '20px' }}>
                   <h5 style={{ fontSize: '0.8rem', color: 'var(--secondary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Female Voices</h5>
@@ -814,16 +824,16 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
                 className="form-input"
                 style={{ resize: 'vertical', background: 'var(--bg-main)' }}
               />
-              
+
               {/* Character Limit Indicator */}
               <div className="char-limit-container">
                 <div className="char-limit-bar-bg">
-                  <div 
-                    className="char-limit-bar-fill" 
-                    style={{ 
-                      width: `${charPercentage}%`, 
-                      backgroundColor: progressBarColor 
-                    }} 
+                  <div
+                    className="char-limit-bar-fill"
+                    style={{
+                      width: `${charPercentage}%`,
+                      backgroundColor: progressBarColor
+                    }}
                   />
                 </div>
                 <div className="char-limit-info">
@@ -902,7 +912,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
           </div>
         </div>
 
-      /* ═══════════════════ STT VIEW ═══════════════════ */
+        /* ═══════════════════ STT VIEW ═══════════════════ */
       ) : (
         <div style={styles.container}>
           <div className="page-header" style={styles.subHeader}>
@@ -1052,7 +1062,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
                   )}
                 </div>
 
-              /* 📁 FILE UPLOAD LAYOUT */
+                /* 📁 FILE UPLOAD LAYOUT */
               ) : (
                 <div>
                   <h3 style={{ ...styles.cardSubHeader, marginBottom: '16px' }}>Local File Input</h3>
@@ -1183,7 +1193,7 @@ const styles = {
 
   hubCard: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '16px', cursor: 'pointer', minHeight: '220px' },
   iconBoxPurple: { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(37,99,235,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  iconBoxPink:   { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(14,165,233,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  iconBoxPink: { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(14,165,233,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: '1.2rem', color: 'var(--text-primary)' },
   cardDesc: { fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' },
   apiKeyBanner: {

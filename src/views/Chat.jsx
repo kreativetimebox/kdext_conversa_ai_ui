@@ -239,9 +239,15 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       };
 
       recorder.onstop = async () => {
-        const mimeType = recorder.mimeType || 'audio/wav';
+        // MediaRecorder.mimeType includes codec params (e.g. "audio/webm;codecs=opus")
+        // but the STT server only accepts the bare base type. Strip codec suffix.
+        const rawMime = recorder.mimeType || 'audio/webm';
+        const mimeType = rawMime.split(';')[0].trim(); // → "audio/webm"
         const audioBlob = new Blob(audioChunks, { type: mimeType });
-        const ext = mimeType.includes('webm') ? 'webm' : mimeType.includes('ogg') ? 'ogg' : 'wav';
+        const ext = mimeType.includes('webm') ? 'webm'
+                  : mimeType.includes('ogg')  ? 'ogg'
+                  : mimeType.includes('mp4')  ? 'mp4'
+                  : 'wav';
         const file = new File([audioBlob], `voice_input.${ext}`, { type: mimeType });
         
         setIsTyping(true);
