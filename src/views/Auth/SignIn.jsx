@@ -54,7 +54,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
           api_key: data.api_key,
           access_token: data.access_token,
         });
-        navigate(redirectPath || '/chat');
+        navigate(redirectPath || '/dashboard');
       }, 400);
 
     } catch (err) {
@@ -99,7 +99,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
           api_key: data.api_key,
           access_token: data.access_token,
         });
-        navigate(redirectPath || '/chat');
+        navigate(redirectPath || '/dashboard');
       }, 400);
 
     } catch (err) {
