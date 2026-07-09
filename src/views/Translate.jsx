@@ -495,8 +495,11 @@ export default function Translate({ user, showToast }) {
   // the existing /ws/translate socket for instant LLM translation.
 
   // How long each mic segment is. Shorter = lower speech→text latency but
-  // more requests and slightly worse STT accuracy; 2s is the sweet spot.
-  const VOICE_SEGMENT_MS = 2000;
+  // more requests and slightly worse STT accuracy. This is a hard latency
+  // floor — no transcript can exist before a segment completes. With STT on
+  // GPU (sub-second per chunk) 1.2s keeps subtitles snappy; go back toward
+  // 2000 if the STT engine ever runs on CPU.
+  const VOICE_SEGMENT_MS = 1200;
 
   // Pick a MediaRecorder mime type the browser actually supports. Hardcoding
   // 'audio/webm' makes the MediaRecorder constructor THROW on Safari / some
