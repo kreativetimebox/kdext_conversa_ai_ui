@@ -486,6 +486,27 @@ export default function Translate({ user, showToast }) {
   // How long each mic segment is. Shorter = lower speech→text latency but
   // more requests and slightly worse STT accuracy; 2s is the sweet spot.
   const VOICE_SEGMENT_MS = 2000;
+
+  // Pick a MediaRecorder mime type the browser actually supports. Hardcoding
+  // 'audio/webm' makes the MediaRecorder constructor THROW on Safari / some
+  // WebViews (which only do audio/mp4), which silently killed voice mode on
+  // those clients. Feature-detect and fall back so it works everywhere.
+  const pickVoiceMime = () => {
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg;codecs=opus',
+    ];
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
+      for (const t of candidates) {
+        if (MediaRecorder.isTypeSupported(t)) return t;
+      }
+    }
+    return ''; // let the browser choose its default
+  };
+  // Throttle STT-error toasts so a persistent failure doesn't spam every 2s.
+  const voiceSttErrShownRef = useRef(0);
   // Translate only the recent tail of the transcript. Sending the whole
   // session transcript made every request slower than the last as the text
   // grew — with a capped tail, translation latency stays constant no matter
@@ -522,16 +543,35 @@ export default function Translate({ user, showToast }) {
     if (!voiceActiveRef.current || !stream.active) return;
 
     const chunks = [];
-    const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    const mime = pickVoiceMime();
+    let mr;
+    try {
+      mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+    } catch (err) {
+      // No supported recorder config — tell the user instead of dying silently.
+      console.error('MediaRecorder init failed:', err);
+      showToast('Voice recording is not supported in this browser.', 'error');
+      stopVoiceRecording();
+      return;
+    }
     voiceMediaRecorderRef.current = mr;
+    // Use whatever type the recorder actually settled on for the blob/upload,
+    // so the extension and Content-Type match the real audio.
+    const actualType = mr.mimeType || mime || 'audio/webm';
+    // Base type WITHOUT the ";codecs=..." parameter for the upload — some STT
+    // backends validate on an exact content-type match and reject the
+    // parameterised form that plain 'audio/webm' would have passed.
+    const uploadType = actualType.split(';')[0].trim() || 'audio/webm';
+    const ext = uploadType.includes('mp4') ? 'mp4' : uploadType.includes('ogg') ? 'ogg' : 'webm';
 
     mr.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) chunks.push(e.data);
     };
 
     mr.onstop = async () => {
-      // Build a complete audio blob from this segment
-      const blob = new Blob(chunks, { type: 'audio/webm' });
+      // Build a complete audio blob from this segment (declare the clean base
+      // type so the multipart upload's Content-Type has no codecs parameter).
+      const blob = new Blob(chunks, { type: uploadType });
       // Only process if still actively recording
       if (voiceActiveRef.current) {
         // Start next cycle immediately (don't wait for STT response)
@@ -549,13 +589,20 @@ export default function Translate({ user, showToast }) {
           try {
             const curLang = latestRef.current.sourceLang;
             const langHint = curLang === 'auto' ? null : curLang;
-            const file = new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
+            const file = new File([blob], `voice_${Date.now()}.${ext}`, { type: uploadType });
             const res = await voiceSTT(apiKey, file, langHint);
             const text = res?.text || res?.detail || res?.transcript || '';
             voicePendingChunksRef.current[seq] = text.trim();
           } catch (err) {
+            // Surface the failure (throttled) — a swallowed STT error is
+            // exactly what makes voice mode look "not working" with no clue.
             console.warn('Voice STT chunk failed:', err);
             voicePendingChunksRef.current[seq] = ''; // advance past failed chunk
+            const now = Date.now();
+            if (now - voiceSttErrShownRef.current > 4000) {
+              voiceSttErrShownRef.current = now;
+              showToast(`Transcription failed: ${err?.message || 'STT service error'}`, 'error');
+            }
           }
         } else {
           voicePendingChunksRef.current[seq] = ''; // silent chunk, keep order moving
