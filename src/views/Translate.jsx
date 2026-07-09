@@ -197,7 +197,7 @@ export default function Translate({ user, showToast }) {
   const [sourceText, setSourceText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [detectedLang, setDetectedLang] = useState(null);
-  const [engine, setEngine] = useState('api');
+  const [engine, setEngine] = useState('live');
   const [isTranslating, setIsTranslating] = useState(false);
   const [history, setHistory] = useState([]);
   const [copied, setCopied] = useState(false);
@@ -743,13 +743,7 @@ export default function Translate({ user, showToast }) {
     showToast('Recording stopped.', 'success');
   };
 
-  // Cleanup voice on engine switch away or unmount
-  useEffect(() => {
-    if (engine !== 'voice' && voiceActiveRef.current) {
-      stopVoiceRecording();
-    }
-  }, [engine]);
-
+  
   useEffect(() => {
     return () => {
       voiceActiveRef.current = false;
@@ -1111,55 +1105,7 @@ export default function Translate({ user, showToast }) {
           <p style={styles.sub}>Powered by AI • Supports 25+ languages • Real-time translation</p>
         </div>
 
-        {/* Engine Toggle */}
-        <div style={styles.engineToggle} className="translate-engine-toggle">
-          <button
-            onClick={() => setEngine('api')}
-            style={{ ...styles.engineBtn, ...(engine === 'api' ? styles.engineBtnActive : {}) }}
-          >
-            <Zap size={14} style={{ marginRight: '6px' }} />
-            Google API
-            <span style={{ ...styles.badge, background: engine === 'api' ? '#16a34a' : '#94a3b8' }}>Fast</span>
-          </button>
-          <button
-            onClick={() => setEngine('llm')}
-            style={{ ...styles.engineBtn, ...(engine === 'llm' ? styles.engineBtnActive : {}) }}
-          >
-            <Sparkles size={14} style={{ marginRight: '6px' }} />
-            AI Model
-            <span style={{ ...styles.badge, background: engine === 'llm' ? '#2563eb' : '#94a3b8' }}>Nuanced</span>
-          </button>
-          <button
-            onClick={() => setEngine('live')}
-            style={{ 
-              ...styles.engineBtn, 
-              ...(engine === 'live' ? {
-                background: 'rgba(14,165,233,0.15)',
-                color: '#38bdf8',
-                boxShadow: '0 2px 8px rgba(14,165,233,0.2)',
-              } : {}) 
-            }}
-          >
-            <Bot size={14} style={{ marginRight: '6px' }} />
-            Live Mode
-            <span style={{ ...styles.badge, background: engine === 'live' ? '#0ea5e9' : '#94a3b8' }}>Stream</span>
-          </button>
-          <button
-            onClick={() => setEngine('voice')}
-            style={{
-              ...styles.engineBtn,
-              ...(engine === 'voice' ? {
-                background: 'rgba(239,68,68,0.12)',
-                color: '#f87171',
-                boxShadow: '0 2px 8px rgba(239,68,68,0.18)',
-              } : {})
-            }}
-          >
-            <Mic size={14} style={{ marginRight: '6px' }} />
-            Voice
-            <span style={{ ...styles.badge, background: engine === 'voice' ? '#ef4444' : '#94a3b8' }}>Live</span>
-          </button>
-        </div>
+        
       </div>
 
       {/* Main Translation Card */}
@@ -1210,89 +1156,46 @@ export default function Translate({ user, showToast }) {
         <div className="translate-text-panels">
           {/* Source panel */}
           <div style={styles.panel}>
-            {engine === 'voice' ? (
-              // ── Voice mode: mic UI + live transcript display ──────────────
-              <div style={{
-                flex: 1, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center',
-                padding: '24px', gap: '20px', minHeight: '200px',
-              }}>
-                {/* Mic button */}
-                <button
-                  onClick={voiceActive ? stopVoiceRecording : startVoiceRecording}
-                  title={voiceActive ? 'Stop recording' : 'Start recording'}
-                  style={{
-                    width: '80px', height: '80px', borderRadius: '50%',
-                    border: 'none', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: voiceActive
-                      ? 'linear-gradient(135deg, #ef4444, #dc2626)'
-                      : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-                    boxShadow: voiceActive
-                      ? '0 0 0 8px rgba(239,68,68,0.2), 0 8px 24px rgba(239,68,68,0.4)'
-                      : '0 8px 24px rgba(37,99,235,0.4)',
-                    transition: 'all 0.3s ease',
-                    animation: voiceActive ? 'voicePulse 1.4s ease-in-out infinite' : 'none',
-                  }}
-                >
-                  {voiceActive
-                    ? <MicOff size={32} color="#fff" />
-                    : <Mic size={32} color="#fff" />}
-                </button>
+           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
+  <textarea
+    className="translate-textarea"
+    style={styles.textarea}
+    placeholder="Type or tap the mic to speak — translation appears instantly..."
+    value={sourceText}
+    onChange={e => setSourceText(e.target.value)}
+    onKeyDown={handleKeyDown}
+    maxLength={maxChars}
+    rows={8}
+    dir="auto"
+  />
 
-                {/* Status label */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  fontSize: '0.85rem', fontWeight: 600,
-                  color: voiceActive ? '#ef4444' : '#64748b',
-                }}>
-                  {voiceActive && (
-                    <span style={{
-                      width: '8px', height: '8px', borderRadius: '50%',
-                      background: '#ef4444',
-                      animation: 'streamBlink 0.8s steps(2) infinite',
-                      display: 'inline-block',
-                    }} />
-                  )}
-                  {voiceActive ? 'Recording — speak now…' : 'Tap the mic to start'}
-                </div>
-
-                {/* Live transcript */}
-                {voiceTranscript && (
-                  <div style={{
-                    width: '100%', background: 'rgba(37,99,235,0.05)',
-                    border: '1px solid rgba(37,99,235,0.15)',
-                    borderRadius: '12px', padding: '14px 18px',
-                    fontSize: '0.95rem', lineHeight: '1.6',
-                    color: '#1e293b', whiteSpace: 'pre-wrap',
-                  }} dir="auto">
-                    <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block', marginBottom: '6px', fontWeight: 600 }}>TRANSCRIPT</span>
-                    {voiceTranscript}
-                  </div>
-                )}
-
-                {/* WS status — uses the existing translate WS (same as text Live Mode) */}
-                <div style={{ fontSize: '0.75rem', color: wsConnected ? '#16a34a' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: wsConnected ? '#16a34a' : '#94a3b8', display: 'inline-block' }} />
-                  {wsConnected ? 'Stream connected' : 'Stream offline'}
-                </div>
-              </div>
-            ) : (
-              // ── Text / Live mode: normal editable textarea ────────────────
-              <textarea
-                className="translate-textarea"
-                style={styles.textarea}
-                placeholder={engine === 'live'
-                  ? 'Start typing — translation appears instantly as you write...'
-                  : 'Enter text to translate... (Ctrl+Enter to translate)'}
-                value={sourceText}
-                onChange={e => setSourceText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                maxLength={maxChars}
-                rows={8}
-                dir="auto"
-              />
-            )}
+  <button
+    onClick={voiceActive ? stopVoiceRecording : startVoiceRecording}
+    title={voiceActive ? 'Stop recording' : 'Speak instead of typing'}
+    style={{
+      position: 'absolute',
+      bottom: '12px',
+      right: '12px',
+      width: '44px',
+      height: '44px',
+      borderRadius: '50%',
+      border: 'none',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: voiceActive
+        ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+        : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+      boxShadow: voiceActive
+        ? '0 0 0 6px rgba(239,68,68,0.2), 0 6px 16px rgba(239,68,68,0.4)'
+        : '0 6px 16px rgba(37,99,235,0.4)',
+      animation: voiceActive ? 'voicePulse 1.4s ease-in-out infinite' : 'none',
+    }}
+  >
+    {voiceActive ? <MicOff size={20} color="#fff" /> : <Mic size={20} color="#fff" />}
+  </button>
+</div>
             <div style={styles.panelFooter}>
               {engine !== 'voice' && (
                 <span style={{

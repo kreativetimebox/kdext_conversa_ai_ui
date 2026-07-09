@@ -84,7 +84,7 @@ const CopyButton = ({ text, variant = 'icon' }) => {
   );
 };
 
-const SpeakButton = ({ text, apiKey, showToast }) => {
+const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
   const blobUrlRef = useRef(null);
@@ -122,11 +122,15 @@ const SpeakButton = ({ text, apiKey, showToast }) => {
         URL.revokeObjectURL(blobUrlRef.current);
         blobUrlRef.current = null;
       }
-
+if (currentAudioRef.current) {
+  currentAudioRef.current.pause();
+  currentAudioRef.current.currentTime = 0;
+}
       const blobUrl = await voiceTTS(apiKey, text, 'en', 'divya');
       blobUrlRef.current = blobUrl;
 
       const audio = new Audio(blobUrl);
+      currentAudioRef.current = audio;
       audioRef.current = audio;
       audio.play();
       audio.onended = () => {
@@ -171,6 +175,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const currentAudioRef = useRef(null);
   // Bumped on every new recording so a slow transcription from a PREVIOUS
   // recording can't append its (stale) text after a newer one has started.
   const voiceGenRef = useRef(0);
@@ -481,6 +486,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
                             text={msg.content}
                             apiKey={user?.api_key || sessionStorage.getItem('api_key') || 'demo'}
                             showToast={showToast}
+                            currentAudioRef={currentAudioRef}
                           />
                         </>
                       ) : null}
