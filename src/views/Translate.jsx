@@ -222,6 +222,15 @@ export default function Translate({ user, showToast }) {
   const voiceFlushSeqRef = useRef(0);   // next seq allowed to append
   const voicePendingChunksRef = useRef({});  // seq -> transcript ('' = silent/failed)
   const voiceGapTimerRef = useRef(null);     // watchdog for a stuck/slow chunk
+  // Language detected by the FIRST chunk when source is 'auto' — pinned and
+  // sent as a hint for every later chunk, so the engine skips a full
+  // language-detection pass per chunk (any of its ~99 languages still works;
+  // only the redundant re-detection is skipped).
+  const voiceDetectedLangRef = useRef(null);
+  // How many STT uploads are in flight. If the server is slower than real
+  // time, chunks otherwise pile up and the visible delay grows every second —
+  // beyond the cap we drop the chunk and stay live instead of drifting.
+  const voiceInflightRef = useRef(0);
   // ─────────────────────────────────────────────────────────────────────────
 
   const wsRef = useRef(null);
@@ -617,13 +626,25 @@ export default function Translate({ user, showToast }) {
         // proxy (voiceSTT) — the gateway's /speech-to-text runs in async-queue
         // mode and only returns {job_id, status:"queued"}, never a transcript,
         // so using it here made voice mode silently produce nothing.
-        if (blob.size > 500) { // skip near-empty chunks
+        // Backpressure: if 2 uploads are already in flight the server can't
+        // keep up — drop this chunk rather than queue it, so the stream stays
+        // pinned to real time instead of drifting further behind forever.
+        if (blob.size > 500 && voiceInflightRef.current < 2) {
+          voiceInflightRef.current += 1;
           try {
             const curLang = latestRef.current.sourceLang;
-            const langHint = curLang === 'auto' ? null : curLang;
+            // Pin the first auto-detected language as the hint for later
+            // chunks — skips per-chunk language detection on the engine.
+            const langHint = curLang === 'auto'
+              ? voiceDetectedLangRef.current
+              : curLang;
             const file = new File([blob], `voice_${Date.now()}.${ext}`, { type: uploadType });
             const res = await voiceSTT(apiKey, file, langHint);
             const text = res?.text || res?.detail || res?.transcript || '';
+            if (res?.language && latestRef.current.sourceLang === 'auto' && !voiceDetectedLangRef.current) {
+              voiceDetectedLangRef.current = res.language;
+              setDetectedLang(res.language);
+            }
             voicePendingChunksRef.current[seq] = text.trim();
           } catch (err) {
             // Surface the failure (throttled) — a swallowed STT error is
@@ -635,9 +656,14 @@ export default function Translate({ user, showToast }) {
               voiceSttErrShownRef.current = now;
               showToast(`Transcription failed: ${err?.message || 'STT service error'}`, 'error');
             }
+          } finally {
+            voiceInflightRef.current -= 1;
           }
         } else {
-          voicePendingChunksRef.current[seq] = ''; // silent chunk, keep order moving
+          if (blob.size > 500) {
+            console.debug('Voice chunk dropped — STT backlog at cap, staying real-time');
+          }
+          voicePendingChunksRef.current[seq] = ''; // silent/dropped chunk, keep order moving
         }
         flushVoiceChunks();
       }
@@ -676,6 +702,8 @@ export default function Translate({ user, showToast }) {
       voiceChunkSeqRef.current = 0;
       voiceFlushSeqRef.current = 0;
       voicePendingChunksRef.current = {};
+      voiceDetectedLangRef.current = null;
+      voiceInflightRef.current = 0;
 
       voiceActiveRef.current = true;
       setVoiceActive(true);
