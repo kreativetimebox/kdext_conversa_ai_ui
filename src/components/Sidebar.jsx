@@ -85,9 +85,10 @@ function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath,
   };
 
   const navItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { path: '/chat', label: 'Chat', icon: <MessageSquare size={20} /> },
     { path: '/translate', label: 'Translate', icon: <Globe size={20} /> },
-    { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    
     { path: '/services/hub', label: 'Voice Tools', icon: <Mic size={20} /> },
     { path: '/history', label: 'History Logs', icon: <History size={20} /> }
   ];
