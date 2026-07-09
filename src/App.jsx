@@ -193,11 +193,11 @@ export default function App() {
         return <History historyData={historyData} showToast={showToast} />;
       case path === '/services':
       case path === '/services/hub':
-        return <VoiceTools showToast={showToast} defaultSubView="hub" user={user} setHistoryData={setHistoryData} />;
+        return <VoiceTools navigate={navigate} showToast={showToast} defaultSubView="hub" user={user} setHistoryData={setHistoryData} />;
       case path === '/services/tts':
-        return <VoiceTools showToast={showToast} defaultSubView="tts" user={user} setHistoryData={setHistoryData} />;
+        return <VoiceTools navigate={navigate} showToast={showToast} defaultSubView="tts" user={user} setHistoryData={setHistoryData} />;
       case path === '/services/stt':
-        return <VoiceTools showToast={showToast} defaultSubView="stt" user={user} setHistoryData={setHistoryData} />;
+        return <VoiceTools navigate={navigate} showToast={showToast} defaultSubView="stt" user={user} setHistoryData={setHistoryData} />;
       case path === '/chat' || path.startsWith('/chat/'):
         return <Chat navigate={navigate} user={user} showToast={showToast} currentPath={path} />;
       case path === '/translate':
