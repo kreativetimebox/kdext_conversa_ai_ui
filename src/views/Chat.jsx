@@ -88,7 +88,20 @@ const SpeakButton = ({ text, apiKey, showToast }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
   const blobUrlRef = useRef(null);
-
+  // Stop playback if this button's component unmounts (e.g. user navigates
+  // away to another page while audio is still playing)
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, []);
   const handleSpeak = async () => {
     // If already playing, stop it
     if (isPlaying) {
