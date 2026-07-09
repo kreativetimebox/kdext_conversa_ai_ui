@@ -673,7 +673,7 @@ const styles = {
     fontWeight: '600',
   },
   codeBlockWrapper: {
-    background: '#eef4fd',
+    background: 'var(--bg-subtle)',
     border: '1px solid var(--border-color)',
     borderRadius: '12px',
     overflow: 'hidden',
@@ -816,7 +816,7 @@ const styles = {
     fontFamily: 'monospace',
   },
   consoleOutput: {
-    background: '#eaf1fc',
+    background: 'var(--bg-subtle)',
     border: '1px solid var(--border-color)',
     borderRadius: '12px',
     overflow: 'hidden',
@@ -837,7 +837,7 @@ const styles = {
     margin: 0,
     fontFamily: 'monospace',
     fontSize: '0.85rem',
-    color: '#34d399',
+    color: 'var(--success)',
     overflowX: 'auto',
     minHeight: '120px',
   },

@@ -33,7 +33,7 @@ const renderMarkdown = (text) => {
       return (
         <div key={index} style={styles.codeBlock}>
           <div style={styles.codeHeader}>
-            <span style={{ fontSize: '0.75rem', color: '#475569' }}>Code</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Code</span>
             <CopyButton text={part.content} />
           </div>
           <pre style={styles.pre}><code>{part.content}</code></pre>
@@ -655,7 +655,7 @@ const styles = {
     background: 'rgba(15,23,42,0.05)',
     border: '1px solid rgba(15,23,42,0.1)',
     borderRadius: '8px',
-    color: '#475569',
+    color: 'var(--text-secondary)',
     fontSize: '0.75rem',
     fontWeight: '600',
     padding: '5px 10px',
@@ -701,7 +701,7 @@ const styles = {
   copyBtn: {
     background: 'transparent',
     border: 'none',
-    color: '#475569',
+    color: 'var(--text-muted)',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',

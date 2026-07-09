@@ -390,7 +390,7 @@ const styles = {
   },
   filterSelect: {
     padding: '10px 16px',
-    background: '#f6f9fe',
+    background: 'var(--bg-subtle)',
     border: '1px solid var(--border-color)',
     borderRadius: '8px',
     color: 'var(--text-secondary)',
@@ -511,8 +511,8 @@ const styles = {
   jsonPre: {
     margin: 0,
     padding: '12px',
-    background: '#eaf1fc',
-    color: '#34d399',
+    background: 'var(--bg-subtle)',
+    color: 'var(--success)',
     fontFamily: 'monospace',
     fontSize: '0.82rem',
     maxHeight: '180px',

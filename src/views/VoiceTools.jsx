@@ -1218,7 +1218,7 @@ const styles = {
   errorBanner: {
     background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
     borderRadius: '8px', padding: '12px 16px', display: 'flex', alignItems: 'center',
-    gap: '10px', fontSize: '0.85rem', color: '#dc2626', margin: '16px 0',
+    gap: '10px', fontSize: '0.85rem', color: 'var(--error)', margin: '16px 0',
   },
   sttLayout: { maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' },
   sttTabBar: {
@@ -1257,7 +1257,7 @@ const styles = {
     borderRadius: '20px', border: '1px solid var(--border-color)',
   },
   transcriptBox: {
-    background: '#eaf1fc', border: '1px solid var(--border-color)',
+    background: 'var(--bg-subtle)', border: '1px solid var(--border-color)',
     borderRadius: '8px', padding: '20px',
   },
 };

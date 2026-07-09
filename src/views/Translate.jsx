@@ -84,7 +84,7 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
           background: open ? 'rgba(37,99,235,0.12)' : 'rgba(15,23,42,0.05)',
           border: `1.5px solid ${open ? 'rgba(37,99,235,0.5)' : 'rgba(15,23,42,0.12)'}`,
           borderRadius: '12px',
-          color: '#0f172a',
+          color: 'var(--text-primary)',
           cursor: 'pointer',
           fontSize: '0.95rem',
           fontWeight: '600',
@@ -98,7 +98,7 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
         <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '1.4rem', lineHeight: 1 }}>
           {selected?.flag === '🔍' ? <Search size={20} color="var(--primary)" /> : (selected?.flag || '🌐')}
         </span>
-        <span style={{ flex: 1, textAlign: 'left', color: '#0f172a' }}>{selected?.name || placeholder}</span>
+        <span style={{ flex: 1, textAlign: 'left', color: 'var(--text-primary)' }}>{selected?.name || placeholder}</span>
         <ChevronDown
           size={16}
           color="#3b82f6"
@@ -114,7 +114,7 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
           left: align === 'left' ? 0 : 'auto',
           right: align === 'right' ? 0 : 'auto',
           zIndex: 999,
-          background: 'rgba(255, 255, 255, 0.98)',
+          background: 'var(--bg-card)',
           border: '1.5px solid rgba(37,99,235,0.3)',
           borderRadius: '16px',
           boxShadow: '0 25px 50px rgba(15,23,42,0.16), 0 0 0 1px rgba(37,99,235,0.1)',
@@ -136,7 +136,7 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
                   background: 'transparent',
                   border: 'none',
                   outline: 'none',
-                  color: '#0f172a',
+                  color: 'var(--text-muted)',
                   fontSize: '0.85rem',
                   width: '100%',
                   fontFamily: 'inherit',
@@ -148,7 +148,7 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
           {/* Language list */}
           <div style={{ maxHeight: '280px', overflowY: 'auto', padding: '8px 0' }}>
             {filtered.length === 0 && (
-              <div style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                 No languages found
               </div>
             )}
@@ -165,7 +165,7 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
                   background: lang.code === value ? 'rgba(37,99,235,0.15)' : 'transparent',
                   border: 'none',
                   cursor: 'pointer',
-                  color: '#0f172a',
+                  color: 'var(--text-primary)',
                   fontSize: '0.9rem',
                   textAlign: 'left',
                   transition: 'background 0.15s ease',
@@ -178,11 +178,11 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
                   {lang.flag === '🔍' ? <Search size={16} color="var(--primary)" /> : lang.flag}
                 </span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: lang.code === value ? '700' : '500', color: lang.code === value ? '#3b82f6' : '#0f172a' }}>
+                  <div style={{ fontWeight: lang.code === value ? '700' : '500', color: lang.code === value ? 'var(--primary-light)' : 'var(--text-primary)' }}>
                     {lang.name}
                   </div>
                   {lang.region && (
-                    <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '1px' }}>{lang.region}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '1px' }}>{lang.region}</div>
                   )}
                 </div>
                 {lang.code === value && (
@@ -1348,14 +1348,14 @@ export default function Translate({ user, showToast }) {
 
       {/* Tips bar */}
       <div style={styles.tipsBar}>
-        <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
           {engine === 'live'
             ? '💡 Translates instantly while you type — AI refines it when you pause'
             : engine === 'voice'
             ? '💡 Speak naturally — each ~2 s of audio is transcribed and translated live'
             : '💡 Press Ctrl+Enter or click Translate to submit text'}
         </span>
-        <span style={{ color: '#64748b', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
           {engine === 'live' && (
             <span title={wsConnected ? 'Streaming connected' : 'Stream offline — using standard translation'} style={{
               width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block',
@@ -1387,7 +1387,7 @@ export default function Translate({ user, showToast }) {
       {history.length > 0 && (
         <div style={styles.historySection} className="animate-fade-in">
           <div style={styles.historyHeader}>
-            <h3 style={{ color: '#475569', fontSize: '0.95rem', fontWeight: '600', margin: 0 }}>
+            <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', fontWeight: '600', margin: 0 }}>
               Recent Translations ({history.length})
             </h3>
           </div>
@@ -1454,7 +1454,7 @@ const styles = {
     background: 'transparent',
     border: 'none',
     padding: '9px 16px',
-    color: '#64748b',
+    color: 'var(--text-muted)',
     borderRadius: '10px',
     cursor: 'pointer',
     fontSize: '0.85rem',
@@ -1464,7 +1464,7 @@ const styles = {
   },
   engineBtnActive: {
     background: 'rgba(37,99,235,0.15)',
-    color: '#60a5fa',
+    color: 'var(--primary-light)',
     boxShadow: '0 2px 8px rgba(37,99,235,0.2)',
   },
   badge: {
@@ -1501,7 +1501,7 @@ const styles = {
   },
   detectedBadge: {
     fontSize: '0.75rem',
-    color: '#16a34a',
+    color: 'var(--success)',
     background: 'rgba(34,197,94,0.1)',
     border: '1px solid rgba(34,197,94,0.2)',
     borderRadius: '8px',
@@ -1535,7 +1535,7 @@ const styles = {
     background: 'transparent',
     border: 'none',
     padding: '24px',
-    color: '#0f172a',
+    color: 'var(--text-primary)',
     fontSize: '1.05rem',
     lineHeight: '1.7',
     resize: 'none',
@@ -1554,7 +1554,7 @@ const styles = {
   iconActionBtn: {
     background: 'rgba(15,23,42,0.05)',
     border: '1px solid rgba(15,23,42,0.1)',
-    color: '#475569',
+    color: 'var(--text-secondary)',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -1626,7 +1626,7 @@ const styles = {
     padding: '1px 6px',
     fontSize: '0.75rem',
     fontFamily: 'monospace',
-    color: '#475569',
+    color: 'var(--text-secondary)',
   },
   historySection: {
     marginTop: '40px',
@@ -1657,20 +1657,20 @@ const styles = {
   },
   historyLangName: {
     fontSize: '0.8rem',
-    color: '#475569',
+    color: 'var(--text-secondary)',
     fontWeight: '600',
   },
   historyTexts: {},
   historySource: {
     fontSize: '0.9rem',
-    color: '#64748b',
+    color: 'var(--text-muted)',
     margin: 0,
     lineHeight: 1.5,
     fontStyle: 'italic',
   },
   historyResult: {
     fontSize: '0.9rem',
-    color: '#1e293b',
+    color: 'var(--text-primary)',
     margin: 0,
     lineHeight: 1.5,
     fontWeight: '500',
