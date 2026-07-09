@@ -17,6 +17,10 @@ export default function SignUp({ navigate, login, showToast }) {
   // OTP State
   const [showOTP, setShowOTP] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
   
   // Password Strength (0 to 3)
   const [pwdStrength, setPwdStrength] = useState(0);
@@ -138,7 +142,7 @@ export default function SignUp({ navigate, login, showToast }) {
               <div className="form-group">
                 <label className="form-label">Email Address</label>
                 <div style={styles.inputWrapper}>
-                  <Mail size={16} color="var(--text-muted)" style={styles.inputIcon} />
+                  <Mail size={16} color={emailFocused ? "var(--primary)" : "var(--text-muted)"} style={styles.inputIcon} />
                   <input
                     type="email"
                     name="email"
@@ -148,6 +152,8 @@ export default function SignUp({ navigate, login, showToast }) {
                     placeholder="you@example.com"
                     className="form-input"
                     style={styles.input}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => setEmailFocused(false)}
                   />
                 </div>
               </div>
@@ -156,7 +162,7 @@ export default function SignUp({ navigate, login, showToast }) {
               <div className="form-group">
                 <label className="form-label">Password</label>
                 <div style={styles.inputWrapper}>
-                  <Lock size={16} color="var(--text-muted)" style={styles.inputIcon} />
+                  <Lock size={16} color={passwordFocused ? "var(--primary)" : "var(--text-muted)"} style={styles.inputIcon} />
                   <input
                     type={showPassword ? "text" : "password"}
                     name="password"
@@ -167,6 +173,8 @@ export default function SignUp({ navigate, login, showToast }) {
                     placeholder="Create a password"
                     className="form-input"
                     style={styles.input}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
                   />
                   <button
                     type="button"
@@ -192,7 +200,7 @@ export default function SignUp({ navigate, login, showToast }) {
               <div className="form-group">
                 <label className="form-label">Confirm Password</label>
                 <div style={styles.inputWrapper}>
-                  <Lock size={16} color="var(--text-muted)" style={styles.inputIcon} />
+                  <Lock size={16} color={confirmPasswordFocused ? "var(--primary)" : "var(--text-muted)"} style={styles.inputIcon} />
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     name="confirmPassword"
@@ -202,6 +210,8 @@ export default function SignUp({ navigate, login, showToast }) {
                     placeholder="Confirm your password"
                     className="form-input"
                     style={styles.input}
+                    onFocus={() => setConfirmPasswordFocused(true)}
+                    onBlur={() => setConfirmPasswordFocused(false)}
                   />
                   <button
                     type="button"
@@ -332,6 +342,7 @@ const styles = {
     position: 'absolute',
     left: '16px',
     pointerEvents: 'none',
+    transition: 'var(--transition)',
   },
   input: {
     paddingLeft: '44px',

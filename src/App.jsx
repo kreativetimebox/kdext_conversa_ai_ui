@@ -319,10 +319,10 @@ const styles = {
     padding: '16px 20px',
     cursor: 'pointer',
     borderLeft: '4px solid transparent',
-    boxShadow: '0 10px 25px rgba(15,23,42,0.12)',
+    boxShadow: '0 10px 25px var(--shadow-color)',
     display: 'flex',
     alignItems: 'center',
-    background: 'rgba(255, 255, 255, 0.96)',
+    background: 'var(--bg-card)',
     backdropFilter: 'blur(10px)',
   },
   toastText: {

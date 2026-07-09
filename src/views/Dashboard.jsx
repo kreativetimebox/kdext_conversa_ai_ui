@@ -109,12 +109,10 @@ export default function Dashboard({
   };
 
   return (
-    <div style={styles.page} className="animate-fade-in dashboard-page">
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.title}>Dashboard</h1>
-          <p style={styles.sub}>Manage your API keys and monitor speech synthesis/transcription usage.</p>
-        </div>
+    <div className="page-container animate-fade-in dashboard-page">
+      <div className="page-header">
+        <h1 className="page-title">Dashboard</h1>
+        <p className="page-subtitle">Manage your API keys and monitor speech synthesis/transcription usage.</p>
       </div>
 
       {/* Grid of Stats Cards */}
@@ -367,26 +365,7 @@ export default function Dashboard({
 }
 
 const styles = {
-  page: {
-    maxWidth: 'var(--max-width)',
-    margin: '0 auto',
-    padding: '40px 24px 80px 24px',
-    width: '100%',
-    height: '100%',
-    overflowY: 'auto',
-  },
-  header: {
-    marginBottom: '32px',
-  },
-  title: {
-    fontSize: '2rem',
-    color: 'var(--text-primary)',
-    marginBottom: '8px',
-  },
-  sub: {
-    fontSize: '0.92rem',
-    color: 'var(--text-secondary)',
-  },
+
   statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',

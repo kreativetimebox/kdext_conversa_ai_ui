@@ -34,7 +34,7 @@ const LANGUAGES = [
 const TARGET_LANGUAGES = LANGUAGES.filter(l => l.code !== 'auto');
 
 // Custom searchable language dropdown
-function LangDropdown({ value, onChange, options, placeholder = 'Select Language' }) {
+function LangDropdown({ value, onChange, options, placeholder = 'Select Language', align = 'left' }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
@@ -88,13 +88,16 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
           cursor: 'pointer',
           fontSize: '0.95rem',
           fontWeight: '600',
-          minWidth: '210px',
+          width: '220px',
+          height: '44px',
           transition: 'all 0.2s ease',
           backdropFilter: 'blur(10px)',
           outline: 'none',
         }}
       >
-        <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>{selected?.flag || '🌐'}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '1.4rem', lineHeight: 1 }}>
+          {selected?.flag === '🔍' ? <Search size={20} color="var(--primary)" /> : (selected?.flag || '🌐')}
+        </span>
         <span style={{ flex: 1, textAlign: 'left', color: '#0f172a' }}>{selected?.name || placeholder}</span>
         <ChevronDown
           size={16}
@@ -108,7 +111,8 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
         <div style={{
           position: 'absolute',
           top: 'calc(100% + 8px)',
-          left: 0,
+          left: align === 'left' ? 0 : 'auto',
+          right: align === 'right' ? 0 : 'auto',
           zIndex: 999,
           background: 'rgba(255, 255, 255, 0.98)',
           border: '1.5px solid rgba(37,99,235,0.3)',
@@ -170,7 +174,9 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
                 onMouseEnter={e => { if (lang.code !== value) e.currentTarget.style.background = 'rgba(15,23,42,0.05)'; }}
                 onMouseLeave={e => { if (lang.code !== value) e.currentTarget.style.background = 'transparent'; }}
               >
-                <span style={{ fontSize: '1.3rem', lineHeight: 1, flexShrink: 0 }}>{lang.flag}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '1.3rem', lineHeight: 1, flexShrink: 0 }}>
+                  {lang.flag === '🔍' ? <Search size={16} color="var(--primary)" /> : lang.flag}
+                </span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: lang.code === value ? '700' : '500', color: lang.code === value ? '#3b82f6' : '#0f172a' }}>
                     {lang.name}
@@ -1058,7 +1064,7 @@ export default function Translate({ user, showToast }) {
   const maxChars = 5000;
 
   return (
-    <div style={styles.container} className="animate-fade-in translate-page">
+    <div className="page-container animate-fade-in translate-page">
       {/* Dropdown animation */}
       <style>{`
         @keyframes dropdownFadeIn {
@@ -1079,7 +1085,17 @@ export default function Translate({ user, showToast }) {
           .translate-engine-toggle { width: 100%; }
           .translate-engine-toggle button { flex: 1; justify-content: center; padding: 8px 8px !important; font-size: 0.78rem !important; }
         }
-        @media (max-width: 500px) {
+        @media (max-width: 600px) {
+          .translate-lang-bar {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+          }
+          .translate-swap-btn {
+            align-self: center !important;
+            margin: 4px 0 !important;
+            transform: rotate(90deg) !important;
+          }
           .translate-lang-side {
             flex-direction: column !important;
             align-items: stretch !important;
@@ -1096,13 +1112,10 @@ export default function Translate({ user, showToast }) {
       `}</style>
 
       {/* Header */}
-      <div style={styles.header}>
+      <div className="page-header" style={{ ...styles.header, marginBottom: undefined }}>
         <div>
-          <h1 style={styles.title}>
-            <Globe size={28} color="#2563eb" style={{ verticalAlign: 'middle', marginRight: '12px' }} />
-            Neural Translation
-          </h1>
-          <p style={styles.sub}>Powered by AI • Supports 25+ languages • Real-time translation</p>
+          <h1 className="page-title">Neural Translation</h1>
+          <p className="page-subtitle">Powered by AI • Supports 25+ languages • Real-time translation</p>
         </div>
 
         
@@ -1112,9 +1125,9 @@ export default function Translate({ user, showToast }) {
       <div style={styles.card}>
 
         {/* Language selector bar */}
-        <div style={styles.langBar}>
+        <div style={styles.langBar} className="translate-lang-bar">
           {/* Source language */}
-          <div style={styles.langSide} className="translate-lang-side">
+          <div style={styles.langSide} className="translate-lang-side translate-lang-side-left">
             <LangDropdown
               value={sourceLang}
               onChange={setSourceLang}
@@ -1134,17 +1147,19 @@ export default function Translate({ user, showToast }) {
             disabled={isTranslating}
             style={styles.swapBtn}
             title="Swap languages"
+            className="translate-swap-btn"
           >
             <ArrowRightLeft size={18} color="#3b82f6" />
           </button>
 
           {/* Target language */}
-          <div style={styles.langSide}>
+          <div style={{ ...styles.langSide, justifyContent: 'flex-end' }} className="translate-lang-side translate-lang-side-right">
             <LangDropdown
               value={targetLang}
               onChange={setTargetLang}
               options={TARGET_LANGUAGES}
               placeholder="Target Language"
+              align="right"
             />
           </div>
         </div>
@@ -1380,7 +1395,9 @@ export default function Translate({ user, showToast }) {
             {history.map(item => (
               <div key={item.id} className="glass-card" style={styles.historyItem}>
                 <div style={styles.historyLangRow}>
-                  <span style={{ fontSize: '1.1rem' }}>{item.sFlag}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '1.1rem' }}>
+                    {item.sFlag === '🔍' ? <Search size={14} color="var(--primary)" /> : item.sFlag}
+                  </span>
                   <span style={styles.historyLangName}>{item.sLang}</span>
                   <ArrowRightLeft size={12} color="#64748b" />
                   <span style={{ fontSize: '1.1rem' }}>{item.tFlag}</span>
@@ -1413,14 +1430,7 @@ export default function Translate({ user, showToast }) {
 }
 
 const styles = {
-  container: {
-    padding: '32px 40px 60px',
-    height: '100%',
-    overflowY: 'auto',
-    maxWidth: '1200px',
-    margin: '0 auto',
-    width: '100%',
-  },
+
   header: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -1429,19 +1439,7 @@ const styles = {
     flexWrap: 'wrap',
     gap: '20px',
   },
-  title: {
-    fontSize: '2rem',
-    color: '#0f172a',
-    marginBottom: '8px',
-    fontWeight: '800',
-    display: 'flex',
-    alignItems: 'center',
-  },
-  sub: {
-    color: '#64748b',
-    fontSize: '0.9rem',
-    marginLeft: '40px',
-  },
+
   engineToggle: {
     display: 'flex',
     background: 'rgba(15,23,42,0.03)',

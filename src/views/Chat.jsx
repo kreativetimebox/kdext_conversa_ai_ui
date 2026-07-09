@@ -551,7 +551,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
         </div>
       </div>
       
-      {/* Pulse Animation for mic */}
+      {/* Pulse Animation for mic and responsive Chat Hero title */}
       <style>{`
         @keyframes customPulse {
           0% { transform: scale(1); opacity: 1; }
@@ -559,6 +559,29 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
           100% { transform: scale(1); opacity: 1; }
         }
         .pulse { animation: customPulse 1.5s infinite ease-in-out; }
+
+        .chat-hero-title {
+          font-family: var(--font-heading);
+          font-size: 2.2rem;
+          font-weight: 700;
+          line-height: 1.2;
+          color: var(--text-primary);
+          margin-bottom: 12px;
+          letter-spacing: -0.02em;
+          text-align: center;
+        }
+        @media (max-width: 768px) {
+          .chat-hero-title {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+          }
+        }
+        @media (max-width: 480px) {
+          .chat-hero-title {
+            font-size: 1.5rem;
+            margin-bottom: 6px;
+          }
+        }
       `}</style>
     </div>
   );
