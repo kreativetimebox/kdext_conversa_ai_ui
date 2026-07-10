@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import logo from '../assets/logo.svg';
-import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2, Loader2, Headphones, X } from 'lucide-react';
+import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2, Loader2, Headphones, X, MicVocal } from 'lucide-react';
 import { chatCompletion, voiceSTT, voiceTTS, getConversationDetails, createConversation, addMessage } from '../services/api';
 import { logEvent } from '../utils/logger';
 
@@ -1143,14 +1143,6 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
                 {isRecording ? <StopCircle size={20} className={isRecording ? 'pulse' : ''} /> : <Mic size={20} />}
               </button>
 
-              <button
-                onClick={startVoiceChat}
-                style={{ ...styles.actionBtn, color: 'var(--text-muted)' }}
-                title="Voice chat — speak and the AI speaks back"
-              >
-                <Headphones size={20} />
-              </button>
-
               <textarea
                 ref={textareaRef}
                 className="chat-input"
@@ -1161,6 +1153,14 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
                 rows={1}
                 disabled={isRecording}
               />
+
+              <button
+                onClick={startVoiceChat}
+                style={{ ...styles.actionBtn, color: 'var(--text-muted)' }}
+                title="Voice chat — speak and the AI speaks back"
+              >
+                <MicVocal size={20} />
+              </button>
 
               {isTyping ? (
                 <button
