@@ -1134,52 +1134,70 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
               </button>
             </div>
           ) : (
-            <div className="chat-input-wrapper">
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                style={{ ...styles.actionBtn, color: isRecording ? '#ef4444' : 'var(--text-muted)' }}
-                title={isRecording ? "Stop recording (stops automatically when you pause)" : "Dictate — mic stops when you finish speaking"}
-              >
-                {isRecording ? <StopCircle size={20} className={isRecording ? 'pulse' : ''} /> : <Mic size={20} />}
-              </button>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+              <div className="chat-input-wrapper" style={{ flex: 1, margin: 0 }}>
+                <button
+                  onClick={isRecording ? stopRecording : startRecording}
+                  style={{ ...styles.actionBtn, color: isRecording ? '#ef4444' : 'var(--text-muted)' }}
+                  title={isRecording ? "Stop recording (stops automatically when you pause)" : "Dictate — mic stops when you finish speaking"}
+                >
+                  {isRecording ? <StopCircle size={20} className={isRecording ? 'pulse' : ''} /> : <Mic size={20} />}
+                </button>
 
-              <textarea
-                ref={textareaRef}
-                className="chat-input"
-                value={input}
-                onChange={handleInput}
-                onKeyDown={handleKeyDown}
-                placeholder={isRecording ? "Listening..." : "Message Conversa AI..."}
-                rows={1}
-                disabled={isRecording}
-              />
+                <textarea
+                  ref={textareaRef}
+                  className="chat-input"
+                  value={input}
+                  onChange={handleInput}
+                  onKeyDown={handleKeyDown}
+                  placeholder={isRecording ? "Listening..." : "Message Conversa AI..."}
+                  rows={1}
+                  disabled={isRecording}
+                />
 
+                {isTyping ? (
+                  <button
+                    className="chat-send-btn"
+                    style={{ background: 'var(--text-muted)' }}
+                    onClick={() => abortControllerRef.current?.abort()}
+                    title="Stop Generating"
+                  >
+                    <StopCircle size={18} />
+                  </button>
+                ) : (
+                  <button
+                    className="chat-send-btn"
+                    onClick={handleSubmit}
+                    disabled={!input.trim() || isRecording}
+                  >
+                    <Send size={18} />
+                  </button>
+                )}
+              </div>
               <button
                 onClick={startVoiceChat}
-                style={{ ...styles.actionBtn, color: 'var(--text-muted)' }}
+                style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  background: 'var(--text-primary)',
+                  color: 'var(--bg-main)',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  flexShrink: 0,
+                  marginBottom: '2px'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                 title="Voice chat — speak and the AI speaks back"
               >
-                <MicVocal size={20} />
+                <MicVocal size={22} />
               </button>
-
-              {isTyping ? (
-                <button
-                  className="chat-send-btn"
-                  style={{ background: 'var(--text-muted)' }}
-                  onClick={() => abortControllerRef.current?.abort()}
-                  title="Stop Generating"
-                >
-                  <StopCircle size={18} />
-                </button>
-              ) : (
-                <button
-                  className="chat-send-btn"
-                  onClick={handleSubmit}
-                  disabled={!input.trim() || isRecording}
-                >
-                  <Send size={18} />
-                </button>
-              )}
             </div>
           )}
           <div style={styles.footerText}>
