@@ -222,12 +222,23 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   const hasSpokenRef = useRef(false);
   const recordingStartRef = useRef(0);
 
+  // Set right before navigating to a conversation WE just created: the
+  // messages are already in state, so the load effect must not refetch them.
+  // The refetch flipped isTyping on, which unmounted the last message's
+  // Copy/Speak buttons mid-action — cutting off TTS audio that had just
+  // started playing after the first reply of every new chat.
+  const skipNextLoadRef = useRef(false);
+
   const pathParts = currentPath ? currentPath.split('/') : [];
   const activeConversationId = pathParts.length > 2 ? pathParts[2] : null;
 
   useEffect(() => {
     const loadConversation = async () => {
       if (activeConversationId) {
+        if (skipNextLoadRef.current) {
+          skipNextLoadRef.current = false;
+          return;
+        }
         setIsTyping(true);
         try {
           const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
@@ -538,6 +549,10 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
             ];
             const conv = await createConversation(apiKey, title, 'chat', seededMessages);
             if (conv && (conv.conversation_id || conv.id)) {
+              // The messages on screen ARE this conversation — skip the
+              // refetch the URL change would trigger (it remounts the last
+              // message's buttons and kills any TTS playing on it).
+              skipNextLoadRef.current = true;
               navigate(`/chat/${conv.conversation_id || conv.id}`);
             }
           } catch (err) {
