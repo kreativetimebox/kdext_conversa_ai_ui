@@ -8,7 +8,8 @@ import {
   User,
   Settings,
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  Mic
 } from 'lucide-react';
 import { getConversations, deleteConversation } from '../services/api';
 
@@ -87,9 +88,7 @@ function Sidebar({ isCollapsed, toggleSidebar, onSignOut, navigate, currentPath,
     { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { path: '/chat', label: 'Chat', icon: <MessageSquare size={20} /> },
     { path: '/translate', label: 'Translate', icon: <Globe size={20} /> },
-    // Voice Tools hidden for now — TTS lives in Translate/Chat speak buttons,
-    // STT lives in the mic inputs. Route still works if visited directly.
-    // { path: '/services/hub', label: 'Voice Tools', icon: <Mic size={20} /> },
+    { path: '/services/hub', label: 'Voice Tools', icon: <Mic size={20} /> },
     { path: '/history', label: 'History Logs', icon: <History size={20} /> }
   ];
 
