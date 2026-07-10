@@ -23,8 +23,9 @@ export default function Footer({ navigate }) {
           <div style={styles.linksCol}>
             <h4 style={styles.title}>Product</h4>
             <ul style={styles.list}>
-              <li><button onClick={() => navigate('/services/tts')} style={styles.link} className="footer-link-hover">Text to Speech</button></li>
-              <li><button onClick={() => navigate('/services/stt')} style={styles.link} className="footer-link-hover">Speech to Text</button></li>
+              {/* Voice Tools hidden for now — speech features live inside Translate and Chat */}
+              <li><button onClick={() => navigate('/translate')} style={styles.link} className="footer-link-hover">Translate</button></li>
+              <li><button onClick={() => navigate('/chat')} style={styles.link} className="footer-link-hover">AI Chat</button></li>
               <li><button onClick={() => navigate('/documentation')} style={styles.link} className="footer-link-hover">API Docs</button></li>
               <li><button onClick={() => navigate('/')} style={styles.link} className="footer-link-hover">Pricing Plan</button></li>
             </ul>

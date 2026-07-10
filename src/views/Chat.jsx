@@ -172,7 +172,6 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState(null);
   
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -181,6 +180,17 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   // Bumped on every new recording so a slow transcription from a PREVIOUS
   // recording can't append its (stale) text after a newer one has started.
   const voiceGenRef = useRef(0);
+  // Refs mirroring recording state so async callbacks (RAF silence loop)
+  // always see the current values, not the ones captured at closure time.
+  const mediaRecorderRef = useRef(null);
+  const isRecordingRef = useRef(false);
+  // Silence auto-stop (Claude-style voice input): the mic listens while the
+  // user speaks and turns itself off after a pause, no manual stop needed.
+  const silenceAudioCtxRef = useRef(null);
+  const silenceRafRef = useRef(null);
+  const silenceStartRef = useRef(null);
+  const hasSpokenRef = useRef(false);
+  const recordingStartRef = useRef(0);
 
   const pathParts = currentPath ? currentPath.split('/') : [];
   const activeConversationId = pathParts.length > 2 ? pathParts[2] : null;
@@ -222,6 +232,84 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
+    }
+  };
+
+  // How quiet counts as "silence" (0 = dead silent, 1 = max volume), how long
+  // that silence must last after speech before auto-stop, and how long to wait
+  // if the user never says anything at all.
+  const SILENCE_THRESHOLD = 0.02;
+  const SILENCE_AFTER_SPEECH_MS = 1800;
+  const NO_SPEECH_TIMEOUT_MS = 8000;
+
+  const stopSilenceDetection = () => {
+    if (silenceRafRef.current) {
+      cancelAnimationFrame(silenceRafRef.current);
+      silenceRafRef.current = null;
+    }
+    if (silenceAudioCtxRef.current) {
+      try { silenceAudioCtxRef.current.close(); } catch { /* already closed */ }
+      silenceAudioCtxRef.current = null;
+    }
+    silenceStartRef.current = null;
+  };
+
+  // Watches mic volume and auto-stops the recording once the user has spoken
+  // and then gone quiet — the same hands-free feel as Claude's voice input.
+  const startSilenceDetection = (stream) => {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioContextClass();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+
+      silenceAudioCtxRef.current = audioCtx;
+      silenceStartRef.current = null;
+      hasSpokenRef.current = false;
+      recordingStartRef.current = 0;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const checkVolume = () => {
+        if (!isRecordingRef.current) return;
+        // Stamp the start time on the first tick (not in the outer function,
+        // which the react-hooks purity lint treats as render scope).
+        if (!recordingStartRef.current) recordingStartRef.current = Date.now();
+
+        analyser.getByteTimeDomainData(dataArray);
+        let sumSquares = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const normalized = (dataArray[i] - 128) / 128;
+          sumSquares += normalized * normalized;
+        }
+        const rms = Math.sqrt(sumSquares / dataArray.length);
+
+        if (rms >= SILENCE_THRESHOLD) {
+          hasSpokenRef.current = true;
+          silenceStartRef.current = null;
+        } else if (hasSpokenRef.current) {
+          if (silenceStartRef.current === null) {
+            silenceStartRef.current = Date.now();
+          } else if (Date.now() - silenceStartRef.current > SILENCE_AFTER_SPEECH_MS) {
+            stopRecording();
+            return;
+          }
+        } else if (Date.now() - recordingStartRef.current > NO_SPEECH_TIMEOUT_MS) {
+          // Never spoke — don't leave the mic on forever.
+          stopRecording();
+          return;
+        }
+
+        silenceRafRef.current = requestAnimationFrame(checkVolume);
+      };
+
+      checkVolume();
+    } catch (err) {
+      // Silence detection is an enhancement — recording still works with a
+      // manual stop if the AudioContext can't be created.
+      console.warn('Silence detection setup failed:', err);
     }
   };
 
@@ -283,8 +371,11 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       };
       
       recorder.start();
-      setMediaRecorder(recorder);
+      mediaRecorderRef.current = recorder;
+      isRecordingRef.current = true;
       setIsRecording(true);
+      // Auto-stop once the user finishes speaking (hands-free, Claude-style)
+      startSilenceDetection(stream);
     } catch (err) {
       console.error('Microphone error:', err);
        logEvent('error', 'Microphone access failed', { errorName: err.name, error: err.message });
@@ -301,11 +392,28 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   };
 
   const stopRecording = () => {
-    if (mediaRecorder && isRecording) {
-      mediaRecorder.stop();
+    // Read through refs — this is also called from the silence-detection RAF
+    // loop, whose closure captured stale state values.
+    if (mediaRecorderRef.current && isRecordingRef.current) {
+      isRecordingRef.current = false;
+      stopSilenceDetection();
+      try { mediaRecorderRef.current.stop(); } catch { /* already stopped */ }
+      mediaRecorderRef.current = null;
       setIsRecording(false);
     }
   };
+
+  // Release the mic and audio context if the user navigates away mid-recording.
+  useEffect(() => {
+    return () => {
+      isRecordingRef.current = false;
+      stopSilenceDetection();
+      if (mediaRecorderRef.current) {
+        try { mediaRecorderRef.current.stop(); } catch { /* already stopped */ }
+        mediaRecorderRef.current = null;
+      }
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -521,7 +629,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
             <button 
               onClick={isRecording ? stopRecording : startRecording}
               style={{ ...styles.actionBtn, color: isRecording ? '#ef4444' : 'var(--text-muted)' }}
-              title={isRecording ? "Stop Recording" : "Voice Input via STT"}
+              title={isRecording ? "Stop recording (stops automatically when you pause)" : "Dictate — mic stops when you finish speaking"}
             >
               {isRecording ? <StopCircle size={20} className={isRecording ? 'pulse' : ''} /> : <Mic size={20} />}
             </button>

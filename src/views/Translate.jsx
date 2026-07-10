@@ -208,7 +208,9 @@ export default function Translate({ user, showToast }) {
   const [isTranslating, setIsTranslating] = useState(false);
   const [history, setHistory] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [copiedSource, setCopiedSource] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlayingSource, setIsPlayingSource] = useState(false);
   const audioRef = useRef(null); // tracks the current TTS Audio object so we can stop it on unmount
   const [wsConnected, setWsConnected] = useState(false);
 
@@ -1109,30 +1111,48 @@ export default function Translate({ user, showToast }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCopySource = () => {
+    if (!sourceText) return;
+    navigator.clipboard.writeText(sourceText);
+    setCopiedSource(true);
+    setTimeout(() => setCopiedSource(false), 2000);
+  };
+
   const handleClear = () => {
     setSourceText('');
     setTranslatedText('');
     setDetectedLang(null);
   };
 
-  const handleSpeak = async () => {
-    if (!translatedText) return;
-    // Stop any currently playing audio before starting a new one.
+  // Stops whichever panel's audio is playing and resets both playing flags.
+  const stopSpeaking = () => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = '';
       audioRef.current = null;
-      setIsPlaying(false);
     }
-    setIsPlaying(true);
+    setIsPlaying(false);
+    setIsPlayingSource(false);
+  };
+
+  // Shared TTS playback for both panels (source + translation), Google
+  // Translate style: clicking the speaker again while playing stops it.
+  const speakText = async (text, lang, setPlayingFn, wasPlaying) => {
+    if (!text?.trim()) return;
+    if (wasPlaying) {
+      stopSpeaking();
+      return;
+    }
+    stopSpeaking();
+    setPlayingFn(true);
     try {
       // Edge TTS via /api/voice/tts streams audio back immediately (the
       // gateway's /text-to-speech is an async queued job with no instant URL).
-      const blobUrl = await voiceTTS(apiKey, translatedText, targetLang);
+      const blobUrl = await voiceTTS(apiKey, text, lang);
       const audio = new Audio(blobUrl);
       audioRef.current = audio;
       const done = () => {
-        setIsPlaying(false);
+        setPlayingFn(false);
         URL.revokeObjectURL(blobUrl);
         audioRef.current = null;
       };
@@ -1141,9 +1161,17 @@ export default function Translate({ user, showToast }) {
       await audio.play();
     } catch (err) {
       showToast(err.message || 'Failed to synthesize speech.', 'error');
-      setIsPlaying(false);
+      setPlayingFn(false);
     }
   };
+
+  const handleSpeak = () => speakText(translatedText, targetLang, setIsPlaying, isPlaying);
+  const handleSpeakSource = () => speakText(
+    sourceText,
+    sourceLang === 'auto' ? (detectedLang || 'en') : sourceLang,
+    setIsPlayingSource,
+    isPlayingSource,
+  );
 
   const handleKeyDown = (e) => {
     // Live Mode translates automatically — no manual submit shortcut needed.
@@ -1313,6 +1341,20 @@ export default function Translate({ user, showToast }) {
                 </span>
               )}
               <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+                {sourceText && (
+                  <>
+                    <button
+                      onClick={handleSpeakSource}
+                      style={styles.iconActionBtn}
+                      title={isPlayingSource ? 'Stop listening' : 'Listen to entered text'}
+                    >
+                      <Volume2 size={14} color={isPlayingSource ? '#2563eb' : 'currentColor'} />
+                    </button>
+                    <button onClick={handleCopySource} style={styles.iconActionBtn} title="Copy text">
+                      {copiedSource ? <CheckCircle2 size={14} color="#16a34a" /> : <Copy size={14} />}
+                    </button>
+                  </>
+                )}
                 {engine !== 'voice' && sourceText && (
                   <button onClick={handleClear} style={styles.iconActionBtn} title="Clear">
                     <RotateCcw size={14} />
@@ -1392,7 +1434,7 @@ export default function Translate({ user, showToast }) {
             <div style={{ ...styles.panelFooter, justifyContent: 'flex-end' }}>
               {translatedText && (
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={handleSpeak} disabled={isPlaying} style={styles.iconActionBtn} title="Listen">
+                  <button onClick={handleSpeak} style={styles.iconActionBtn} title={isPlaying ? 'Stop listening' : 'Listen'}>
                     <Volume2 size={14} color={isPlaying ? '#2563eb' : 'currentColor'} />
                   </button>
                   <button onClick={handleCopy} style={styles.iconActionBtn} title="Copy translation">
