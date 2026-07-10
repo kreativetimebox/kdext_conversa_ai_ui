@@ -230,8 +230,8 @@ export default function Translate({ user, showToast }) {
   const voiceMediaRecorderRef = useRef(null);
   const voiceStreamRef = useRef(null);
   const voiceCycleTimerRef = useRef(null);
-  // Silence auto-stop: mirrors Google Translate — mic turns off on its own
-  // after a pause in speech, instead of only stopping on manual click.
+  // Dead-air auto-stop: the live mic stays on until the user stops it —
+  // the only automatic cutoff is 30s of continuous silence.
   const voiceAudioCtxRef = useRef(null);
   const voiceAnalyserRef = useRef(null);
   const voiceSilenceRafRef = useRef(null);
@@ -530,10 +530,18 @@ export default function Translate({ user, showToast }) {
   // GPU (sub-second per chunk) 1.2s keeps subtitles snappy; go back toward
   // 2000 if the STT engine ever runs on CPU.
   const VOICE_SEGMENT_MS = 1200;
-  // How quiet counts as "silence" (0 = dead silent, 1 = max volume) and how
-  // long that silence must last before we auto-stop the mic.
-  const SILENCE_THRESHOLD = 0.02;
-  const SILENCE_DURATION_MS = 1500;
+  // ── Auto-stop tuning ──────────────────────────────────────────────────────
+  // The detector is ADAPTIVE: a fixed volume threshold cut people off
+  // mid-sentence (quiet mics never crossed it — especially with autoGainControl
+  // off — so the mic "stopped immediately"). Instead we sample the room's
+  // ambient noise for a moment after the mic opens and treat speech as
+  // anything clearly above that floor.
+  // Live mode stays on until the user stops it manually — the ONLY automatic
+  // stop is a long dead-air cutoff: 30s of continuous silence.
+  const VOICE_CALIBRATION_MS = 600;      // learn ambient noise before judging
+  const VOICE_MIN_SPEECH_RMS = 0.006;    // absolute floor for very quiet rooms
+  const VOICE_NOISE_MULT = 2.5;          // speech = louder than noise × this
+  const VOICE_SILENCE_MS = 30000;        // 30s of dead air ends the session
 
   // Pick a MediaRecorder mime type the browser actually supports. Hardcoding
   // 'audio/webm' makes the MediaRecorder constructor THROW on Safari / some
@@ -729,8 +737,16 @@ export default function Translate({ user, showToast }) {
 
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
+      // All detector state lives in this closure — one recording, one detector.
+      let startTime = 0;       // stamped on the first tick
+      let noiseFloor = 0;      // learned ambient RMS
+      let calibSamples = 0;
+      let calibrated = false;
+      let loudStreak = 0;      // consecutive loud frames — filters out clicks/pops
+
       const checkVolume = () => {
         if (!voiceActiveRef.current) return;
+        if (!startTime) startTime = Date.now();
 
         analyser.getByteTimeDomainData(dataArray);
         let sumSquares = 0;
@@ -740,15 +756,37 @@ export default function Translate({ user, showToast }) {
         }
         const rms = Math.sqrt(sumSquares / dataArray.length);
 
-        if (rms < SILENCE_THRESHOLD) {
+        // Phase 1: learn what "this room when nobody talks" sounds like.
+        // Judging silence against a fixed constant is what made the mic stop
+        // the instant it opened on quiet setups.
+        if (!calibrated) {
+          noiseFloor = (noiseFloor * calibSamples + rms) / (calibSamples + 1);
+          calibSamples += 1;
+          if (Date.now() - startTime >= VOICE_CALIBRATION_MS) calibrated = true;
+          voiceSilenceRafRef.current = requestAnimationFrame(checkVolume);
+          return;
+        }
+
+        const speechThreshold = Math.max(VOICE_MIN_SPEECH_RMS, noiseFloor * VOICE_NOISE_MULT);
+
+        if (rms >= speechThreshold) {
+          // ~3 frames (≈50ms) of sustained sound before counting it as speech,
+          // so a keyboard click can't fake it.
+          loudStreak += 1;
+          if (loudStreak >= 3) {
+            voiceSilenceStartRef.current = null; // speech → restart the 30s clock
+          }
+        } else {
+          loudStreak = 0;
+          // Keep tracking the room so the threshold adapts if noise changes.
+          noiseFloor = noiseFloor * 0.95 + rms * 0.05;
           if (voiceSilenceStartRef.current === null) {
             voiceSilenceStartRef.current = Date.now();
-          } else if (Date.now() - voiceSilenceStartRef.current > SILENCE_DURATION_MS) {
+          } else if (Date.now() - voiceSilenceStartRef.current > VOICE_SILENCE_MS) {
+            // 30s of dead air — end the session so the mic isn't left on.
             stopVoiceRecording();
             return;
           }
-        } else {
-          voiceSilenceStartRef.current = null;
         }
 
         voiceSilenceRafRef.current = requestAnimationFrame(checkVolume);
@@ -805,7 +843,7 @@ export default function Translate({ user, showToast }) {
 
       // Start the record → STT → translate cycle
       startRecordingCycle(stream);
-       // Auto-stop the mic after a pause in speech (like Google Translate)
+       // Watchdog: end the session only after 30s of continuous dead air
       startSilenceDetection(stream);
     } catch (err) {
       let msg = 'Microphone access denied or unavailable.';
