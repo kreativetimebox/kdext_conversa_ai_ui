@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import logo from '../assets/logo.svg';
 import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2 } from 'lucide-react';
 import { chatCompletion, voiceSTT, voiceTTS, getConversationDetails, createConversation, addMessage } from '../services/api';
+import { logEvent } from '../utils/logger';
 
 // Simple Markdown Renderer
 const renderMarkdown = (text) => {
@@ -145,6 +146,7 @@ if (currentAudioRef.current) {
     } catch (err) {
       setIsPlaying(false);
       showToast(err.message || 'Speech synthesis failed.', 'error');
+      logEvent('error', 'TTS speak failed', { error: err.message });
     }
   };
 
@@ -271,6 +273,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
         } catch (err) {
           if (gen !== voiceGenRef.current) return;
           showToast(err.message || 'Failed to transcribe voice.', 'error');
+          logEvent('error', 'STT transcription failed', { error: err.message });
         } finally {
           if (gen === voiceGenRef.current) setIsTyping(false);
         }
@@ -284,6 +287,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       setIsRecording(true);
     } catch (err) {
       console.error('Microphone error:', err);
+       logEvent('error', 'Microphone access failed', { errorName: err.name, error: err.message });
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         showToast('Microphone access was blocked. Please allow microphone permissions in your browser/site settings.', 'error');
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
@@ -406,6 +410,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
 
     } catch (err) {
       const errorText = `Error: ${err.message || 'Failed to connect to AI engine.'}`;
+      logEvent('error', 'Chat completion failed', { error: err.message, conversationId: activeConversationId });
       setMessages(prev => {
         const newMsgs = [...prev];
         newMsgs[assistantMsgIndex] = {

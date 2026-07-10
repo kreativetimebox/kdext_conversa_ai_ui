@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowRightLeft, Volume2, Copy, Sparkles, CheckCircle2, Globe, ChevronDown, Zap, RotateCcw, Search, Bot, Mic, MicOff } from 'lucide-react';
 import { translateText, voiceTTS, voiceSTT, getWsBaseUrl } from '../services/api';
+import { logEvent } from '../utils/logger';
 
 const LANGUAGES = [
   { code: 'auto', name: 'Detect Language', flag: '🔍', region: '' },
@@ -413,6 +414,7 @@ export default function Translate({ user, showToast }) {
           wsToastShownRef.current = true;
           showToast(`Live stream unavailable: ${ev.reason}. Using instant fallback.`, 'error');
         }
+        logEvent('error', 'Translate WebSocket closed', { code: ev.code, reason: ev.reason || '(no reason)' })
         reconnectTimerRef.current = setTimeout(connectWs, reconnectDelayRef.current);
         reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, 15000);
       };
@@ -736,6 +738,7 @@ export default function Translate({ user, showToast }) {
         msg = 'No microphone found. Connect one and try again.';
       }
       showToast(msg, 'error');
+      logEvent('error', 'Voice translate mic error', { errorName: err.name, error: err.message })
     }
   };
 
@@ -999,6 +1002,7 @@ export default function Translate({ user, showToast }) {
     } catch (err) {
       if (currentSeq === seqRef.current) {
         showToast(err.message || 'Translation failed. Please check your connection.', 'error');
+        logEvent('error', 'Translation request failed', { error: err.message, targetLang });
       }
     } finally {
       if (currentSeq === seqRef.current) {

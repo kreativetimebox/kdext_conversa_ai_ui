@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Lock, Eye, EyeOff, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { login as apiLogin, verifyOtp } from '../../services/api';
+import { logEvent } from '../../utils/logger';
 
 export default function SignIn({ navigate, login, showToast, redirectPath }) {
   const [email, setEmail] = useState('');
@@ -41,6 +42,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
 
       setLoginSuccess(true);
       showToast('Login successful!', 'success');
+      logEvent('info', 'Login success', { email });
 
       // Store token + api_key in session for use across app
       sessionStorage.setItem('access_token', data.access_token);
@@ -63,6 +65,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
       const msg = err.message || 'Invalid email or password. Please try again.';
       setError(msg);
       showToast(msg, 'error');
+      logEvent('error', 'Login failed', { email, error: msg });
       
       // If the error indicates email is not verified, show OTP screen
       if (msg.toLowerCase().includes('verified') || msg.toLowerCase().includes('otp')) {
