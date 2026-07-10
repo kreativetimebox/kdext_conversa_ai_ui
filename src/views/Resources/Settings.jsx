@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Moon, Sun, Type, Monitor, Eye, Layout } from 'lucide-react';
+import { downloadLogs, clearLogs } from '../../utils/logger';
 
 export default function Settings({ user, showToast }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('conversa_theme') || 'light');
@@ -25,6 +26,18 @@ export default function Settings({ user, showToast }) {
   const saveSettings = () => {
     showToast('Preferences saved successfully', 'success');
   };
+  const handleDownloadLogs = () => {
+    downloadLogs();
+    showToast('Debug logs downloaded', 'success');
+  };
+
+  const handleClearLogs = () => {
+    if (window.confirm('Clear all debug logs? This cannot be undone.')) {
+      clearLogs();
+      showToast('Debug logs cleared', 'info');
+    }
+  };
+  
 
   return (
     <div className="page-container animate-fade-in settings-page">
@@ -125,6 +138,30 @@ export default function Settings({ user, showToast }) {
                 <span style={{...styles.sliderThumb, ...(!animations ? styles.sliderThumbChecked : {})}}></span>
               </span>
             </label>
+          </div>
+        </div>
+
+        <hr style={styles.divider} />
+
+        {/* Debug / Audit Logs */}
+        <div style={styles.section}>
+          <div style={styles.sectionHeader}>
+            <Monitor size={18} color="var(--secondary)" />
+            <h3 style={styles.sectionTitle}>Debug Logs</h3>
+          </div>
+          <div style={styles.formRow} className="settings-form-row">
+            <div style={styles.formLabel}>
+              <div>Activity & Error Log</div>
+              <div style={styles.formDesc}>Download a record of app activity and errors for troubleshooting</div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="btn" onClick={handleClearLogs} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                Clear Logs
+              </button>
+              <button className="btn btn-primary" onClick={handleDownloadLogs} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                Download Logs
+              </button>
+            </div>
           </div>
         </div>
 
