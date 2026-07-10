@@ -116,7 +116,7 @@ export default function Dashboard({
       </div>
 
       {/* Grid of Stats Cards */}
-      <div style={styles.statsGrid}>
+      <div className="dashboard-stats-grid">
         {/* Total Requests */}
         <div className="glass-card" style={styles.statCard}>
           <div style={styles.statTop}>

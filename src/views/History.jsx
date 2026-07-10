@@ -123,13 +123,13 @@ export default function History({ historyData, showToast }) {
       {activeTab === 'voice-logs' && (
         <div className="animate-fade-in">
           {/* Filters Bar */}
-          <div style={styles.filtersBar}>
+          <div style={styles.filtersBar} className="history-filters-bar">
             {/* Search Bar */}
-            <div style={styles.searchWrapper}>
+            <div style={styles.searchWrapper} className="history-search-wrapper">
               <Search size={16} color="var(--text-muted)" style={styles.searchIcon} />
-              <input 
-                type="text" 
-                placeholder="Search by filename..." 
+              <input
+                type="text"
+                placeholder="Search by filename..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={styles.searchInput}
@@ -138,10 +138,11 @@ export default function History({ historyData, showToast }) {
             </div>
 
             {/* Dropdown 1: Type */}
-            <select 
-              value={typeFilter} 
+            <select
+              value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
               style={styles.filterSelect}
+              className="history-filter-select"
             >
               <option value="all">All Types</option>
               <option value="tts">Text to Speech</option>
@@ -149,10 +150,11 @@ export default function History({ historyData, showToast }) {
             </select>
 
             {/* Dropdown 2: Status */}
-            <select 
-              value={statusFilter} 
+            <select
+              value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               style={styles.filterSelect}
+              className="history-filter-select"
             >
               <option value="all">All Statuses</option>
               <option value="completed">Completed</option>
@@ -245,7 +247,7 @@ export default function History({ historyData, showToast }) {
             </div>
             
             <div style={styles.modalBody}>
-              <div style={styles.metaGrid}>
+              <div style={styles.metaGrid} className="history-meta-grid">
                 <div>
                   <span style={styles.metaLabel}>Filename</span>
                   <div style={styles.metaVal}>{selectedDoc.name}</div>
