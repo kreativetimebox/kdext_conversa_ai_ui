@@ -1134,7 +1134,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div className="chat-input-wrapper" style={{ flex: 1, margin: 0 }}>
                 <button
                   onClick={isRecording ? stopRecording : startRecording}
@@ -1190,7 +1190,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
                   boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                   transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                   flexShrink: 0,
-                  marginRight: '6px'
+                  marginRight: '12px'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
