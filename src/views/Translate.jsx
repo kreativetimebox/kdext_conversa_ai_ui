@@ -222,6 +222,12 @@ export default function Translate({ user, showToast }) {
   const voiceMediaRecorderRef = useRef(null);
   const voiceStreamRef = useRef(null);
   const voiceCycleTimerRef = useRef(null);
+  // Silence auto-stop: mirrors Google Translate — mic turns off on its own
+  // after a pause in speech, instead of only stopping on manual click.
+  const voiceAudioCtxRef = useRef(null);
+  const voiceAnalyserRef = useRef(null);
+  const voiceSilenceRafRef = useRef(null);
+  const voiceSilenceStartRef = useRef(null);
   // Segment STT calls run in parallel, so a slow chunk must not let a later
   // chunk's text land first: each chunk takes a sequence number and results
   // are buffered, then appended in order — but only up to a bounded wait, so
@@ -516,6 +522,10 @@ export default function Translate({ user, showToast }) {
   // GPU (sub-second per chunk) 1.2s keeps subtitles snappy; go back toward
   // 2000 if the STT engine ever runs on CPU.
   const VOICE_SEGMENT_MS = 1200;
+  // How quiet counts as "silence" (0 = dead silent, 1 = max volume) and how
+  // long that silence must last before we auto-stop the mic.
+  const SILENCE_THRESHOLD = 0.02;
+  const SILENCE_DURATION_MS = 1500;
 
   // Pick a MediaRecorder mime type the browser actually supports. Hardcoding
   // 'audio/webm' makes the MediaRecorder constructor THROW on Safari / some
@@ -696,7 +706,64 @@ export default function Translate({ user, showToast }) {
       }
     }, VOICE_SEGMENT_MS);
   };
+  const startSilenceDetection = (stream) => {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioContextClass();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
 
+      voiceAudioCtxRef.current = audioCtx;
+      voiceAnalyserRef.current = analyser;
+      voiceSilenceStartRef.current = null;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const checkVolume = () => {
+        if (!voiceActiveRef.current) return;
+
+        analyser.getByteTimeDomainData(dataArray);
+        let sumSquares = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const normalized = (dataArray[i] - 128) / 128;
+          sumSquares += normalized * normalized;
+        }
+        const rms = Math.sqrt(sumSquares / dataArray.length);
+
+        if (rms < SILENCE_THRESHOLD) {
+          if (voiceSilenceStartRef.current === null) {
+            voiceSilenceStartRef.current = Date.now();
+          } else if (Date.now() - voiceSilenceStartRef.current > SILENCE_DURATION_MS) {
+            stopVoiceRecording();
+            return;
+          }
+        } else {
+          voiceSilenceStartRef.current = null;
+        }
+
+        voiceSilenceRafRef.current = requestAnimationFrame(checkVolume);
+      };
+
+      checkVolume();
+    } catch (err) {
+      console.warn('Silence detection setup failed:', err);
+    }
+  };
+
+  const stopSilenceDetection = () => {
+    if (voiceSilenceRafRef.current) {
+      cancelAnimationFrame(voiceSilenceRafRef.current);
+      voiceSilenceRafRef.current = null;
+    }
+    if (voiceAudioCtxRef.current) {
+      try { voiceAudioCtxRef.current.close(); } catch (_) {}
+      voiceAudioCtxRef.current = null;
+    }
+    voiceAnalyserRef.current = null;
+    voiceSilenceStartRef.current = null;
+  };
   const startVoiceRecording = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showToast('Microphone not supported in this browser.', 'error');
@@ -730,6 +797,8 @@ export default function Translate({ user, showToast }) {
 
       // Start the record → STT → translate cycle
       startRecordingCycle(stream);
+       // Auto-stop the mic after a pause in speech (like Google Translate)
+      startSilenceDetection(stream);
     } catch (err) {
       let msg = 'Microphone access denied or unavailable.';
       if (err.name === 'NotAllowedError') {
@@ -745,6 +814,7 @@ export default function Translate({ user, showToast }) {
   const stopVoiceRecording = () => {
     voiceActiveRef.current = false;
     setVoiceActive(false);
+    stopSilenceDetection();
     clearTimeout(voiceCycleTimerRef.current);
     clearTimeout(voiceGapTimerRef.current);
     if (voiceMediaRecorderRef.current &&
@@ -764,6 +834,7 @@ export default function Translate({ user, showToast }) {
   useEffect(() => {
     return () => {
       voiceActiveRef.current = false;
+      stopSilenceDetection();
       clearTimeout(voiceCycleTimerRef.current);
       if (voiceMediaRecorderRef.current) {
         try { voiceMediaRecorderRef.current.stop(); } catch (_) {}
