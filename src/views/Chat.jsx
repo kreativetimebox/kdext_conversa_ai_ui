@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import logo from '../assets/logo.svg';
-import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2 } from 'lucide-react';
+import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2, Loader2 } from 'lucide-react';
 import { chatCompletion, voiceSTT, voiceTTS, getConversationDetails, createConversation, addMessage } from '../services/api';
 import { logEvent } from '../utils/logger';
 
@@ -85,84 +85,114 @@ const CopyButton = ({ text, variant = 'icon' }) => {
   );
 };
 
-const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
+// currentAudioRef is SHARED by all SpeakButtons in the chat: it holds a
+// { stop } handle for whichever button is loading/playing right now, so
+// starting speech on one message both silences the previous message AND
+// resets its button back to "Speak".
+const SpeakButton = ({ text, apiKey, showToast, currentAudioRef }) => {
+  // idle → loading (TTS request in flight) → playing.
+  // The loading state is the fix for "audio appears with no stop": TTS takes
+  // seconds to generate, and the old two-state button let the UI and the
+  // audio get out of sync during that window.
+  const [status, setStatus] = useState('idle');
   const audioRef = useRef(null);
   const blobUrlRef = useRef(null);
+  // Bumped on every stop/start so a TTS response that arrives AFTER the user
+  // pressed Stop is discarded instead of playing anyway with the button
+  // already back on "Speak".
+  const genRef = useRef(0);
+
+  const stop = () => {
+    genRef.current += 1;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
+    setStatus('idle');
+  };
+
   // Stop playback if this button's component unmounts (e.g. user navigates
-  // away to another page while audio is still playing)
+  // away to another page while audio is still playing/generating)
   useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
-      }
+      genRef.current += 1;
+      if (audioRef.current) audioRef.current.pause();
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
     };
   }, []);
+
   const handleSpeak = async () => {
-    // If already playing, stop it
-    if (isPlaying) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      setIsPlaying(false);
+    // Clicking while loading or playing = stop/cancel
+    if (status !== 'idle') {
+      stop();
+      if (currentAudioRef.current?.owner === genRef) currentAudioRef.current = null;
       return;
     }
 
     if (!text?.trim()) return;
-    setIsPlaying(true);
+
+    // Take over from whichever message is currently speaking
+    if (currentAudioRef.current) {
+      currentAudioRef.current.stop();
+    }
+    currentAudioRef.current = { stop, owner: genRef };
+
+    const gen = ++genRef.current;
+    setStatus('loading');
 
     try {
-      // Revoke previous blob URL to free memory
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
-      }
-if (currentAudioRef.current) {
-  currentAudioRef.current.pause();
-  currentAudioRef.current.currentTime = 0;
-}
       const blobUrl = await voiceTTS(apiKey, text, 'en', 'divya');
-      blobUrlRef.current = blobUrl;
 
+      // User pressed Stop (or started another message) while generating —
+      // throw the late audio away instead of playing it.
+      if (gen !== genRef.current) {
+        URL.revokeObjectURL(blobUrl);
+        return;
+      }
+
+      blobUrlRef.current = blobUrl;
       const audio = new Audio(blobUrl);
-      currentAudioRef.current = audio;
       audioRef.current = audio;
-      audio.play();
-      audio.onended = () => {
-        setIsPlaying(false);
-        audioRef.current = null;
+      const finish = (errored) => {
+        if (gen !== genRef.current) return;
+        stop();
+        if (currentAudioRef.current?.owner === genRef) currentAudioRef.current = null;
+        if (errored) showToast('Failed to play audio.', 'error');
       };
-      audio.onerror = () => {
-        setIsPlaying(false);
-        audioRef.current = null;
-        showToast('Failed to play audio.', 'error');
-      };
+      audio.onended = () => finish(false);
+      audio.onerror = () => finish(true);
+      await audio.play();
+      if (gen === genRef.current) setStatus('playing');
     } catch (err) {
-      setIsPlaying(false);
+      if (gen !== genRef.current) return; // user cancelled while generating
+      stop();
       showToast(err.message || 'Speech synthesis failed.', 'error');
       logEvent('error', 'TTS speak failed', { error: err.message });
     }
   };
 
+  const active = status !== 'idle';
   return (
     <button
       onClick={handleSpeak}
       style={{
         ...styles.msgActionBtn,
-        color: isPlaying ? '#3b82f6' : undefined,
-        background: isPlaying ? 'rgba(37,99,235,0.15)' : undefined,
-        borderColor: isPlaying ? 'rgba(37,99,235,0.3)' : undefined,
+        color: active ? '#3b82f6' : undefined,
+        background: active ? 'rgba(37,99,235,0.15)' : undefined,
+        borderColor: active ? 'rgba(37,99,235,0.3)' : undefined,
       }}
-      title={isPlaying ? 'Stop speaking' : 'Speak response'}
+      title={status === 'idle' ? 'Speak response' : status === 'loading' ? 'Cancel' : 'Stop speaking'}
     >
-      <Volume2 size={13} color={isPlaying ? '#3b82f6' : undefined} />
-      <span>{isPlaying ? 'Stop' : 'Speak'}</span>
+      {status === 'loading'
+        ? <Loader2 size={13} color="#3b82f6" style={{ animation: 'spin 0.8s linear infinite' }} />
+        : status === 'playing'
+        ? <StopCircle size={13} color="#3b82f6" />
+        : <Volume2 size={13} />}
+      <span>{status === 'idle' ? 'Speak' : status === 'loading' ? 'Loading' : 'Stop'}</span>
     </button>
   );
 };
@@ -678,6 +708,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
           100% { transform: scale(1); opacity: 1; }
         }
         .pulse { animation: customPulse 1.5s infinite ease-in-out; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         .chat-hero-title {
           font-family: var(--font-heading);
