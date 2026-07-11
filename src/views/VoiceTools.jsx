@@ -103,7 +103,7 @@ const TTS_LANGUAGES = [
 
 const CHAR_LIMIT = 500;
 
-export default function VoiceTools({ showToast, defaultSubView = 'hub', user, setHistoryData }) {
+export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub', user, setHistoryData }) {
   const [subView, setSubView] = useState(defaultSubView);
 
   // ── TTS State ──────────────────────────────────────────────────────────────
@@ -154,6 +154,16 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
     setSttError('');
     setTtsError('');
   }, [defaultSubView]);
+
+  // ── Stop audio on unmount (user navigates to another page) ──────────────────
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+    };
+  }, []);
 
   // ── Dynamic Voice Fetching ──────────────────────────────────────────────────
   useEffect(() => {
@@ -245,14 +255,19 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         let job = data;
         // Cap polling so a stuck job can't spin this UI forever.
         const deadline = Date.now() + 180000;
+        // Adaptive polling: short jobs finish in a few seconds, so poll fast
+        // at first and back off — a fixed 1.5s interval added up to 1.5s of
+        // dead wait AFTER the job had already completed.
+        let pollDelay = 500;
         while (job.status === 'queued' || job.status === 'processing') {
           if (!isCurrent()) return; // superseded — stop polling, discard result
           if (Date.now() > deadline) {
             throw new Error('TTS job timed out after 3 minutes. Please try again.');
           }
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, pollDelay));
+          pollDelay = Math.min(pollDelay * 1.5, 1500);
           if (!isCurrent()) return;
-          job = await getJobStatus(user.api_key, data.job_id);
+          job = await getJobStatus(user.api_key, data.job_id, 'tts');
           if (job.status === 'failed') {
             throw new Error(job.error || 'Async TTS synthesis failed on worker.');
           }
@@ -511,14 +526,19 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
         let job = result;
         // Cap polling so a stuck job can't spin this UI forever.
         const deadline = Date.now() + 180000;
+        // Adaptive polling: short jobs finish in a few seconds, so poll fast
+        // at first and back off — a fixed 1.5s interval added up to 1.5s of
+        // dead wait AFTER the job had already completed.
+        let pollDelay = 500;
         while (job.status === 'queued' || job.status === 'processing') {
           if (!isCurrent()) return; // superseded — stop polling, discard result
           if (Date.now() > deadline) {
             throw new Error('STT job timed out after 3 minutes. Please try again.');
           }
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, pollDelay));
+          pollDelay = Math.min(pollDelay * 1.5, 1500);
           if (!isCurrent()) return;
-          job = await getJobStatus(user.api_key, result.job_id);
+          job = await getJobStatus(user.api_key, result.job_id, 'stt');
           if (job.status === 'failed') {
             throw new Error(job.error || 'Async STT transcription failed on worker.');
           }
@@ -643,20 +663,20 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
   };
 
   return (
-    <div style={{ width: '100%', height: '100%', overflowY: 'auto', paddingBottom: '80px' }} className="animate-fade-in">
+    <div className="page-container animate-fade-in voice-tools-page">
 
       {/* ═══════════════════ HUB VIEW ═══════════════════ */}
       {subView === 'hub' ? (
         <div style={styles.container}>
           <div style={styles.hubHeader}>
-            <span className="badge badge-purple">AI Voice Suite</span>
-            <h1 style={styles.hubTitle}>Conversa Voice Tools</h1>
-            <p style={styles.hubSub}>High-fidelity neural Speech-to-Text and Text-to-Speech models integrated dynamically.</p>
+            <span className="badge badge-purple" style={{ marginBottom: '8px' }}>AI Voice Suite</span>
+            <h1 className="page-title">Conversa Voice Tools</h1>
+            <p className="page-subtitle">High-fidelity neural Speech-to-Text and Text-to-Speech models integrated dynamically.</p>
           </div>
 
           <div className="voice-hub-grid">
             {/* STT Card */}
-            <div onClick={() => setSubView('stt')} className="glass-card glass-card-hover" style={styles.hubCard}>
+            <div onClick={() => navigate ? navigate('/services/stt') : setSubView('stt')} className="glass-card glass-card-hover" style={styles.hubCard}>
               <div style={styles.iconBoxPurple}><Mic size={24} color="var(--primary)" /></div>
               <h3 style={styles.cardTitle}>Speech to Text</h3>
               <p style={styles.cardDesc}>
@@ -668,7 +688,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
             </div>
 
             {/* TTS Card */}
-            <div onClick={() => setSubView('tts')} className="glass-card glass-card-hover" style={styles.hubCard}>
+            <div onClick={() => navigate ? navigate('/services/tts') : setSubView('tts')} className="glass-card glass-card-hover" style={styles.hubCard}>
               <div style={styles.iconBoxPink}><Volume2 size={24} color="var(--secondary)" /></div>
               <h3 style={styles.cardTitle}>Text to Speech</h3>
               <p style={styles.cardDesc}>
@@ -716,12 +736,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
       /* ═══════════════════ TTS VIEW ═══════════════════ */
       ) : subView === 'tts' ? (
         <div style={styles.container}>
-          <div style={styles.subHeader}>
-            <button onClick={() => setSubView('hub')} style={styles.backBtn} className="voice-back-btn">
+          <div className="page-header" style={styles.subHeader}>
+            <button onClick={() => navigate ? navigate('/services/hub') : setSubView('hub')} style={styles.backBtn} className="voice-back-btn">
               <ArrowLeft size={16} /> Back to Hub
             </button>
-            <h1 style={{ ...styles.hubTitle, marginTop: '20px' }}>Text to Speech</h1>
-            <p style={styles.hubSub}>Synthesize premium neural audio files from plain text.</p>
+            <h1 className="page-title" style={{ marginTop: '16px' }}>Text to Speech</h1>
+            <p className="page-subtitle">Synthesize premium neural audio files from plain text.</p>
           </div>
 
           <div className="glass-card" style={styles.ttsCard}>
@@ -895,12 +915,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
       /* ═══════════════════ STT VIEW ═══════════════════ */
       ) : (
         <div style={styles.container}>
-          <div style={styles.subHeader}>
-            <button onClick={() => setSubView('hub')} style={styles.backBtn} className="voice-back-btn">
+          <div className="page-header" style={styles.subHeader}>
+            <button onClick={() => navigate ? navigate('/services/hub') : setSubView('hub')} style={styles.backBtn} className="voice-back-btn">
               <ArrowLeft size={16} /> Back to Hub
             </button>
-            <h1 style={{ ...styles.hubTitle, marginTop: '20px' }}>Speech to Text</h1>
-            <p style={styles.hubSub}>Transcribe dynamic vocal streams or upload existing audio files.</p>
+            <h1 className="page-title" style={{ marginTop: '16px' }}>Speech to Text</h1>
+            <p className="page-subtitle">Transcribe dynamic vocal streams or upload existing audio files.</p>
           </div>
 
           <div style={styles.sttLayout}>
@@ -1150,7 +1170,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
                         <div className="conversa-timeline-time">
                           {formatSegmentTime(seg.start)} &rarr; {formatSegmentTime(seg.end)}
                         </div>
-                        <div className="conversa-timeline-text">{seg.text}</div>
+                        <div className="conversa-timeline-text">{seg.text ?? seg.word ?? ''}</div>
                       </div>
                     ))}
                   </div>
@@ -1165,13 +1185,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'hub', user, se
 }
 
 const styles = {
-  container: { maxWidth: 'var(--max-width)', margin: '0 auto', padding: '40px 24px' },
+  container: { maxWidth: 'var(--max-width)', margin: '0 auto' },
   hubHeader: {
     textAlign: 'center', maxWidth: '600px', margin: '0 auto 48px auto',
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
   },
-  hubTitle: { fontSize: '2.2rem', color: 'var(--text-primary)' },
-  hubSub: { fontSize: '1rem', color: 'var(--text-secondary)' },
+
   hubCard: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '16px', cursor: 'pointer', minHeight: '220px' },
   iconBoxPurple: { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(37,99,235,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   iconBoxPink:   { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(14,165,233,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -1209,7 +1228,7 @@ const styles = {
   errorBanner: {
     background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
     borderRadius: '8px', padding: '12px 16px', display: 'flex', alignItems: 'center',
-    gap: '10px', fontSize: '0.85rem', color: '#dc2626', margin: '16px 0',
+    gap: '10px', fontSize: '0.85rem', color: 'var(--error)', margin: '16px 0',
   },
   sttLayout: { maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' },
   sttTabBar: {
@@ -1248,7 +1267,7 @@ const styles = {
     borderRadius: '20px', border: '1px solid var(--border-color)',
   },
   transcriptBox: {
-    background: '#eaf1fc', border: '1px solid var(--border-color)',
+    background: 'var(--bg-subtle)', border: '1px solid var(--border-color)',
     borderRadius: '8px', padding: '20px',
   },
 };

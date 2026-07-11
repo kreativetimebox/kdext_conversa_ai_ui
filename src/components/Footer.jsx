@@ -1,4 +1,5 @@
 import React from 'react';
+import logo from '../assets/logo.svg';
 import { Volume2 } from 'lucide-react';
 
 export default function Footer({ navigate }) {
@@ -10,10 +11,8 @@ export default function Footer({ navigate }) {
           {/* Logo & Description */}
           <div style={styles.brandCol} className="footer-brand-col-responsive">
             <div onClick={() => navigate('/')} style={{ ...styles.logo, cursor: 'pointer' }}>
-              <div style={styles.logoIcon}>
-                <Volume2 size={16} color="#ffffff" fill="#ffffff" />
-              </div>
-              <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#ffffff', fontFamily: 'var(--font-heading)' }}>Conversa AI</span>
+              <img src={logo} alt="Conversa AI" style={{ width: '32px', height: '32px' }} />
+              <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>Conversa AI</span>
             </div>
             <p style={styles.desc}>
               AI-powered speech synthesis and voice transcribing for modern businesses and applications. Secure, fast, and compliant.
@@ -24,8 +23,9 @@ export default function Footer({ navigate }) {
           <div style={styles.linksCol}>
             <h4 style={styles.title}>Product</h4>
             <ul style={styles.list}>
-              <li><button onClick={() => navigate('/services/tts')} style={styles.link} className="footer-link-hover">Text to Speech</button></li>
-              <li><button onClick={() => navigate('/services/stt')} style={styles.link} className="footer-link-hover">Speech to Text</button></li>
+              <li><button onClick={() => navigate('/services/hub')} style={styles.link} className="footer-link-hover">Voice Tools</button></li>
+              <li><button onClick={() => navigate('/translate')} style={styles.link} className="footer-link-hover">Translate</button></li>
+              <li><button onClick={() => navigate('/chat')} style={styles.link} className="footer-link-hover">AI Chat</button></li>
               <li><button onClick={() => navigate('/documentation')} style={styles.link} className="footer-link-hover">API Docs</button></li>
               <li><button onClick={() => navigate('/')} style={styles.link} className="footer-link-hover">Pricing Plan</button></li>
             </ul>
@@ -60,7 +60,7 @@ export default function Footer({ navigate }) {
           </div>
           <div style={styles.bottomLinks}>
             <span style={styles.statusDot}></span>
-            <span style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>All systems operational</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>All systems operational</span>
           </div>
         </div>
       </div>
@@ -70,8 +70,8 @@ export default function Footer({ navigate }) {
 
 const styles = {
   footer: {
-    borderTop: '1px solid rgba(37, 99, 235, 0.15)',
-    background: '#0b1120',
+    borderTop: '1px solid var(--border-color)',
+    background: 'var(--bg-footer)',
     padding: '64px 0 32px 0',
     marginTop: 'auto',
     width: '100%',
@@ -109,7 +109,7 @@ const styles = {
   desc: {
     fontSize: '0.9rem',
     maxWidth: '320px',
-    color: '#cbd5e1',
+    color: 'var(--text-secondary)',
     lineHeight: '1.6',
   },
   linksCol: {
@@ -120,7 +120,7 @@ const styles = {
   title: {
     fontSize: '0.95rem',
     fontWeight: '600',
-    color: '#ffffff',
+    color: 'var(--text-primary)',
     letterSpacing: '0.02em',
   },
   list: {
@@ -134,7 +134,7 @@ const styles = {
   link: {
     background: 'transparent',
     border: 'none',
-    color: '#e2e8f0',
+    color: 'var(--text-secondary)',
     cursor: 'pointer',
     fontSize: '0.88rem',
     padding: 0,

@@ -469,7 +469,7 @@ const styles = {
   newBadge: {
     fontSize: '0.65rem',
     background: 'var(--success)',
-    color: '#000000',
+    color: '#ffffff',
     padding: '2px 6px',
     borderRadius: '4px',
     fontWeight: '700',
@@ -504,7 +504,7 @@ const styles = {
     marginBottom: '20px',
   },
   codeBlockWrapper: {
-    background: '#eef4fd',
+    background: 'var(--bg-subtle)',
     border: '1px solid var(--border-color)',
     borderRadius: '12px',
     overflow: 'hidden',
@@ -652,7 +652,7 @@ const styles = {
   },
   preInstall: {
     fontFamily: 'monospace',
-    background: '#eef4fd',
+    background: 'var(--bg-subtle)',
     padding: '10px 12px',
     borderRadius: '6px',
     fontSize: '0.82rem',

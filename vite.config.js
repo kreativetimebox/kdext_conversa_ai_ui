@@ -39,6 +39,12 @@ export default defineConfig({
         target: 'http://185.14.252.20:8001',
         changeOrigin: true,
         ws: true,
+      },
+      // Proxy the live voice-translation WebSocket (mic audio → STT → translate)
+      '/ws/voice-translate': {
+        target: 'http://185.14.252.20:8001',
+        changeOrigin: true,
+        ws: true,
       }
     },
   },

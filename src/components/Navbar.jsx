@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import logo from '../assets/logo.svg';
 import {
   FileText,
   ChevronDown,
@@ -44,9 +45,7 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
       <div style={styles.navContainer}>
         {/* Brand Logo */}
         <div onClick={() => navigateTo('/')} className="navbar-brand">
-          <div style={styles.logoIcon}>
-            <Volume2 size={18} color="#ffffff" fill="#ffffff" />
-          </div>
+          <img src={logo} alt="Conversa AI" style={{ width: '32px', height: '32px' }} />
           <span>Conversa AI</span>
         </div>
 
@@ -169,7 +168,7 @@ const styles = {
   nav: {
     height: 'var(--navbar-height)',
     borderBottom: '1px solid var(--border-color)',
-    background: 'rgba(255, 255, 255, 0.75)',
+    background: 'var(--bg-navbar)',
     backdropFilter: 'blur(12px)',
     WebkitBackdropFilter: 'blur(12px)',
     position: 'sticky',
@@ -217,8 +216,8 @@ const styles = {
     transition: 'var(--transition)',
   },
   navLinkActive: {
-    color: 'var(--text-primary)',
-    background: 'rgba(15,23,42,0.05)',
+    color: 'var(--primary-light)',
+    background: 'var(--bg-subtle)',
   },
   dropdownContainer: {
     position: 'relative',
@@ -230,11 +229,11 @@ const styles = {
     transform: 'translateX(-50%)',
     marginTop: '8px',
     width: '240px',
-    background: 'rgba(255, 255, 255, 0.96)',
+    background: 'var(--bg-card)',
     border: '1px solid var(--border-color)',
     borderRadius: '12px',
     padding: '8px',
-    boxShadow: '0 10px 25px rgba(15,23,42,0.12)',
+    boxShadow: '0 10px 25px var(--shadow-color)',
     backdropFilter: 'blur(20px)',
     display: 'flex',
     flexDirection: 'column',
@@ -291,13 +290,13 @@ const styles = {
     top: 'var(--navbar-height)',
     left: 0,
     width: '100%',
-    background: 'rgba(255, 255, 255, 0.98)',
+    background: 'var(--bg-card)',
     borderBottom: '1px solid var(--border-color)',
     padding: '20px 24px',
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
-    boxShadow: '0 10px 20px rgba(15,23,42,0.12)',
+    boxShadow: '0 10px 20px var(--shadow-color)',
     zIndex: 99,
   },
   mobileDivider: {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Lock, Eye, EyeOff, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { login as apiLogin, verifyOtp } from '../../services/api';
+import { logEvent } from '../../utils/logger';
 
 export default function SignIn({ navigate, login, showToast, redirectPath }) {
   const [email, setEmail] = useState('');
@@ -10,6 +11,8 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [error, setError] = useState('');
   const [loadingDots, setLoadingDots] = useState('.');
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
   // Cycle the trailing dots (. / .. / ...) while a submit is in flight
   useEffect(() => {
@@ -39,11 +42,15 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
 
       setLoginSuccess(true);
       showToast('Login successful!', 'success');
+      logEvent('info', 'Login success', { email });
 
       // Store token + api_key in session for use across app
       sessionStorage.setItem('access_token', data.access_token);
       sessionStorage.setItem('api_key', data.api_key);
 
+      // Brief pause so the success state is visible, then navigate. This was
+      // 1200ms — a full extra second of artificial wait the user felt as
+      // "login is slow"; 400ms still flashes the confirmation without dragging.
       setTimeout(() => {
         login({
           name: email.split('@')[0].split('.').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' '),
@@ -52,12 +59,13 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
           access_token: data.access_token,
         });
         navigate(redirectPath || '/dashboard');
-      }, 1200);
+      }, 400);
 
     } catch (err) {
       const msg = err.message || 'Invalid email or password. Please try again.';
       setError(msg);
       showToast(msg, 'error');
+      logEvent('error', 'Login failed', { email, error: msg });
       
       // If the error indicates email is not verified, show OTP screen
       if (msg.toLowerCase().includes('verified') || msg.toLowerCase().includes('otp')) {
@@ -97,7 +105,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
           access_token: data.access_token,
         });
         navigate(redirectPath || '/dashboard');
-      }, 1200);
+      }, 400);
 
     } catch (err) {
       const msg = err.message || 'OTP verification failed. Please try again.';
@@ -124,7 +132,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
             <div className="form-group">
               <label className="form-label">Email Address</label>
               <div style={styles.inputWrapper}>
-                <Mail size={16} color="var(--text-muted)" style={styles.inputIcon} />
+                <Mail size={16} color={emailFocused ? "var(--primary)" : "var(--text-muted)"} style={styles.inputIcon} />
                 <input
                   type="email"
                   required
@@ -133,6 +141,8 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
                   placeholder="Enter your email"
                   className="form-input"
                   style={styles.input}
+                  onFocus={() => setEmailFocused(true)}
+                  onBlur={() => setEmailFocused(false)}
                 />
               </div>
             </div>
@@ -141,7 +151,7 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
             <div className="form-group">
               <label className="form-label">Password</label>
               <div style={styles.inputWrapper}>
-                <Lock size={16} color="var(--text-muted)" style={styles.inputIcon} />
+                <Lock size={16} color={passwordFocused ? "var(--primary)" : "var(--text-muted)"} style={styles.inputIcon} />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
@@ -150,6 +160,8 @@ export default function SignIn({ navigate, login, showToast, redirectPath }) {
                   placeholder="Enter your password"
                   className="form-input"
                   style={styles.input}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
                 />
                 <button
                   type="button"
@@ -309,6 +321,7 @@ const styles = {
     position: 'absolute',
     left: '16px',
     pointerEvents: 'none',
+    transition: 'var(--transition)',
   },
   input: {
     paddingLeft: '44px',

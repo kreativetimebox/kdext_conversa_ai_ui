@@ -34,6 +34,13 @@ export function getWsBaseUrl() {
   return CONFIGURED_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
 }
 
+// WebSocket URL for the live voice-translation endpoint.
+// The browser cannot set custom headers on WebSocket connections, so the
+// API key is passed as a query parameter — same pattern as /ws/translate.
+export function getVoiceTranslateWsUrl(apiKey) {
+  return `${getWsBaseUrl()}/ws/voice-translate?api_key=${encodeURIComponent(apiKey)}`;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function handleResponse(res) {
@@ -206,9 +213,12 @@ export async function demoSTT(file, language = null) {
 
 /**
  * GET /jobs/{job_id}  (requires api_key)
+ * Pass jobType ('tts' | 'stt') when known — it lets the gateway skip querying
+ * the other job table, which halves the DB work on every poll.
  */
-export async function getJobStatus(apiKey, jobId) {
-  const res = await fetch(`${BASE_URL}/jobs/${jobId}`, {
+export async function getJobStatus(apiKey, jobId, jobType = null) {
+  const qs = jobType ? `?type=${jobType}` : '';
+  const res = await fetch(`${BASE_URL}/jobs/${jobId}${qs}`, {
     headers: { 'x-api-key': apiKey },
   });
   return handleResponse(res);

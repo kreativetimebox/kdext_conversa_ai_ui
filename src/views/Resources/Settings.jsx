@@ -1,34 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Moon, Sun, Type, Monitor, Eye, Layout } from 'lucide-react';
+import { downloadLogs, clearLogs } from '../../utils/logger';
 
 export default function Settings({ user, showToast }) {
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState(() => localStorage.getItem('conversa_theme') || 'light');
   const [textSize, setTextSize] = useState('medium');
   const [animations, setAnimations] = useState(true);
 
-  // Apply settings to document when they change (Mocking the actual CSS variable overrides for now)
+  // Apply settings to document when they change
   useEffect(() => {
-    // In a real app, this would append a class to document.body
-    if (theme === 'light') {
-      document.documentElement.style.setProperty('--bg-main', '#0f172a');
-      document.documentElement.style.setProperty('--text-primary', '#0f172a');
-      document.documentElement.style.setProperty('--text-secondary', '#475569');
-      document.documentElement.style.setProperty('--bg-card', 'rgba(0, 0, 0, 0.03)');
-    } else if (theme === 'contrast') {
-      document.documentElement.style.setProperty('--bg-main', '#000000');
-      document.documentElement.style.setProperty('--text-primary', '#ffffff');
-      document.documentElement.style.setProperty('--text-secondary', '#1e293b');
-      document.documentElement.style.setProperty('--primary', '#ffff00');
-      document.documentElement.style.setProperty('--primary-light', '#ffff00');
-    } else {
-      // Default dark theme (reset)
-      document.documentElement.style.removeProperty('--bg-main');
-      document.documentElement.style.removeProperty('--text-primary');
-      document.documentElement.style.removeProperty('--text-secondary');
-      document.documentElement.style.removeProperty('--bg-card');
-      document.documentElement.style.removeProperty('--primary');
-      document.documentElement.style.removeProperty('--primary-light');
-    }
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('conversa_theme', theme);
   }, [theme]);
 
   useEffect(() => {
@@ -44,12 +26,24 @@ export default function Settings({ user, showToast }) {
   const saveSettings = () => {
     showToast('Preferences saved successfully', 'success');
   };
+  const handleDownloadLogs = () => {
+    downloadLogs();
+    showToast('Debug logs downloaded', 'success');
+  };
+
+  const handleClearLogs = () => {
+    if (window.confirm('Clear all debug logs? This cannot be undone.')) {
+      clearLogs();
+      showToast('Debug logs cleared', 'info');
+    }
+  };
+  
 
   return (
-    <div style={styles.container} className="animate-fade-in">
-      <div style={styles.header}>
-        <h2 style={styles.title}>Preferences</h2>
-        <p style={styles.sub}>Customize your Conversa AI workspace</p>
+    <div className="page-container animate-fade-in settings-page">
+      <div className="page-header">
+        <h1 className="page-title">Preferences</h1>
+        <p className="page-subtitle">Customize your Conversa AI workspace</p>
       </div>
 
       <div style={styles.card} className="glass-card">
@@ -62,28 +56,43 @@ export default function Settings({ user, showToast }) {
           </div>
           <div style={styles.optionsGrid}>
             <button 
-              style={{...styles.optionCard, ...(theme === 'dark' ? styles.optionActive : {})}}
-              onClick={() => setTheme('dark')}
-            >
-              <Moon size={24} color={theme === 'dark' ? 'var(--primary-light)' : 'var(--text-muted)'} />
-              <div style={styles.optionLabel}>Dark Mode</div>
-              <div style={styles.optionDesc}>Default sleek dark theme</div>
-            </button>
-            <button 
-              style={{...styles.optionCard, ...(theme === 'light' ? styles.optionActive : {})}}
+              style={{
+                ...styles.optionCard, 
+                ...styles.lightPreview, 
+                ...(theme === 'light' ? styles.lightPreviewActive : {})
+              }}
               onClick={() => setTheme('light')}
+              className="glass-card-hover"
             >
-              <Sun size={24} color={theme === 'light' ? 'var(--primary-light)' : 'var(--text-muted)'} />
-              <div style={styles.optionLabel}>Light Mode</div>
-              <div style={styles.optionDesc}>Clean and bright interface</div>
+              <Sun size={24} color={theme === 'light' ? '#2563eb' : '#64748b'} />
+              <div style={{...styles.optionLabel, color: '#0f172a'}}>Light Mode</div>
+              <div style={{...styles.optionDesc, color: '#475569'}}>Clean and bright interface</div>
             </button>
             <button 
-              style={{...styles.optionCard, ...(theme === 'contrast' ? styles.optionActive : {})}}
-              onClick={() => setTheme('contrast')}
+              style={{
+                ...styles.optionCard, 
+                ...styles.darkPreview, 
+                ...(theme === 'dark' ? styles.darkPreviewActive : {})
+              }}
+              onClick={() => setTheme('dark')}
+              className="glass-card-hover"
             >
-              <Eye size={24} color={theme === 'contrast' ? 'var(--primary-light)' : 'var(--text-muted)'} />
-              <div style={styles.optionLabel}>High Contrast</div>
-              <div style={styles.optionDesc}>Maximum readability</div>
+              <Moon size={24} color={theme === 'dark' ? '#3b82f6' : '#94a3b8'} />
+              <div style={{...styles.optionLabel, color: '#f8fafc'}}>Dark Mode</div>
+              <div style={{...styles.optionDesc, color: '#94a3b8'}}>Default sleek dark theme</div>
+            </button>
+            <button 
+              style={{
+                ...styles.optionCard, 
+                ...styles.contrastPreview, 
+                ...(theme === 'contrast' ? styles.contrastPreviewActive : {})
+              }}
+              onClick={() => setTheme('contrast')}
+              className="glass-card-hover"
+            >
+              <Eye size={24} color={theme === 'contrast' ? '#ffff00' : '#ffffff'} />
+              <div style={{...styles.optionLabel, color: '#ffffff'}}>High Contrast</div>
+              <div style={{...styles.optionDesc, color: '#ffff00'}}>Maximum readability</div>
             </button>
           </div>
         </div>
@@ -97,7 +106,7 @@ export default function Settings({ user, showToast }) {
             <h3 style={styles.sectionTitle}>Accessibility</h3>
           </div>
           
-          <div style={styles.formRow}>
+          <div style={styles.formRow} className="settings-form-row">
             <div style={styles.formLabel}>
               <div>Text Size</div>
               <div style={styles.formDesc}>Adjust global typography scale</div>
@@ -118,15 +127,41 @@ export default function Settings({ user, showToast }) {
             </div>
           </div>
 
-          <div style={styles.formRow}>
+          <div style={styles.formRow} className="settings-form-row">
             <div style={styles.formLabel}>
               <div>Reduce Motion</div>
               <div style={styles.formDesc}>Disable UI animations and transitions</div>
             </div>
             <label style={styles.switch}>
               <input type="checkbox" checked={!animations} onChange={(e) => setAnimations(!e.target.checked)} style={styles.switchInput} />
-              <span style={{...styles.slider, ...(!animations ? styles.sliderChecked : {})}}></span>
+              <span style={{...styles.slider, ...(!animations ? styles.sliderChecked : {})}}>
+                <span style={{...styles.sliderThumb, ...(!animations ? styles.sliderThumbChecked : {})}}></span>
+              </span>
             </label>
+          </div>
+        </div>
+
+        <hr style={styles.divider} />
+
+        {/* Debug / Audit Logs */}
+        <div style={styles.section}>
+          <div style={styles.sectionHeader}>
+            <Monitor size={18} color="var(--secondary)" />
+            <h3 style={styles.sectionTitle}>Debug Logs</h3>
+          </div>
+          <div style={styles.formRow} className="settings-form-row">
+            <div style={styles.formLabel}>
+              <div>Activity & Error Log</div>
+              <div style={styles.formDesc}>Download a record of app activity and errors for troubleshooting</div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="btn" onClick={handleClearLogs} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                Clear Logs
+              </button>
+              <button className="btn btn-primary" onClick={handleDownloadLogs} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                Download Logs
+              </button>
+            </div>
           </div>
         </div>
 
@@ -141,26 +176,6 @@ export default function Settings({ user, showToast }) {
 }
 
 const styles = {
-  container: {
-    padding: '32px 40px',
-    height: '100%',
-    overflowY: 'auto',
-    maxWidth: '900px',
-    margin: '0 auto',
-    width: '100%',
-  },
-  header: {
-    marginBottom: '32px',
-  },
-  title: {
-    fontSize: '2rem',
-    color: 'var(--text-primary)',
-    marginBottom: '8px',
-  },
-  sub: {
-    color: 'var(--text-secondary)',
-    fontSize: '1rem',
-  },
   card: {
     padding: '32px',
     borderRadius: '16px',
@@ -201,6 +216,30 @@ const styles = {
     background: 'rgba(37,99,235, 0.08)',
     borderColor: 'var(--primary)',
     boxShadow: '0 0 15px rgba(37,99,235, 0.1)',
+  },
+  darkPreview: {
+    background: '#1e293b',
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  darkPreviewActive: {
+    borderColor: '#3b82f6',
+    boxShadow: '0 0 15px rgba(59,130,246,0.25)',
+  },
+  lightPreview: {
+    background: '#ffffff',
+    borderColor: 'rgba(15,23,42,0.08)',
+  },
+  lightPreviewActive: {
+    borderColor: '#2563eb',
+    boxShadow: '0 0 15px rgba(37,99,235,0.15)',
+  },
+  contrastPreview: {
+    background: '#121212',
+    borderColor: '#ffffff',
+  },
+  contrastPreviewActive: {
+    borderColor: '#ffff00',
+    boxShadow: '0 0 15px rgba(255,255,0,0.3)',
   },
   optionLabel: {
     fontSize: '1.05rem',
@@ -280,6 +319,20 @@ const styles = {
   },
   sliderChecked: {
     background: 'var(--primary)',
+  },
+  sliderThumb: {
+    position: 'absolute',
+    height: '18px',
+    width: '18px',
+    left: '3px',
+    bottom: '3px',
+    backgroundColor: 'white',
+    transition: '.4s',
+    borderRadius: '50%',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+  },
+  sliderThumbChecked: {
+    transform: 'translateX(24px)',
   },
   footer: {
     marginTop: '32px',

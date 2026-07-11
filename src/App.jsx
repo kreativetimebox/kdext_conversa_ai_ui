@@ -28,7 +28,7 @@ export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [user, setUser] = useState(null);
   const [toasts, setToasts] = useState([]);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(window.innerWidth < 1024);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(!!sessionStorage.getItem('access_token'));
 
@@ -40,6 +40,23 @@ export default function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Initialize theme from localStorage on startup
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('conversa_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
+  // Auto-collapse sidebar on tablet view
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024 && !isSidebarCollapsed) {
+        setIsSidebarCollapsed(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isSidebarCollapsed]);
 
   // Session Recovery
   useEffect(() => {
@@ -176,11 +193,11 @@ export default function App() {
         return <History historyData={historyData} showToast={showToast} />;
       case path === '/services':
       case path === '/services/hub':
-        return <VoiceTools showToast={showToast} defaultSubView="hub" user={user} setHistoryData={setHistoryData} />;
+        return <VoiceTools navigate={navigate} showToast={showToast} defaultSubView="hub" user={user} setHistoryData={setHistoryData} />;
       case path === '/services/tts':
-        return <VoiceTools showToast={showToast} defaultSubView="tts" user={user} setHistoryData={setHistoryData} />;
+        return <VoiceTools navigate={navigate} showToast={showToast} defaultSubView="tts" user={user} setHistoryData={setHistoryData} />;
       case path === '/services/stt':
-        return <VoiceTools showToast={showToast} defaultSubView="stt" user={user} setHistoryData={setHistoryData} />;
+        return <VoiceTools navigate={navigate} showToast={showToast} defaultSubView="stt" user={user} setHistoryData={setHistoryData} />;
       case path === '/chat' || path.startsWith('/chat/'):
         return <Chat navigate={navigate} user={user} showToast={showToast} currentPath={path} />;
       case path === '/translate':
@@ -302,10 +319,10 @@ const styles = {
     padding: '16px 20px',
     cursor: 'pointer',
     borderLeft: '4px solid transparent',
-    boxShadow: '0 10px 25px rgba(15,23,42,0.12)',
+    boxShadow: '0 10px 25px var(--shadow-color)',
     display: 'flex',
     alignItems: 'center',
-    background: 'rgba(255, 255, 255, 0.96)',
+    background: 'var(--bg-card)',
     backdropFilter: 'blur(10px)',
   },
   toastText: {

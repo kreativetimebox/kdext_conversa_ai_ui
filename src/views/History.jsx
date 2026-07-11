@@ -64,10 +64,10 @@ export default function History({ historyData, showToast }) {
   };
 
   return (
-    <div style={styles.page} className="animate-fade-in">
-      <div style={styles.header}>
-        <h1 style={styles.title}>Processing History</h1>
-        <p style={styles.sub}>View and track all your speech synthesis and voice transcribing activities.</p>
+    <div className="page-container animate-fade-in history-page">
+      <div className="page-header">
+        <h1 className="page-title">Processing History</h1>
+        <p className="page-subtitle">View and track all your speech synthesis and voice transcribing activities.</p>
       </div>
 
       {/* Tabs */}
@@ -123,13 +123,13 @@ export default function History({ historyData, showToast }) {
       {activeTab === 'voice-logs' && (
         <div className="animate-fade-in">
           {/* Filters Bar */}
-          <div style={styles.filtersBar}>
+          <div style={styles.filtersBar} className="history-filters-bar">
             {/* Search Bar */}
-            <div style={styles.searchWrapper}>
+            <div style={styles.searchWrapper} className="history-search-wrapper">
               <Search size={16} color="var(--text-muted)" style={styles.searchIcon} />
-              <input 
-                type="text" 
-                placeholder="Search by filename..." 
+              <input
+                type="text"
+                placeholder="Search by filename..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={styles.searchInput}
@@ -138,10 +138,11 @@ export default function History({ historyData, showToast }) {
             </div>
 
             {/* Dropdown 1: Type */}
-            <select 
-              value={typeFilter} 
+            <select
+              value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
               style={styles.filterSelect}
+              className="history-filter-select"
             >
               <option value="all">All Types</option>
               <option value="tts">Text to Speech</option>
@@ -149,10 +150,11 @@ export default function History({ historyData, showToast }) {
             </select>
 
             {/* Dropdown 2: Status */}
-            <select 
-              value={statusFilter} 
+            <select
+              value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               style={styles.filterSelect}
+              className="history-filter-select"
             >
               <option value="all">All Statuses</option>
               <option value="completed">Completed</option>
@@ -236,7 +238,7 @@ export default function History({ historyData, showToast }) {
       {/* Details Modal */}
       {selectedDoc && (
         <div style={styles.modalOverlay}>
-          <div className="glass-card" style={styles.modal} className="glass-card animate-fade-in">
+          <div className="glass-card animate-fade-in" style={styles.modal}>
             <div style={styles.modalHeader}>
               <h3 style={styles.modalTitle}>Audio Job Details</h3>
               <button onClick={() => setSelectedDoc(null)} style={styles.modalCloseBtn} className="history-modal-close-btn">
@@ -245,7 +247,7 @@ export default function History({ historyData, showToast }) {
             </div>
             
             <div style={styles.modalBody}>
-              <div style={styles.metaGrid}>
+              <div style={styles.metaGrid} className="history-meta-grid">
                 <div>
                   <span style={styles.metaLabel}>Filename</span>
                   <div style={styles.metaVal}>{selectedDoc.name}</div>
@@ -309,26 +311,8 @@ export default function History({ historyData, showToast }) {
 }
 
 const styles = {
-  page: {
-    maxWidth: 'var(--max-width)',
-    margin: '0 auto',
-    padding: '40px 24px 80px 24px',
-    width: '100%',
-    height: '100%',
-    overflowY: 'auto',
-  },
-  header: {
-    marginBottom: '32px',
-  },
-  title: {
-    fontSize: '2rem',
-    color: 'var(--text-primary)',
-    marginBottom: '8px',
-  },
-  sub: {
-    fontSize: '0.92rem',
-    color: 'var(--text-secondary)',
-  },
+
+
   overviewTab: {
     display: 'flex',
     flexDirection: 'column',
@@ -408,7 +392,7 @@ const styles = {
   },
   filterSelect: {
     padding: '10px 16px',
-    background: '#f6f9fe',
+    background: 'var(--bg-subtle)',
     border: '1px solid var(--border-color)',
     borderRadius: '8px',
     color: 'var(--text-secondary)',
@@ -455,8 +439,8 @@ const styles = {
     top: 0,
     left: 0,
     width: '100vw',
-    height: '100vh',
-    background: 'rgba(255, 255, 255, 0.85)',
+    height: '100dvh',
+    background: 'var(--bg-overlay)',
     backdropFilter: 'blur(4px)',
     display: 'flex',
     alignItems: 'center',
@@ -468,6 +452,8 @@ const styles = {
     maxWidth: '500px',
     padding: '28px',
     boxShadow: '0 20px 40px rgba(15,23,42,0.14)',
+    maxHeight: '90vh',
+    overflowY: 'auto',
   },
   modalHeader: {
     display: 'flex',
@@ -527,8 +513,8 @@ const styles = {
   jsonPre: {
     margin: 0,
     padding: '12px',
-    background: '#eaf1fc',
-    color: '#34d399',
+    background: 'var(--bg-subtle)',
+    color: 'var(--success)',
     fontFamily: 'monospace',
     fontSize: '0.82rem',
     maxHeight: '180px',

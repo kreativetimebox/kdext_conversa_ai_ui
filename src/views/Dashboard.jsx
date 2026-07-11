@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Plus, Copy, Check, Eye, EyeOff, Trash2, TrendingUp, Volume2, Activity,
-  ArrowRight, BookOpen, History, Shield, CreditCard, X, Mic, BarChart2, Globe
+  Plus, Copy, Check, Eye, EyeOff, Trash2, FileText, TrendingUp, Volume2, Activity,
+  ArrowRight, BookOpen, History, Shield, CreditCard, X, Mic, Timer, BarChart2, Globe
 } from 'lucide-react';
-// YAHAN CHANGE HUA HAI: getConversations ko import kiya hai
 import { getProfile, getConversations } from '../services/api';
 
 export default function Dashboard({ 
@@ -20,26 +19,22 @@ export default function Dashboard({
   const [selectedApiKey, setSelectedApiKey] = useState('all');
   const [hoveredBar, setHoveredBar] = useState(null);
 
-  // YAHAN API CALL HUI HAI
   useEffect(() => {
     const fetchDashboardData = async () => {
       const token = sessionStorage.getItem('access_token');
       if (token) {
         try {
-          // A. Pehle Profile fetch karo
           const profileData = await getProfile(token);
           setProfile(profileData);
 
-          // B. Ab sahi API (/conversations) call karo Profile ki API key use karke
           if (profileData && profileData.api_key) {
             const logsData = await getConversations(profileData.api_key);
-            
             const finalLogs = Array.isArray(logsData) ? logsData : (logsData?.items || logsData?.data || []);
             setRealHistoryData(finalLogs.length > 0 ? finalLogs : historyData);
           }
         } catch (e) {
           console.error("Failed to load dashboard data from API:", e);
-          setRealHistoryData(historyData); // Error aaye toh dummy data dikhao
+          setRealHistoryData(historyData); 
         }
       }
     };
@@ -91,22 +86,15 @@ export default function Dashboard({
         return [
           { label: '04:00', stt: Math.ceil(2 * m), tts: Math.ceil(4 * m), trans: Math.ceil(3 * m), total: Math.ceil(9 * m) },
           { label: '08:00', stt: Math.ceil(8 * m), tts: Math.ceil(5 * m), trans: Math.ceil(6 * m), total: Math.ceil(19 * m) },
-          { label: '12:00', stt: Math.ceil(15 * m), tts: Math.ceil(10 * m), trans: Math.ceil(8 * m), total: Math.ceil(33 * m) },
-          { label: '16:00', stt: Math.ceil(9 * m), tts: Math.ceil(12 * m), trans: Math.ceil(14 * m), total: Math.ceil(35 * m) },
-          { label: '20:00', stt: Math.ceil(4 * m), tts: Math.ceil(3 * m), trans: Math.ceil(5 * m), total: Math.ceil(12 * m) },
         ];
       } else if (timeFilter === '30d') {
         return [
           { label: 'Week 1', stt: Math.ceil(20 * m), tts: Math.ceil(35 * m), trans: Math.ceil(25 * m), total: Math.ceil(80 * m) },
           { label: 'Week 2', stt: Math.ceil(45 * m), tts: Math.ceil(50 * m), trans: Math.ceil(40 * m), total: Math.ceil(135 * m) },
-          { label: 'Week 3', stt: Math.ceil(30 * m), tts: Math.ceil(28 * m), trans: Math.ceil(35 * m), total: Math.ceil(93 * m) },
-          { label: 'Week 4', stt: Math.ceil(60 * m), tts: Math.ceil(40 * m), trans: Math.ceil(55 * m), total: Math.ceil(155 * m) },
         ];
       } else {
         return [
           { label: 'May', stt: Math.ceil(120 * m), tts: Math.ceil(140 * m), trans: Math.ceil(90 * m), total: Math.ceil(350 * m) },
-          { label: 'Jun', stt: Math.ceil(180 * m), tts: Math.ceil(210 * m), trans: Math.ceil(160 * m), total: Math.ceil(550 * m) },
-          { label: 'Jul', stt: Math.ceil(250 * m), tts: Math.ceil(220 * m), trans: Math.ceil(200 * m), total: Math.ceil(670 * m) },
         ];
       }
     }
@@ -154,12 +142,10 @@ export default function Dashboard({
   };
 
   return (
-    <div style={styles.page} className="animate-fade-in dashboard-page">
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.title}>Dashboard</h1>
-          <p style={styles.sub}>Manage your API keys and monitor usage analytics.</p>
-        </div>
+    <div className="page-container animate-fade-in dashboard-page" style={styles.page}>
+      <div className="page-header" style={styles.header}>
+        <h1 className="page-title" style={styles.title}>Dashboard</h1>
+        <p className="page-subtitle" style={styles.sub}>Manage your API keys and monitor usage analytics.</p>
       </div>
 
       <div className="glass-card" style={{ ...styles.card, padding: '16px 24px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
@@ -185,7 +171,7 @@ export default function Dashboard({
         </div>
       </div>
 
-      <div style={styles.statsGrid}>
+      <div className="dashboard-stats-grid" style={styles.statsGrid}>
         <div className="glass-card" style={styles.statCard}>
           <div style={styles.statTop}><span style={styles.statLabel}>Total Requests</span><Activity size={18} color="var(--primary-light)" /></div>
           <div style={styles.statVal}>{dynamicTotal}</div>
@@ -233,17 +219,8 @@ export default function Dashboard({
               {chartData.map((d, idx) => {
                 const heightPercent = Math.min((d.total / maxChartValue) * 100, 100);
                 return (
-                  <div 
-                    key={idx} 
-                    style={styles.barCol}
-                    onMouseEnter={() => setHoveredBar(idx)}
-                    onMouseLeave={() => setHoveredBar(null)}
-                  >
-                    <div style={{
-                      ...styles.barTooltip,
-                      opacity: hoveredBar === idx ? 1 : 0,
-                      bottom: `${Math.max(heightPercent, 5) + 15}%` 
-                    }}>
+                  <div key={idx} style={styles.barCol} onMouseEnter={() => setHoveredBar(idx)} onMouseLeave={() => setHoveredBar(null)}>
+                    <div style={{ ...styles.barTooltip, opacity: hoveredBar === idx ? 1 : 0, bottom: `${Math.max(heightPercent, 5) + 15}%` }}>
                       <div>Total: <strong>{d.total}</strong></div>
                       <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
                         TTS: {d.tts} | STT: {d.stt} | Trans: {d.trans}
@@ -291,6 +268,33 @@ export default function Dashboard({
         </div>
 
         <div style={styles.rightCol}>
+          <div className="glass-card" style={styles.card}>
+            <h3 style={{...styles.cardTitle, marginBottom: '16px'}}>Quick Actions</h3>
+            <div className="dashboard-actions-grid" style={{ display: 'grid', gap: '16px' }}>
+              <div onClick={() => navigate('/documentation')} style={styles.actionItem} className="glass-card-hover">
+                <BookOpen size={18} color="var(--primary-light)" />
+                <div>
+                  <div style={styles.actionTitle}>API Docs</div>
+                  <div style={styles.actionDesc}>View integration guides</div>
+                </div>
+              </div>
+              <div onClick={() => navigate('/history')} style={styles.actionItem} className="glass-card-hover">
+                <History size={18} color="var(--primary-light)" />
+                <div>
+                  <div style={styles.actionTitle}>History</div>
+                  <div style={styles.actionDesc}>All processed tasks</div>
+                </div>
+              </div>
+              <div onClick={() => navigate('/documentation')} style={styles.actionItem} className="glass-card-hover">
+                <Shield size={18} color="var(--primary-light)" />
+                <div>
+                  <div style={styles.actionTitle}>Usage Analytics</div>
+                  <div style={styles.actionDesc}>Monitor API keys metrics</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="glass-card" style={styles.card}>
             <h3 style={{...styles.cardTitle, marginBottom: '16px'}}>Subscription &amp; Billing</h3>
             <div style={styles.planBanner}>
@@ -352,12 +356,15 @@ const styles = {
   keyCode: { fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--primary-light)', wordBreak: 'break-all' },
   keyCreated: { fontSize: '0.75rem', color: 'var(--text-muted)' },
   keyActions: { display: 'flex', gap: '8px' },
-  iconBtn: { background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'var(--transition)' },
+  actionItem: { display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-color)', cursor: 'pointer', background: 'rgba(15,23,42,0.01)', transition: 'var(--transition)', textAlign: 'left' },
+  actionTitle: { fontSize: '0.88rem', fontWeight: '600', color: 'var(--text-primary)' },
+  actionDesc: { fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' },
   planBanner: { display: 'flex', flexDirection: 'column', gap: '16px' },
   planHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   planLimit: { fontSize: '0.82rem', color: 'var(--text-muted)' },
   progressContainer: { display: 'flex', flexDirection: 'column', gap: '8px' },
   progressLabels: { display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' },
   progressBarBg: { width: '100%', height: '8px', background: 'rgba(15,23,42,0.04)', borderRadius: '4px', overflow: 'hidden' },
-  progressBarFill: { height: '100%', background: 'linear-gradient(to right, var(--primary), var(--secondary))', borderRadius: '4px' }
+  progressBarFill: { height: '100%', background: 'linear-gradient(to right, var(--primary), var(--secondary))', borderRadius: '4px', transition: 'width 0.4s ease' }
 };
