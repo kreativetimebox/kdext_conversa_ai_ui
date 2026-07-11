@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/logo.svg';
+import ThemeToggle from './ThemeToggle';
 import {
   FileText,
   ChevronDown,
@@ -42,14 +44,20 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
 
   return (
     <nav style={styles.nav}>
-      <div style={styles.navContainer}>
-        {/* Brand Logo */}
-        <div onClick={() => navigateTo('/')} className="navbar-brand">
+      <div style={styles.navContainer} className="navbar-container">
+        {/* Brand Logo — extreme left */}
+        <motion.div
+          onClick={() => navigateTo('/')}
+          className="navbar-brand"
+          style={styles.brandCol}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+        >
           <img src={logo} alt="Conversa AI" style={{ width: '32px', height: '32px' }} />
           <span>Conversa AI</span>
-        </div>
+        </motion.div>
 
-        {/* Desktop Menu */}
+        {/* Desktop Menu — centered */}
         <div style={styles.navLinks} className="nav-links-desktop">
           <button
             onClick={() => navigateTo('/')}
@@ -79,42 +87,50 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
               Resources
               <ChevronDown size={14} style={{ transform: resourcesOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
             </button>
-            {resourcesOpen && (
-              <div style={styles.dropdownMenu} className="animate-fade-in">
-                <div onMouseDown={() => navigateTo('/help-center')} style={styles.dropdownItem}>
-                  <HelpCircle size={16} color="#3b82f6" />
-                  <div>
-                    <div style={styles.dropdownItemTitle}>Help Center</div>
-                    <div style={styles.dropdownItemDesc}>Guides & FAQ support</div>
+            <AnimatePresence>
+              {resourcesOpen && (
+                <motion.div
+                  style={styles.dropdownMenu}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <div onMouseDown={() => navigateTo('/help-center')} style={styles.dropdownItem}>
+                    <HelpCircle size={16} color="#a78bfa" />
+                    <div>
+                      <div style={styles.dropdownItemTitle}>Help Center</div>
+                      <div style={styles.dropdownItemDesc}>Guides & FAQ support</div>
+                    </div>
                   </div>
-                </div>
-                <div onMouseDown={() => navigateTo('/system-status')} style={styles.dropdownItem}>
-                  <Activity size={16} color="#059669" />
-                  <div>
-                    <div style={styles.dropdownItemTitle}>System Status</div>
-                    <div style={styles.dropdownItemDesc}>Real-time uptime metrics</div>
+                  <div onMouseDown={() => navigateTo('/system-status')} style={styles.dropdownItem}>
+                    <Activity size={16} color="#059669" />
+                    <div>
+                      <div style={styles.dropdownItemTitle}>System Status</div>
+                      <div style={styles.dropdownItemDesc}>Real-time uptime metrics</div>
+                    </div>
                   </div>
-                </div>
-                <div onMouseDown={() => navigateTo('/about-us')} style={styles.dropdownItem}>
-                  <Info size={16} color="#f59e0b" />
-                  <div>
-                    <div style={styles.dropdownItemTitle}>About Us</div>
-                    <div style={styles.dropdownItemDesc}>Our story & values</div>
+                  <div onMouseDown={() => navigateTo('/about-us')} style={styles.dropdownItem}>
+                    <Info size={16} color="#f59e0b" />
+                    <div>
+                      <div style={styles.dropdownItemTitle}>About Us</div>
+                      <div style={styles.dropdownItemDesc}>Our story & values</div>
+                    </div>
                   </div>
-                </div>
-                <div onMouseDown={() => navigateTo('/contact')} style={styles.dropdownItem}>
-                  <Mail size={16} color="#0ea5e9" />
-                  <div>
-                    <div style={styles.dropdownItemTitle}>Contact</div>
-                    <div style={styles.dropdownItemDesc}>Get in touch with us</div>
+                  <div onMouseDown={() => navigateTo('/contact')} style={styles.dropdownItem}>
+                    <Mail size={16} color="#0891b2" />
+                    <div>
+                      <div style={styles.dropdownItemTitle}>Contact</div>
+                      <div style={styles.dropdownItemDesc}>Get in touch with us</div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
-        {/* Auth Buttons / Go To App */}
+        {/* Auth Buttons + Theme Toggle — extreme right */}
         <div style={styles.authSection} className="auth-section-desktop">
           {user ? (
             <button onClick={() => navigateTo('/chat')} className="btn btn-primary" style={styles.getStartedBtn}>
@@ -130,6 +146,7 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
               </button>
             </>
           )}
+          <ThemeToggle />
         </div>
 
         {/* Mobile menu toggle */}
@@ -139,27 +156,39 @@ export default function Navbar({ currentPath, navigate, user, logout, showToast 
       </div>
 
       {/* Mobile Menu Drawer */}
-      {mobileMenuOpen && (
-        <div style={styles.mobileMenu} className="animate-fade-in">
-          <button onClick={() => navigateTo('/')} style={styles.mobileNavLink}>Home</button>
-          <button onClick={() => navigateTo('/documentation')} style={styles.mobileNavLink}>Documentation</button>
-          <hr style={styles.mobileDivider} />
-          <button onClick={() => navigateTo('/help-center')} style={styles.mobileNavLink}>Help Center</button>
-          <button onClick={() => navigateTo('/system-status')} style={styles.mobileNavLink}>System Status</button>
-          <button onClick={() => navigateTo('/about-us')} style={styles.mobileNavLink}>About Us</button>
-          <button onClick={() => navigateTo('/contact')} style={styles.mobileNavLink}>Contact</button>
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            style={styles.mobileMenu}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22 }}
+          >
+            <button onClick={() => navigateTo('/')} style={styles.mobileNavLink}>Home</button>
+            <button onClick={() => navigateTo('/documentation')} style={styles.mobileNavLink}>Documentation</button>
+            <hr style={styles.mobileDivider} />
+            <button onClick={() => navigateTo('/help-center')} style={styles.mobileNavLink}>Help Center</button>
+            <button onClick={() => navigateTo('/system-status')} style={styles.mobileNavLink}>System Status</button>
+            <button onClick={() => navigateTo('/about-us')} style={styles.mobileNavLink}>About Us</button>
+            <button onClick={() => navigateTo('/contact')} style={styles.mobileNavLink}>Contact</button>
 
-          <hr style={styles.mobileDivider} />
-          {user ? (
-            <button onClick={() => navigateTo('/chat')} className="btn btn-primary" style={{ width: '100%' }}>Go to App</button>
-          ) : (
-            <div style={styles.mobileAuthBtns}>
-              <button onClick={() => navigateTo('/signin')} style={styles.mobileSignInBtn}>Sign In</button>
-              <button onClick={() => navigateTo('/signup')} className="btn btn-primary" style={{ width: '100%' }}>Get Started</button>
+            <hr style={styles.mobileDivider} />
+            {user ? (
+              <button onClick={() => navigateTo('/chat')} className="btn btn-primary" style={{ width: '100%' }}>Go to App</button>
+            ) : (
+              <div style={styles.mobileAuthBtns}>
+                <button onClick={() => navigateTo('/signin')} style={styles.mobileSignInBtn}>Sign In</button>
+                <button onClick={() => navigateTo('/signup')} className="btn btn-primary" style={{ width: '100%' }}>Get Started</button>
+              </div>
+            )}
+            <div style={styles.mobileThemeRow}>
+              <span style={styles.mobileThemeLabel}>Theme</span>
+              <ThemeToggle />
             </div>
-          )}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }
@@ -175,26 +204,31 @@ const styles = {
     top: 0,
     zIndex: 100,
     width: '100%',
+    boxShadow: '0 4px 20px var(--shadow-color)',
   },
   navContainer: {
-    maxWidth: 'var(--max-width)',
+    width: '100%',
     height: '100%',
-    margin: '0 auto',
-    padding: '0 24px',
-    display: 'flex',
+    margin: '0',
+    padding: '0 40px',
+    display: 'grid',
+    gridTemplateColumns: '1fr auto 1fr',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    columnGap: '16px',
     position: 'relative',
   },
+  brandCol: {
+    justifySelf: 'start',
+  },
   logoIcon: {
-    background: 'linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%)',
+    background: 'linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%)',
     width: '32px',
     height: '32px',
     borderRadius: '8px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 2px 8px rgba(37,99,235, 0.3)',
+    boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)',
   },
   navLinks: {
     display: 'flex',
@@ -262,6 +296,7 @@ const styles = {
   authSection: {
     display: 'flex',
     alignItems: 'center',
+    justifySelf: 'end',
     gap: '12px',
   },
   signInBtn: {
@@ -284,6 +319,8 @@ const styles = {
     color: 'var(--text-primary)',
     cursor: 'pointer',
     padding: '4px',
+    gridColumn: '3',
+    justifySelf: 'end',
   },
   mobileMenu: {
     position: 'absolute',
@@ -298,6 +335,7 @@ const styles = {
     gap: '12px',
     boxShadow: '0 10px 20px var(--shadow-color)',
     zIndex: 99,
+    overflow: 'hidden',
   },
   mobileDivider: {
     border: 'none',
@@ -329,5 +367,18 @@ const styles = {
     borderRadius: 'var(--border-radius)',
     fontWeight: '600',
     cursor: 'pointer',
-  }
+  },
+  mobileThemeRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: '12px',
+    paddingTop: '12px',
+    borderTop: '1px solid var(--border-color)',
+  },
+  mobileThemeLabel: {
+    fontSize: '0.9rem',
+    fontWeight: '600',
+    color: 'var(--text-secondary)',
+  },
 };

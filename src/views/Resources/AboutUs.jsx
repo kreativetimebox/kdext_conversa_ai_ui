@@ -20,7 +20,7 @@ export default function AboutUs({ navigate }) {
       {/* Intro */}
       <section style={styles.hero}>
         <span className="badge badge-purple">Our Story</span>
-        <h1 style={styles.title}>About Conversa AI</h1>
+        <h1 style={styles.title} className="hero-page-title">About Conversa AI</h1>
         <p style={styles.sub}>
           We're revolutionizing developer voice integration with cutting-edge Speech-to-Text and Text-to-Speech models, helping businesses automate customer service and content production.
         </p>
@@ -105,7 +105,7 @@ export default function AboutUs({ navigate }) {
       </section>
 
       {/* Team */}
-      <section style={{...styles.section, borderTop: '1px solid var(--border-color)', background: 'rgba(37,99,235, 0.01)'}}>
+      <section style={{...styles.section, borderTop: '1px solid var(--border-color)', background: 'rgba(124, 58, 237, 0.01)'}}>
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Leadership Team</h2>
           <p style={styles.sectionDesc}>Meet the experts behind Conversa AI's innovative technology and customer success.</p>
@@ -281,7 +281,7 @@ const styles = {
     width: '40px',
     height: '40px',
     borderRadius: '8px',
-    background: 'rgba(37,99,235, 0.08)',
+    background: 'rgba(124, 58, 237, 0.08)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -320,7 +320,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: '8px',
-    boxShadow: '0 4px 12px rgba(37,99,235,0.3)',
+    boxShadow: '0 4px 12px rgba(124, 58, 237,0.3)',
   },
   teamName: {
     fontSize: '1.15rem',
@@ -363,7 +363,7 @@ const styles = {
     padding: '0 24px',
   },
   ctaCard: {
-    background: 'radial-gradient(circle at top right, rgba(37,99,235, 0.1) 0%, rgba(14,165,233, 0.02) 70%), rgba(15,23,42,0.015)',
+    background: 'radial-gradient(circle at top right, rgba(124, 58, 237, 0.1) 0%, rgba(6, 182, 212, 0.02) 70%), rgba(15,23,42,0.015)',
     border: '1px solid var(--border-color)',
     borderRadius: '20px',
     padding: '48px 24px',
@@ -385,5 +385,7 @@ const styles = {
     display: 'flex',
     gap: '12px',
     marginTop: '8px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   }
 };

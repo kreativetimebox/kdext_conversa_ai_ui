@@ -48,7 +48,7 @@ export default function HelpCenter({ navigate, showToast }) {
     <div style={styles.page} className="animate-fade-in">
       {/* Search Header Banner */}
       <section style={styles.banner}>
-        <h1 style={styles.title}>How can we help you?</h1>
+        <h1 style={styles.title} className="hero-page-title">How can we help you?</h1>
         <p style={styles.sub}>Search our knowledge base or browse categories below.</p>
         
         <div style={styles.searchBox}>
@@ -108,7 +108,7 @@ export default function HelpCenter({ navigate, showToast }) {
                 style={{
                   ...styles.faqItem,
                   borderColor: activeFaq === idx ? 'var(--primary)' : 'var(--border-color)',
-                  background: activeFaq === idx ? 'rgba(37,99,235, 0.02)' : 'transparent'
+                  background: activeFaq === idx ? 'rgba(124, 58, 237, 0.02)' : 'transparent'
                 }}
               >
                 <div style={styles.faqQuestionRow}>
@@ -151,7 +151,7 @@ const styles = {
     paddingBottom: '80px',
   },
   banner: {
-    background: 'radial-gradient(circle at center, rgba(37,99,235, 0.1) 0%, rgba(255, 255, 255, 0) 70%)',
+    background: 'radial-gradient(circle at center, rgba(124, 58, 237, 0.1) 0%, rgba(255, 255, 255, 0) 70%)',
     padding: '80px 24px',
     textAlign: 'center',
     display: 'flex',
@@ -214,7 +214,7 @@ const styles = {
     width: '42px',
     height: '42px',
     borderRadius: '10px',
-    background: 'rgba(37,99,235, 0.08)',
+    background: 'rgba(124, 58, 237, 0.08)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -275,7 +275,7 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: '16px',
-    background: 'radial-gradient(circle, rgba(37,99,235, 0.05) 0%, rgba(15,23,42,0.01) 100%)',
+    background: 'radial-gradient(circle, rgba(124, 58, 237, 0.05) 0%, rgba(15,23,42,0.01) 100%)',
   },
   ctaTitle: {
     fontSize: '1.5rem',
@@ -290,5 +290,7 @@ const styles = {
     display: 'flex',
     gap: '12px',
     marginTop: '8px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   }
 };

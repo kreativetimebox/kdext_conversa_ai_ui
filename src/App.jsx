@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import Sidebar from './components/Sidebar';
+import AppTopNav from './components/AppTopNav';
 import { getProfile } from './services/api';
 
 // Views
@@ -28,8 +28,6 @@ export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [user, setUser] = useState(null);
   const [toasts, setToasts] = useState([]);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(window.innerWidth < 1024);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(!!sessionStorage.getItem('access_token'));
 
   // Sync state with browser back/forward buttons
@@ -46,17 +44,6 @@ export default function App() {
     const savedTheme = localStorage.getItem('conversa_theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
-
-  // Auto-collapse sidebar on tablet view
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1024 && !isSidebarCollapsed) {
-        setIsSidebarCollapsed(true);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isSidebarCollapsed]);
 
   // Session Recovery
   useEffect(() => {
@@ -83,7 +70,6 @@ export default function App() {
   const navigate = (path) => {
     window.history.pushState(null, '', path);
     setCurrentPath(path);
-    setMobileNavOpen(false); // close the mobile drawer on any navigation
     window.scrollTo(0, 0);
   };
 
@@ -134,8 +120,6 @@ export default function App() {
   const removeToast = (id) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
-
-  const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
 
   // Route resolver helper
   const renderView = () => {
@@ -193,11 +177,10 @@ export default function App() {
         return <History historyData={historyData} showToast={showToast} />;
       case path === '/services':
       case path === '/services/hub':
-        return <VoiceTools navigate={navigate} showToast={showToast} defaultSubView="hub" user={user} setHistoryData={setHistoryData} />;
       case path === '/services/tts':
-        return <VoiceTools navigate={navigate} showToast={showToast} defaultSubView="tts" user={user} setHistoryData={setHistoryData} />;
       case path === '/services/stt':
-        return <VoiceTools navigate={navigate} showToast={showToast} defaultSubView="stt" user={user} setHistoryData={setHistoryData} />;
+        // All Voice Tools routes land on the single Unified Voice Studio page.
+        return <VoiceTools navigate={navigate} showToast={showToast} defaultSubView="studio" user={user} historyData={historyData} setHistoryData={setHistoryData} />;
       case path === '/chat' || path.startsWith('/chat/'):
         return <Chat navigate={navigate} user={user} showToast={showToast} currentPath={path} />;
       case path === '/translate':
@@ -216,8 +199,15 @@ export default function App() {
   const protectedPaths = ['/dashboard', '/history', '/services', '/services/hub', '/services/tts', '/services/stt', '/chat', '/translate', '/profile', '/settings'];
   const isProtected = protectedPaths.some(p => path === p || path.startsWith('/chat/'));
   
-  // Use new Sidebar Layout for logged-in protected routes
+  // Use the top-nav app layout for logged-in protected routes
   const useAppLayout = isProtected && user && !isRestoring;
+  // Chat is a full-height, app-like surface (fixed input bar, internally
+  // scrolling history) — it keeps the old fixed-viewport shell and skips the
+  // footer entirely, rather than the footer sitting glued right beneath a
+  // short greeting screen. Every other app page flows naturally with its
+  // content, so the footer follows directly after whatever content there is
+  // instead of leaving a dead gap on sparse pages.
+  const isChatRoute = path === '/chat' || path.startsWith('/chat/');
 
   return (
     <div style={useAppLayout ? {} : styles.appWrapper} className={useAppLayout ? "app-container" : ""}>
@@ -230,26 +220,16 @@ export default function App() {
 
       {useAppLayout ? (
         <>
-          {/* Mobile-only top bar with hamburger (hidden on desktop via CSS) */}
-          <div className="mobile-topbar">
-            <button className="mobile-menu-btn" onClick={() => setMobileNavOpen(true)} aria-label="Open menu">☰</button>
-            <div className="navbar-brand">Conversa AI</div>
-          </div>
-          {mobileNavOpen && (
-            <div className="sidebar-backdrop" onClick={() => setMobileNavOpen(false)} />
-          )}
-          <Sidebar
-            isCollapsed={isSidebarCollapsed}
-            toggleSidebar={toggleSidebar}
-            onSignOut={logout}
+          <AppTopNav
             navigate={navigate}
             currentPath={currentPath}
             user={user}
-            mobileOpen={mobileNavOpen}
+            onSignOut={logout}
           />
-          <div className="main-content">
+          <div className={`main-content ${isChatRoute ? 'main-content-fill' : ''}`}>
             {renderView()}
           </div>
+          {!isChatRoute && <Footer navigate={navigate} />}
         </>
       ) : (
         <>

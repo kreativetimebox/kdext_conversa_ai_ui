@@ -250,9 +250,9 @@ export default function ApiReference({ navigate, showToast }) {
                 >
                   <span style={{
                     ...styles.methodBadge,
-                    backgroundColor: ep.method === 'POST' ? 'rgba(37,99,235, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                    backgroundColor: ep.method === 'POST' ? 'rgba(124, 58, 237, 0.15)' : 'rgba(59, 130, 246, 0.15)',
                     color: ep.method === 'POST' ? 'var(--primary-light)' : 'var(--info)',
-                    borderColor: ep.method === 'POST' ? 'rgba(37,99,235, 0.3)' : 'rgba(59, 130, 246, 0.3)',
+                    borderColor: ep.method === 'POST' ? 'rgba(124, 58, 237, 0.3)' : 'rgba(59, 130, 246, 0.3)',
                   }}>
                     {ep.method}
                   </span>
@@ -370,7 +370,7 @@ export default function ApiReference({ navigate, showToast }) {
 
               {/* Input Form Panel */}
               <div style={styles.clientConsole}>
-                <div style={styles.requestUrlBar}>
+                <div style={styles.requestUrlBar} className="request-url-bar-responsive">
                   <span style={styles.requestMethod}>{currentEndpoint.method}</span>
                   <input 
                     type="text" 
@@ -575,9 +575,9 @@ const styles = {
     fontWeight: '700',
     padding: '2px 6px',
     borderRadius: '4px',
-    background: 'rgba(14,165,233, 0.15)',
+    background: 'rgba(6, 182, 212, 0.15)',
     color: 'var(--secondary)',
-    border: '1px solid rgba(14,165,233, 0.3)',
+    border: '1px solid rgba(6, 182, 212, 0.3)',
     minWidth: '50px',
     textAlign: 'center',
   },
@@ -603,7 +603,7 @@ const styles = {
     borderRadius: '6px',
     background: 'var(--primary-glow)',
     color: 'var(--primary-light)',
-    border: '1px solid rgba(37,99,235, 0.3)',
+    border: '1px solid rgba(124, 58, 237, 0.3)',
   },
   pathLabel: {
     fontSize: '0.85rem',
@@ -763,7 +763,7 @@ const styles = {
     marginBottom: '20px',
   },
   requestMethod: {
-    background: 'rgba(37,99,235, 0.05)',
+    background: 'rgba(124, 58, 237, 0.05)',
     color: 'var(--primary-light)',
     padding: '12px 18px',
     fontSize: '0.88rem',
@@ -772,6 +772,7 @@ const styles = {
   },
   requestUrlInput: {
     flex: '1',
+    minWidth: 0,
     background: 'transparent',
     border: 'none',
     outline: 'none',

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Key, Activity, Copy, CheckCircle2, Shield, Calendar, CreditCard } from 'lucide-react';
 import { getProfile } from '../../services/api';
+import ConstellationField from '../../components/ConstellationField';
 
 export default function Profile({ user, showToast }) {
   const [copiedKey, setCopiedKey] = useState(false);
@@ -33,6 +34,7 @@ export default function Profile({ user, showToast }) {
 
   return (
     <div className="page-container animate-fade-in profile-page">
+      <ConstellationField />
       <div className="page-header">
         <h1 className="page-title">Account Profile</h1>
         <p className="page-subtitle">Manage your personal information and API credentials</p>
@@ -189,11 +191,11 @@ const styles = {
     width: '64px',
     height: '64px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, var(--primary) 0%, #0ea5e9 100%)',
+    background: 'linear-gradient(135deg, var(--primary) 0%, #0891b2 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 4px 15px rgba(37,99,235, 0.3)',
+    boxShadow: '0 4px 15px rgba(124, 58, 237, 0.3)',
   },
   userName: {
     fontSize: '1.4rem',
@@ -248,13 +250,17 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: '12px',
     padding: '16px',
   },
   keyCode: {
+    flex: 1,
+    minWidth: 0,
     fontSize: '1rem',
     color: 'var(--text-primary)',
     fontFamily: 'monospace',
     letterSpacing: '1px',
+    wordBreak: 'break-all',
   },
   copyBtn: {
     background: 'transparent',
@@ -296,8 +302,8 @@ const styles = {
     borderRadius: '3px',
   },
   planBox: {
-    background: 'rgba(37,99,235, 0.05)',
-    border: '1px solid rgba(37,99,235, 0.2)',
+    background: 'rgba(124, 58, 237, 0.05)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
     borderRadius: '8px',
     padding: '20px',
   },

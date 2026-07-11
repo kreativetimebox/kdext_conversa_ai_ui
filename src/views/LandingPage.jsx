@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import HeroScene3D from '../components/HeroScene3D';
 import {
   CheckCircle,
   ArrowRight,
@@ -148,31 +150,75 @@ export default function LandingPage({ navigate, showToast }) {
           <div className="grid-intersection" style={{ left: '75%', top: '65%' }}>+</div>
           <div className="grid-intersection" style={{ left: '75%', top: '90%' }}>+</div>
         </div>
-        <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '850px', margin: '0 auto' }}>
-          <div style={styles.heroBadge}>
+
+        <HeroScene3D />
+
+        <motion.div
+          style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '850px', margin: '0 auto' }}
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: {},
+            visible: { transition: { staggerChildren: 0.12 } },
+          }}
+        >
+          <motion.div
+            style={styles.heroBadge}
+            variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
+            transition={{ duration: 0.5 }}
+          >
             <div style={styles.heroBadgeDot}></div>
             <span style={styles.heroBadgeText}>Trusted by 10,000+ Developers &amp; Creators</span>
-          </div>
+          </motion.div>
 
-          <h1 className="hero-glow-title" style={styles.heroTitle}>
-            AI-Powered Speech <br />
-            &amp; Voice Generation
-          </h1>
+          <motion.h1
+            className="hero-glow-title"
+            style={styles.heroTitle}
+            variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } }}
+            transition={{ duration: 0.6 }}
+          >
+            The Future of AI Voice <br />
+            Starts Here
+          </motion.h1>
 
-          <p style={styles.heroSub}>
-            Automatically synthesize text into natural-sounding speech and transcribe audio streams to text. Perfect for content creators, customer support, and developers who need high-fidelity voice automation.
-          </p>
+          <motion.p
+            style={styles.heroSub}
+            variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } }}
+            transition={{ duration: 0.6 }}
+          >
+            Transform text into lifelike speech, convert speech into accurate text, and build powerful voice experiences with state-of-the-art AI. Fast, natural, multilingual, and built for creators, businesses, and developers.
+          </motion.p>
 
-          <div style={styles.heroActions}>
-            <button onClick={startTrial} className="btn btn-primary" style={styles.ctaBtn}>
+          <motion.div
+            style={styles.heroActions}
+            variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } }}
+            transition={{ duration: 0.6 }}
+          >
+            <motion.button
+              onClick={startTrial}
+              className="btn btn-primary"
+              style={styles.ctaBtn}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+            >
               Start Free Trial <ArrowRight size={16} />
-            </button>
-            <button onClick={viewApiDocs} className="btn btn-outline" style={styles.docsBtn}>
+            </motion.button>
+            <motion.button
+              onClick={viewApiDocs}
+              className="btn btn-outline"
+              style={styles.docsBtn}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+            >
               View API Docs
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
 
-          <div style={styles.heroBenefits}>
+          <motion.div
+            style={styles.heroBenefits}
+            variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } }}
+            transition={{ duration: 0.6 }}
+          >
             <div style={styles.benefitItem}>
               <CheckCircle size={14} color="var(--success)" />
               <span>No credit card required</span>
@@ -185,12 +231,19 @@ export default function LandingPage({ navigate, showToast }) {
               <CheckCircle size={14} color="var(--success)" />
               <span>Cancel anytime</span>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* Features Grid */}
-      <section style={styles.section} id="features">
+      <motion.section
+        style={styles.section}
+        id="features"
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.6 }}
+      >
         <div style={styles.sectionHeader}>
           <span className="badge badge-purple">Powerful Features</span>
           <h2 style={styles.sectionTitle}>Advanced Voice Processing</h2>
@@ -201,8 +254,16 @@ export default function LandingPage({ navigate, showToast }) {
 
         <div style={styles.featuresGrid}>
           {/* Card 1 */}
-          <div className="glass-card glass-card-hover" style={styles.featureCard}>
-            <div style={{ ...styles.cardIconBox, background: 'rgba(37,99,235, 0.1)' }}>
+          <motion.div
+            className="glass-card glass-card-hover"
+            style={styles.featureCard}
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.5, delay: 0 }}
+            whileHover={{ y: -6 }}
+          >
+            <div style={{ ...styles.cardIconBox, background: 'rgba(124, 58, 237, 0.14)' }}>
               <Volume2 size={24} color="var(--primary)" />
             </div>
             <h3 style={styles.cardTitle}>Text to Speech</h3>
@@ -214,11 +275,19 @@ export default function LandingPage({ navigate, showToast }) {
               <li><Check size={14} color="var(--success)" /> Real-time vocal articulation</li>
               <li><Check size={14} color="var(--success)" /> Adjustable speed &amp; tone</li>
             </ul>
-          </div>
+          </motion.div>
 
           {/* Card 2 */}
-          <div className="glass-card glass-card-hover" style={styles.featureCard}>
-            <div style={{ ...styles.cardIconBox, background: 'rgba(14,165,233, 0.1)' }}>
+          <motion.div
+            className="glass-card glass-card-hover"
+            style={styles.featureCard}
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.5, delay: 0.12 }}
+            whileHover={{ y: -6 }}
+          >
+            <div style={{ ...styles.cardIconBox, background: 'rgba(6, 182, 212, 0.14)' }}>
               <Mic size={24} color="var(--secondary)" />
             </div>
             <h3 style={styles.cardTitle}>Speech to Text</h3>
@@ -230,12 +299,20 @@ export default function LandingPage({ navigate, showToast }) {
               <li><Check size={14} color="var(--success)" /> Auto punctuation &amp; formatting</li>
               <li><Check size={14} color="var(--success)" /> Audio file upload support</li>
             </ul>
-          </div>
+          </motion.div>
 
           {/* Card 3 */}
-          <div className="glass-card glass-card-hover" style={styles.featureCard}>
-            <div style={{ ...styles.cardIconBox, background: 'rgba(59, 130, 246, 0.1)' }}>
-              <Sparkles size={24} color="var(--info)" />
+          <motion.div
+            className="glass-card glass-card-hover"
+            style={styles.featureCard}
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.5, delay: 0.24 }}
+            whileHover={{ y: -6 }}
+          >
+            <div style={{ ...styles.cardIconBox, background: 'rgba(236, 72, 153, 0.14)' }}>
+              <Sparkles size={24} color="#ec4899" />
             </div>
             <h3 style={styles.cardTitle}>Voice Cloning</h3>
             <p style={styles.cardDesc}>
@@ -246,12 +323,18 @@ export default function LandingPage({ navigate, showToast }) {
               <li><Check size={14} color="var(--success)" /> Natural inflection match</li>
               <li><Check size={14} color="var(--success)" /> Secure voice ownership</li>
             </ul>
-          </div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Built For Every Workflow */}
-      <section style={{ ...styles.section, background: 'rgba(15,23,42,0.01)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+      <motion.section
+        style={{ ...styles.section, background: 'rgba(15,23,42,0.01)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.6 }}
+      >
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Built for Every Speech Workflow</h2>
           <p style={styles.sectionDesc}>
@@ -260,39 +343,38 @@ export default function LandingPage({ navigate, showToast }) {
         </div>
 
         <div style={styles.workflowsGrid}>
-          <div style={styles.workflowItem}>
-            <div style={styles.workflowHeader}>
-              <Briefcase size={18} color="var(--primary-light)" />
-              <h4 style={styles.workflowTitle}>Content Creators</h4>
-            </div>
-            <p style={styles.workflowText}>Generate realistic voiceovers for videos, narrate articles, and translate podcasts instantly.</p>
-          </div>
-          <div style={styles.workflowItem}>
-            <div style={styles.workflowHeader}>
-              <Building size={18} color="var(--primary-light)" />
-              <h4 style={styles.workflowTitle}>Customer Support</h4>
-            </div>
-            <p style={styles.workflowText}>Power smart IVR voice responders and read client chats aloud to operators automatically.</p>
-          </div>
-          <div style={styles.workflowItem}>
-            <div style={styles.workflowHeader}>
-              <Lock size={18} color="var(--primary-light)" />
-              <h4 style={styles.workflowTitle}>Enterprise Teams</h4>
-            </div>
-            <p style={styles.workflowText}>Deploy secure voice synthesis backed by compliance SLAs, SSO, and private storage networks.</p>
-          </div>
-          <div style={styles.workflowItem}>
-            <div style={styles.workflowHeader}>
-              <Code size={18} color="var(--primary-light)" />
-              <h4 style={styles.workflowTitle}>Developers API</h4>
-            </div>
-            <p style={styles.workflowText}>Power your own software with our developer-friendly voice generation endpoints and SDKs.</p>
-          </div>
+          {[
+            { icon: Briefcase, title: 'Content Creators', text: 'Generate realistic voiceovers for videos, narrate articles, and translate podcasts instantly.' },
+            { icon: Building, title: 'Customer Support', text: 'Power smart IVR voice responders and read client chats aloud to operators automatically.' },
+            { icon: Lock, title: 'Enterprise Teams', text: 'Deploy secure voice synthesis backed by compliance SLAs, SSO, and private storage networks.' },
+            { icon: Code, title: 'Developers API', text: "Power your own software with our developer-friendly voice generation endpoints and SDKs." },
+          ].map(({ icon: Icon, title, text }, idx) => (
+            <motion.div
+              key={title}
+              style={styles.workflowItem}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.5, delay: idx * 0.1 }}
+            >
+              <div style={styles.workflowHeader}>
+                <Icon size={18} color="var(--primary-light)" />
+                <h4 style={styles.workflowTitle}>{title}</h4>
+              </div>
+              <p style={styles.workflowText}>{text}</p>
+            </motion.div>
+          ))}
         </div>
-      </section>
+      </motion.section>
 
       {/* Statistics */}
-      <section style={styles.section}>
+      <motion.section
+        style={styles.section}
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.6 }}
+      >
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Trusted by Thousands Worldwide</h2>
           <p style={styles.sectionDesc}>Numbers that speak for themselves.</p>
@@ -331,10 +413,16 @@ export default function LandingPage({ navigate, showToast }) {
             <div style={styles.secondaryStatLabel}>API Availability</div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Why Choose Our API */}
-      <section style={{ ...styles.section, borderTop: '1px solid var(--border-color)' }}>
+      <motion.section
+        style={{ ...styles.section, borderTop: '1px solid var(--border-color)' }}
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.6 }}
+      >
         <div style={styles.sectionHeader}>
           <span className="badge badge-purple">Why Choose Our API?</span>
           <h2 style={styles.sectionTitle}>Built for High-Scale Applications</h2>
@@ -342,30 +430,50 @@ export default function LandingPage({ navigate, showToast }) {
         </div>
 
         <div style={styles.whyGrid}>
-          <div className="glass-card" style={styles.whyCard}>
-            <h4 style={styles.whyTitle}>Lightning Fast</h4>
-            <p style={styles.whyDesc}>Deploy state-of-the-art neural speech synthesis that responds in milliseconds to support real-time interactions.</p>
-          </div>
-          <div className="glass-card" style={styles.whyCard}>
-            <h4 style={styles.whyTitle}>Secure &amp; Compliant</h4>
-            <p style={styles.whyDesc}>Full end-to-end data encryption, private key auth, and strict voice data privacy compliance guarantees.</p>
-          </div>
-          <div className="glass-card" style={styles.whyCard}>
-            <h4 style={styles.whyTitle}>99.5% Accurate</h4>
-            <p style={styles.whyDesc}>Intelligent contextual speech processors that correctly parse names, accents, and punctuation marks.</p>
-          </div>
+          {[
+            { title: 'Lightning Fast', text: 'Deploy state-of-the-art neural speech synthesis that responds in milliseconds to support real-time interactions.' },
+            { title: 'Secure & Compliant', text: 'Full end-to-end data encryption, private key auth, and strict voice data privacy compliance guarantees.' },
+            { title: '99.5% Accurate', text: 'Intelligent contextual speech processors that correctly parse names, accents, and punctuation marks.' },
+          ].map(({ title, text }, idx) => (
+            <motion.div
+              key={title}
+              className="glass-card"
+              style={styles.whyCard}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.5, delay: idx * 0.1 }}
+              whileHover={{ y: -4 }}
+            >
+              <h4 style={styles.whyTitle}>{title}</h4>
+              <p style={styles.whyDesc}>{text}</p>
+            </motion.div>
+          ))}
         </div>
-      </section>
+      </motion.section>
 
       {/* Customer Stories / Testimonials */}
-      <section style={{ ...styles.section, background: 'rgba(37,99,235, 0.02)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+      <motion.section
+        style={{ ...styles.section, background: 'rgba(124, 58, 237, 0.02)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.6 }}
+      >
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Trusted by Modern Content Teams</h2>
           <p style={styles.sectionDesc}>See what our partners say about the speed and vocal quality of Conversa AI.</p>
         </div>
 
         <div style={styles.testimonialsGrid}>
-          <div className="glass-card" style={styles.testimonialCard}>
+          <motion.div
+            className="glass-card"
+            style={styles.testimonialCard}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.5 }}
+          >
             <div style={styles.testimonialStars}>
               <Star size={16} fill="var(--warning)" color="var(--warning)" />
               <Star size={16} fill="var(--warning)" color="var(--warning)" />
@@ -383,9 +491,16 @@ export default function LandingPage({ navigate, showToast }) {
                 <div style={styles.userRole}>Creative Director, Mitchell Audiobooks</div>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="glass-card" style={styles.testimonialCard}>
+          <motion.div
+            className="glass-card"
+            style={styles.testimonialCard}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.5, delay: 0.12 }}
+          >
             <div style={styles.testimonialStars}>
               <Star size={16} fill="var(--warning)" color="var(--warning)" />
               <Star size={16} fill="var(--warning)" color="var(--warning)" />
@@ -403,12 +518,18 @@ export default function LandingPage({ navigate, showToast }) {
                 <div style={styles.userRole}>CTO, VoiceFlow Solutions</div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Frequently Asked Questions */}
-      <section style={styles.section}>
+      <motion.section
+        style={styles.section}
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.6 }}
+      >
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Frequently Asked Questions</h2>
           <p style={styles.sectionDesc}>Everything you need to know about Conversa AI.</p>
@@ -416,14 +537,18 @@ export default function LandingPage({ navigate, showToast }) {
 
         <div style={styles.faqWrapper}>
           {faqs.map((faq, idx) => (
-            <div
+            <motion.div
               key={idx}
               style={{
                 ...styles.faqItem,
                 borderColor: activeFaq === idx ? 'var(--primary)' : 'var(--border-color)',
-                background: activeFaq === idx ? 'rgba(37,99,235, 0.02)' : 'transparent'
+                background: activeFaq === idx ? 'rgba(124, 58, 237, 0.02)' : 'transparent'
               }}
               onClick={() => toggleFaq(idx)}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.4, delay: idx * 0.05 }}
             >
               <div style={styles.faqQuestionRow}>
                 <span style={styles.faqQuestion}>{faq.q}</span>
@@ -433,33 +558,59 @@ export default function LandingPage({ navigate, showToast }) {
                   <Plus size={18} color="var(--text-secondary)" />
                 )}
               </div>
-              {activeFaq === idx && (
-                <div style={styles.faqAnswer} className="animate-fade-in">
-                  <p>{faq.a}</p>
-                </div>
-              )}
-            </div>
+              <AnimatePresence initial={false}>
+                {activeFaq === idx && (
+                  <motion.div
+                    style={styles.faqAnswer}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <p>{faq.a}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           ))}
         </div>
-      </section>
+      </motion.section>
 
       {/* CTA final banner */}
-      <section style={styles.ctaSection}>
+      <motion.section
+        style={styles.ctaSection}
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.6 }}
+      >
         <div style={styles.ctaCard}>
           <h2 style={styles.ctaTitle}>Ready to Transform Your Voice Workflows?</h2>
           <p style={styles.ctaDesc}>
             Join thousands of developers and creators who trust our AI to synthesize and transcribe voice streams.
           </p>
           <div style={styles.ctaActions}>
-            <button onClick={startTrial} className="btn btn-primary" style={{ padding: '14px 28px', fontSize: '1.05rem' }}>
+            <motion.button
+              onClick={startTrial}
+              className="btn btn-primary"
+              style={{ padding: '14px 28px', fontSize: '1.05rem' }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+            >
               Start Your Free Trial
-            </button>
-            <button onClick={() => navigate('/contact')} className="btn btn-outline" style={{ padding: '14px 28px', fontSize: '1.05rem' }}>
+            </motion.button>
+            <motion.button
+              onClick={() => navigate('/contact')}
+              className="btn btn-outline"
+              style={{ padding: '14px 28px', fontSize: '1.05rem' }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+            >
               Contact Sales
-            </button>
+            </motion.button>
           </div>
         </div>
-      </section>
+      </motion.section>
     </div>
   );
 }
@@ -476,13 +627,14 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    background: 'radial-gradient(circle at 50% 0%, rgba(124, 58, 237,0.10) 0%, rgba(139,92,246,0.05) 45%, transparent 75%)',
   },
   heroBadge: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '8px',
-    background: 'rgba(37,99,235, 0.1)',
-    border: '1px solid rgba(37,99,235, 0.25)',
+    background: 'rgba(124, 58, 237, 0.1)',
+    border: '1px solid rgba(124, 58, 237, 0.25)',
     padding: '6px 14px',
     borderRadius: '40px',
     marginBottom: '28px',
@@ -634,7 +786,7 @@ const styles = {
   statNum: {
     fontSize: '3rem',
     fontWeight: '800',
-    background: 'linear-gradient(135deg, #ffffff 0%, var(--primary-light) 100%)',
+    background: 'linear-gradient(135deg, var(--primary) 0%, #8b5cf6 55%, #ec4899 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     marginBottom: '8px',
@@ -706,7 +858,7 @@ const styles = {
     height: '40px',
     borderRadius: '50%',
     background: 'var(--primary-glow)',
-    border: '1px solid rgba(37,99,235, 0.3)',
+    border: '1px solid rgba(124, 58, 237, 0.3)',
     color: 'var(--primary-light)',
     display: 'flex',
     alignItems: 'center',
@@ -747,6 +899,7 @@ const styles = {
     marginTop: '14px',
     borderTop: '1px solid var(--border-color)',
     paddingTop: '14px',
+    overflow: 'hidden',
   },
   ctaSection: {
     maxWidth: 'var(--max-width)',
@@ -754,7 +907,7 @@ const styles = {
     padding: '0 24px',
   },
   ctaCard: {
-    background: 'radial-gradient(circle at top right, rgba(37,99,235, 0.15) 0%, rgba(14,165,233, 0.03) 70%), rgba(15,23,42,0.02)',
+    background: 'radial-gradient(circle at top right, rgba(124, 58, 237, 0.22) 0%, transparent 60%), radial-gradient(circle at bottom left, rgba(236,72,153, 0.14) 0%, transparent 60%), rgba(15,23,42,0.02)',
     border: '1px solid var(--border-color)',
     borderRadius: '20px',
     padding: '64px 24px',

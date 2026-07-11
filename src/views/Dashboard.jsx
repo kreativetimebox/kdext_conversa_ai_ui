@@ -20,6 +20,7 @@ import {
   Timer
 } from 'lucide-react';
 import { getProfile } from '../services/api';
+import ConstellationField from '../components/ConstellationField';
 
 export default function Dashboard({ 
   navigate, 
@@ -110,6 +111,7 @@ export default function Dashboard({
 
   return (
     <div className="page-container animate-fade-in dashboard-page">
+      <ConstellationField />
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
         <p className="page-subtitle">Manage your API keys and monitor speech synthesis/transcription usage.</p>
@@ -518,7 +520,7 @@ const styles = {
     width: '32px',
     height: '32px',
     borderRadius: '8px',
-    background: 'rgba(37,99,235, 0.08)',
+    background: 'rgba(124, 58, 237, 0.08)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -597,13 +599,15 @@ const styles = {
     position: 'fixed',
     top: 0,
     left: 0,
-    width: '100vw',
+    width: '100%',
     height: '100dvh',
     background: 'var(--bg-overlay)',
     backdropFilter: 'blur(4px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: '20px',
+    boxSizing: 'border-box',
     zIndex: 200,
   },
   modal: {

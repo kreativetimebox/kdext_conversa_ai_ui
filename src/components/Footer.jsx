@@ -74,6 +74,7 @@ const styles = {
     padding: '64px 0 32px 0',
     marginTop: 'auto',
     width: '100%',
+    boxShadow: '0 -8px 24px var(--shadow-color)',
   },
   container: {
     maxWidth: 'var(--max-width)',
@@ -97,7 +98,7 @@ const styles = {
     gap: '10px',
   },
   logoIcon: {
-    background: 'linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%)',
+    background: 'linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%)',
     width: '28px',
     height: '28px',
     borderRadius: '6px',
@@ -151,7 +152,7 @@ const styles = {
   },
   copyright: {
     fontSize: '0.85rem',
-    color: '#94a3b8',
+    color: 'var(--text-muted)',
   },
   bottomLinks: {
     display: 'flex',

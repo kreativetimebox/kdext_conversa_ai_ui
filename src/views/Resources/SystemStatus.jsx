@@ -305,7 +305,7 @@ const styles = {
     padding: '32px',
     gap: '24px',
     flexWrap: 'wrap',
-    background: 'radial-gradient(circle at bottom right, rgba(37,99,235, 0.05) 0%, rgba(15,23,42,0.01) 100%)',
+    background: 'radial-gradient(circle at bottom right, rgba(124, 58, 237, 0.05) 0%, rgba(15,23,42,0.01) 100%)',
   },
   subLeft: {
     display: 'flex',

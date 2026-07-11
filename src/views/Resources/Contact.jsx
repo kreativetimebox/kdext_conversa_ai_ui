@@ -58,7 +58,7 @@ export default function Contact({ showToast }) {
     <div style={styles.page} className="animate-fade-in">
       <div style={styles.container}>
         <div style={styles.header}>
-          <h1 style={styles.title}>Get in Touch</h1>
+          <h1 style={styles.title} className="hero-page-title">Get in Touch</h1>
           <p style={styles.sub}>
             Have questions about our AI-powered Speech-to-Text and Text-to-Speech API? We'd love to hear from you and help you find the right solution.
           </p>
@@ -118,7 +118,7 @@ export default function Contact({ showToast }) {
                     style={{
                       ...styles.faqItem,
                       borderColor: activeFaq === idx ? 'var(--primary)' : 'var(--border-color)',
-                      background: activeFaq === idx ? 'rgba(37,99,235, 0.01)' : 'transparent'
+                      background: activeFaq === idx ? 'rgba(124, 58, 237, 0.01)' : 'transparent'
                     }}
                   >
                     <div style={styles.faqQuestionRow}>
@@ -298,7 +298,7 @@ const styles = {
     width: '36px',
     height: '36px',
     borderRadius: '8px',
-    background: 'rgba(37,99,235, 0.08)',
+    background: 'rgba(124, 58, 237, 0.08)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
