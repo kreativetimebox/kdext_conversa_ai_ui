@@ -811,7 +811,7 @@ export default function Translate({ user, showToast }) {
     }
     voiceAnalyserRef.current = null;
     voiceSilenceStartRef.current = null;
-
+};
   const startVoiceRecording = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showToast('Microphone not supported in this browser.', 'error');
