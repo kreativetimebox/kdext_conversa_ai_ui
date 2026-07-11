@@ -230,6 +230,7 @@ export default function Translate({ user, showToast }) {
   const voiceMediaRecorderRef = useRef(null);
   const voiceStreamRef = useRef(null);
   const voiceCycleTimerRef = useRef(null);
+
   // Dead-air auto-stop: the live mic stays on until the user stops it —
   // the only automatic cutoff is 30s of continuous silence.
   const voiceAudioCtxRef = useRef(null);
@@ -530,6 +531,7 @@ export default function Translate({ user, showToast }) {
   // GPU (sub-second per chunk) 1.2s keeps subtitles snappy; go back toward
   // 2000 if the STT engine ever runs on CPU.
   const VOICE_SEGMENT_MS = 1200;
+
   // ── Auto-stop tuning ──────────────────────────────────────────────────────
   // The detector is ADAPTIVE: a fixed volume threshold cut people off
   // mid-sentence (quiet mics never crossed it — especially with autoGainControl
@@ -809,7 +811,7 @@ export default function Translate({ user, showToast }) {
     }
     voiceAnalyserRef.current = null;
     voiceSilenceStartRef.current = null;
-  };
+
   const startVoiceRecording = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showToast('Microphone not supported in this browser.', 'error');
@@ -843,6 +845,7 @@ export default function Translate({ user, showToast }) {
 
       // Start the record → STT → translate cycle
       startRecordingCycle(stream);
+
        // Watchdog: end the session only after 30s of continuous dead air
       startSilenceDetection(stream);
     } catch (err) {
