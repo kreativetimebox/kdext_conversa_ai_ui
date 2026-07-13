@@ -1,8 +1,31 @@
 import React, { useState, useRef, useEffect } from 'react';
+<<<<<<< HEAD
 import logo from '../assets/logo.svg';
 import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2, Loader2, Headphones, X, MicVocal } from 'lucide-react';
 import { chatCompletion, voiceSTT, voiceTTS, getConversationDetails, createConversation, addMessage } from '../services/api';
 import { logEvent } from '../utils/logger';
+=======
+import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2, Trash2 } from 'lucide-react';
+import { chatCompletion, voiceSTT, voiceTTS, getConversationDetails, createConversation, addMessage, getConversations, deleteConversation } from '../services/api';
+import { attachAudioLevelMeter } from '../utils/audioLevel';
+import SiriOrb from '../components/SiriOrb';
+import ParticleField from '../components/ParticleField';
+
+const getHistoryGroup = (updatedAtStr) => {
+  if (!updatedAtStr) return 'Older';
+  const updatedDate = new Date(updatedAtStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const compareDate = new Date(updatedDate.getFullYear(), updatedDate.getMonth(), updatedDate.getDate());
+  const diffDays = Math.floor((today.getTime() - compareDate.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays <= 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays <= 7) return 'Previous 7 Days';
+  return 'Older';
+};
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
 
 // Simple Markdown Renderer
 const renderMarkdown = (text) => {
@@ -181,18 +204,29 @@ const SpeakButton = ({ text, apiKey, showToast, currentAudioRef }) => {
       onClick={handleSpeak}
       style={{
         ...styles.msgActionBtn,
+<<<<<<< HEAD
         color: active ? '#3b82f6' : undefined,
         background: active ? 'rgba(37,99,235,0.15)' : undefined,
         borderColor: active ? 'rgba(37,99,235,0.3)' : undefined,
+=======
+        color: isPlaying ? '#a78bfa' : undefined,
+        background: isPlaying ? 'rgba(124, 58, 237,0.15)' : undefined,
+        borderColor: isPlaying ? 'rgba(124, 58, 237,0.3)' : undefined,
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
       }}
       title={status === 'idle' ? 'Speak response' : status === 'loading' ? 'Cancel' : 'Stop speaking'}
     >
+<<<<<<< HEAD
       {status === 'loading'
         ? <Loader2 size={13} color="#3b82f6" style={{ animation: 'spin 0.8s linear infinite' }} />
         : status === 'playing'
         ? <StopCircle size={13} color="#3b82f6" />
         : <Volume2 size={13} />}
       <span>{status === 'idle' ? 'Speak' : status === 'loading' ? 'Loading' : 'Stop'}</span>
+=======
+      <Volume2 size={13} color={isPlaying ? '#a78bfa' : undefined} />
+      <span>{isPlaying ? 'Stop' : 'Speak'}</span>
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
     </button>
   );
 };
@@ -202,16 +236,27 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+<<<<<<< HEAD
   // Hands-free voice conversation ("voice chat" like ChatGPT's voice mode):
   // listen → transcribe → send → AI replies → reply is spoken → listen again.
   const [voiceChat, setVoiceChat] = useState(false);
   const [voiceStage, setVoiceStage] = useState('idle'); // listening | thinking | speaking
   const [voiceLiveText, setVoiceLiveText] = useState(''); // live transcript while listening
+=======
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  // Live mic volume (0-1) while recording, drives the Siri-style reactive orb.
+  const [micLevel, setMicLevel] = useState(0);
+
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer toggle only — always visible on desktop
+  const [conversations, setConversations] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const abortControllerRef = useRef(null);
   const currentAudioRef = useRef(null);
+  const micLevelMeterRef = useRef(null);
   // Bumped on every new recording so a slow transcription from a PREVIOUS
   // recording can't append its (stale) text after a newer one has started.
   const voiceGenRef = useRef(0);
@@ -289,6 +334,54 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
     };
     loadConversation();
   }, [activeConversationId, user]);
+
+  const fetchConversations = async () => {
+    const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
+    setLoadingHistory(true);
+    try {
+      const res = await getConversations(apiKey);
+      if (res && Array.isArray(res)) {
+        setConversations(res);
+      } else if (res && res.conversations) {
+        setConversations(res.conversations);
+      }
+    } catch (err) {
+      console.error('Error fetching conversations:', err);
+      showToast('Failed to load chat history.', 'error');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchConversations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSelectConversation = (id) => {
+    setSidebarOpen(false);
+    navigate(`/chat/${id}`);
+  };
+
+  const handleNewChat = () => {
+    setSidebarOpen(false);
+    navigate('/chat');
+  };
+
+  const handleDeleteConversation = async (e, id) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this chat?')) return;
+    const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
+    try {
+      await deleteConversation(apiKey, id);
+      if (activeConversationId === id) {
+        navigate('/chat');
+      }
+      fetchConversations();
+    } catch {
+      showToast('Failed to delete conversation.', 'error');
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -395,6 +488,20 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       const audioChunks = [];
       const gen = ++voiceGenRef.current;
 
+      micLevelMeterRef.current = attachAudioLevelMeter(stream, {
+        onLevel: setMicLevel,
+        silenceTimeoutMs: 3500,
+        // Act on this closure's own `recorder`/`stream` directly rather than
+        // through the stopRecording() wrapper — that reads `mediaRecorder`/
+        // `isRecording` state as of THIS render (still null/false here,
+        // since the setters below haven't applied yet), so calling it from
+        // this later async callback would silently no-op on stale state.
+        onSilence: () => {
+          if (recorder.state !== 'inactive') recorder.stop();
+          setIsRecording(false);
+        },
+      });
+
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunks.push(e.data);
       };
@@ -447,6 +554,17 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
         } finally {
           if (gen === voiceGenRef.current) setIsTyping(false);
         }
+<<<<<<< HEAD
+=======
+        
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+        if (micLevelMeterRef.current) {
+          micLevelMeterRef.current.stop();
+          micLevelMeterRef.current = null;
+        }
+        setMicLevel(0);
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
       };
       
       recorder.start();
@@ -940,6 +1058,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
               // message's buttons and kills any TTS playing on it).
               skipNextLoadRef.current = true;
               navigate(`/chat/${conv.conversation_id || conv.id}`);
+              fetchConversations();
             }
           } catch (err) {
             console.error("Failed to create conversation:", err);
@@ -991,27 +1110,89 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
     }
   };
 
+<<<<<<< HEAD
   // Re-bound on every render so the voice-chat loop — which runs from old
   // recorder/timer closures — always calls the CURRENT functions, with the
   // current messages and conversation id (critical after the first exchange
   // navigates to the newly created conversation).
   latest.current = { sendMessage, handleVoiceTurn, startVoiceListening, endVoiceTurn };
+=======
+  const historyList = loadingHistory ? (
+    <div style={styles.historyEmptyState}>Loading conversations…</div>
+  ) : conversations.length === 0 ? (
+    <div style={styles.historyEmptyState}>No conversations yet — start a new chat to see it here.</div>
+  ) : (
+    ['Today', 'Yesterday', 'Previous 7 Days', 'Older'].map((group) => {
+      const items = conversations
+        .filter(c => getHistoryGroup(c.updated_at || c.created_at) === group)
+        .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+      if (items.length === 0) return null;
+      return (
+        <div key={group} style={styles.historyGroup}>
+          <div style={styles.historyGroupLabel}>{group}</div>
+          {items.map((c) => {
+            const cid = c.conversation_id || c.id;
+            return (
+              <div
+                key={cid}
+                onClick={() => handleSelectConversation(cid)}
+                className="chat-history-item"
+                style={{
+                  ...styles.historyItemRow,
+                  ...(activeConversationId === cid ? styles.historyItemActive : {}),
+                }}
+              >
+                <span style={styles.historyItemTitle}>{c.title || 'Untitled'}</span>
+                <button
+                  onClick={(e) => handleDeleteConversation(e, cid)}
+                  style={styles.historyDeleteBtn}
+                  title="Delete chat"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      );
+    })
+  );
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
 
   return (
     <div style={styles.container}>
-      <div className="chat-container">
-        <div className="chat-history">
+      <aside className={`chat-sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div style={styles.sidebarHeader}>
+          <button onClick={handleNewChat} className="btn btn-primary" style={styles.newChatBtn}>
+            New Chat
+          </button>
+        </div>
+        <div style={styles.sidebarList}>
+          {historyList}
+        </div>
+      </aside>
+      {sidebarOpen && <div className="chat-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+
+      <div className="chat-container" style={{ height: 'auto', flex: 1, minHeight: 0, position: 'relative' }}>
+        <ParticleField level={micLevel} active={isRecording} />
+        <button className="chat-history-toggle" onClick={() => setSidebarOpen(true)}>
+          History
+        </button>
+        <div className="chat-history" style={{ position: 'relative', zIndex: 1 }}>
           {messages.length === 0 ? (
   <div style={styles.emptyState}>
-    <img
-      src={logo}
-      alt="Conversa AI"
+    <div
       style={{
-        width: "64px",
-        height: "64px",
-        marginBottom: "20px",
+        marginBottom: '20px',
+        borderRadius: '50%',
+        boxShadow: isRecording
+          ? `0 0 ${24 + micLevel * 60}px ${6 + micLevel * 16}px var(--primary-glow)`
+          : '0 0 30px 4px var(--primary-glow)',
+        transition: 'box-shadow 0.15s ease-out',
       }}
-    />
+    >
+      <SiriOrb size={160} level={micLevel} active={isRecording} />
+    </div>
 
     <h2
       style={{
@@ -1073,7 +1254,15 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
           <div ref={messagesEndRef} />
         </div>
 
+        {isRecording && messages.length > 0 && (
+          <div style={styles.floatingOrbRow}>
+            <SiriOrb size={120} level={micLevel} active={isRecording} />
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Listening…</span>
+          </div>
+        )}
+
         <div className="chat-input-area">
+<<<<<<< HEAD
           {voiceChat ? (
             /* Voice chat bar: replaces the input while a hands-free
                conversation is running. Shows the live transcript as you
@@ -1129,6 +1318,40 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
                   flexShrink: 0,
                   fontFamily: 'inherit',
                 }}
+=======
+          <div className="chat-input-wrapper">
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              style={{
+                ...styles.actionBtn,
+                color: isRecording ? '#ef4444' : 'var(--text-muted)',
+                transform: isRecording ? `scale(${1 + micLevel * 0.35})` : 'scale(1)',
+                boxShadow: isRecording ? `0 0 ${8 + micLevel * 24}px ${2 + micLevel * 6}px rgba(239, 68, 68, 0.45)` : 'none',
+                transition: 'transform 0.08s ease-out, box-shadow 0.08s ease-out, color 0.2s ease',
+              }}
+              title={isRecording ? "Stop Recording" : "Voice Input via STT"}
+            >
+              {isRecording ? <StopCircle size={20} className={isRecording ? 'pulse' : ''} /> : <Mic size={20} />}
+            </button>
+            
+            <textarea
+              ref={textareaRef}
+              className="chat-input"
+              value={input}
+              onChange={handleInput}
+              onKeyDown={handleKeyDown}
+              placeholder={isRecording ? "Listening..." : "Message Conversa AI..."}
+              rows={1}
+              disabled={isRecording}
+            />
+            
+            {isTyping ? (
+              <button 
+                className="chat-send-btn" 
+                style={{ background: 'var(--text-muted)' }}
+                onClick={() => abortControllerRef.current?.abort()}
+                title="Stop Generating"
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
               >
                 <X size={14} /> End
               </button>
@@ -1205,7 +1428,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
           </div>
         </div>
       </div>
-      
+
       {/* Pulse Animation for mic and responsive Chat Hero title */}
       <style>{`
         @keyframes customPulse {
@@ -1245,11 +1468,78 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
 
 const styles = {
   container: {
-    height: '100%',
+    flex: 1,
+    minHeight: 0,
     width: '100%',
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'row',
     position: 'relative',
+  },
+  sidebarHeader: {
+    padding: '16px',
+    borderBottom: '1px solid var(--border-color)',
+  },
+  newChatBtn: {
+    width: '100%',
+    padding: '10px 16px',
+    fontSize: '0.9rem',
+  },
+  sidebarList: {
+    flex: 1,
+    minHeight: 0,
+    overflowY: 'auto',
+    padding: '12px',
+  },
+  historyEmptyState: {
+    padding: '32px 16px',
+    textAlign: 'center',
+    color: 'var(--text-muted)',
+    fontSize: '0.85rem',
+  },
+  historyGroup: {
+    marginBottom: '20px',
+  },
+  historyGroupLabel: {
+    fontSize: '0.72rem',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    color: 'var(--text-muted)',
+    padding: '0 8px',
+    marginBottom: '6px',
+  },
+  historyItemRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '10px 12px',
+    marginBottom: '4px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'var(--transition)',
+  },
+  historyItemActive: {
+    background: 'var(--bg-subtle)',
+    color: 'var(--primary-light)',
+  },
+  historyItemTitle: {
+    flex: 1,
+    color: 'var(--text-primary)',
+    fontSize: '0.88rem',
+    fontWeight: '500',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  historyDeleteBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    padding: '6px',
+    display: 'flex',
+    alignItems: 'center',
+    flexShrink: 0,
   },
   emptyState: {
     display: 'flex',
@@ -1259,31 +1549,39 @@ const styles = {
     textAlign: 'center',
     padding: '0 20px',
   },
+  floatingOrbRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px',
+    padding: '4px 0 12px',
+    flexShrink: 0,
+  },
   logoCircle: {
     width: '80px',
     height: '80px',
     borderRadius: '50%',
-    background: 'rgba(37,99,235, 0.1)',
-    border: '1px solid rgba(37,99,235, 0.2)',
+    background: 'rgba(124, 58, 237, 0.1)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: '24px',
-    boxShadow: '0 0 40px rgba(37,99,235, 0.15)',
+    boxShadow: '0 0 40px rgba(124, 58, 237, 0.15)',
   },
 
   avatarAi: {
     width: '32px',
     height: '32px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, var(--primary) 0%, #0ea5e9 100%)',
+    background: 'linear-gradient(135deg, var(--primary) 0%, #0891b2 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: '12px',
     flexShrink: 0,
     marginTop: '12px',
-    boxShadow: '0 0 10px rgba(37,99,235, 0.3)',
+    boxShadow: '0 0 10px rgba(124, 58, 237, 0.3)',
   },
   avatarUser: {
     width: '32px',

@@ -3,7 +3,12 @@ import {
   Plus, Copy, Check, Eye, EyeOff, Trash2, FileText, TrendingUp, Volume2, Activity,
   ArrowRight, BookOpen, History, Shield, CreditCard, X, Mic, Timer, BarChart2, Globe
 } from 'lucide-react';
+<<<<<<< HEAD
 import { getProfile, getConversations } from '../services/api';
+=======
+import { getProfile } from '../services/api';
+import ConstellationField from '../components/ConstellationField';
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
 
 export default function Dashboard({ 
   navigate, user, apiKeys, setApiKeys, historyData = [], toasts, showToast 
@@ -142,10 +147,18 @@ export default function Dashboard({
   };
 
   return (
+<<<<<<< HEAD
     <div className="page-container animate-fade-in dashboard-page" style={styles.page}>
       <div className="page-header" style={styles.header}>
         <h1 className="page-title" style={styles.title}>Dashboard</h1>
         <p className="page-subtitle" style={styles.sub}>Manage your API keys and monitor usage analytics.</p>
+=======
+    <div className="page-container animate-fade-in dashboard-page">
+      <ConstellationField />
+      <div className="page-header">
+        <h1 className="page-title">Dashboard</h1>
+        <p className="page-subtitle">Manage your API keys and monitor speech synthesis/transcription usage.</p>
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
       </div>
 
       <div className="glass-card" style={{ ...styles.card, padding: '16px 24px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
@@ -318,6 +331,7 @@ export default function Dashboard({
 }
 
 const styles = {
+<<<<<<< HEAD
   page: { maxWidth: 'var(--max-width)', margin: '0 auto', padding: '40px 24px 80px 24px', width: '100%', height: '100%', overflowY: 'auto' },
   header: { marginBottom: '24px' },
   title: { fontSize: '2rem', color: 'var(--text-primary)', marginBottom: '8px' },
@@ -368,3 +382,280 @@ const styles = {
   progressBarBg: { width: '100%', height: '8px', background: 'rgba(15,23,42,0.04)', borderRadius: '4px', overflow: 'hidden' },
   progressBarFill: { height: '100%', background: 'linear-gradient(to right, var(--primary), var(--secondary))', borderRadius: '4px', transition: 'width 0.4s ease' }
 };
+=======
+
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '20px',
+    marginBottom: '32px',
+  },
+  statCard: {
+    padding: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  statTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: '0.85rem',
+    color: 'var(--text-muted)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  },
+  statVal: {
+    fontSize: '2rem',
+    fontWeight: '800',
+    color: 'var(--text-primary)',
+  },
+  statBottom: {
+    fontSize: '0.78rem',
+    color: 'var(--text-secondary)',
+  },
+  statSubText: {
+    fontSize: '0.78rem',
+  },
+  twoColLayout: {},
+  leftCol: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+  },
+  rightCol: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+  },
+  card: {
+    padding: '24px',
+  },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+  },
+  cardTitle: {
+    fontSize: '1.15rem',
+    color: 'var(--text-primary)',
+    fontWeight: '700',
+  },
+  newKeyBtn: {
+    padding: '6px 12px',
+    fontSize: '0.82rem',
+  },
+  viewAllBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: 'var(--primary-light)',
+    cursor: 'pointer',
+    fontSize: '0.82rem',
+    fontWeight: '600',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+  },
+  keysList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '14px',
+  },
+  keyRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px',
+    background: 'rgba(15,23,42,0.01)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '10px',
+    gap: '16px',
+    flexWrap: 'wrap',
+  },
+  keyMeta: {
+    flex: '1',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  keyNameRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  keyName: {
+    fontWeight: '600',
+    fontSize: '0.92rem',
+    color: 'var(--text-primary)',
+  },
+  keyCode: {
+    fontFamily: 'monospace',
+    fontSize: '0.85rem',
+    color: 'var(--primary-light)',
+    wordBreak: 'break-all',
+  },
+  keyCreated: {
+    fontSize: '0.75rem',
+    color: 'var(--text-muted)',
+  },
+  keyActions: {
+    display: 'flex',
+    gap: '8px',
+  },
+  iconBtn: {
+    background: 'transparent',
+    border: '1px solid var(--border-color)',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
+    padding: '6px',
+    borderRadius: '6px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'var(--transition)',
+  },
+  activityList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  activityRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+    padding: '12px 14px',
+    background: 'rgba(15,23,42,0.005)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '10px',
+  },
+  activityIconWrapper: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '8px',
+    background: 'rgba(124, 58, 237, 0.08)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityName: {
+    fontSize: '0.88rem',
+    color: 'var(--text-secondary)',
+  },
+  activityTime: {
+    fontSize: '0.75rem',
+    color: 'var(--text-muted)',
+    marginTop: '2px',
+  },
+  actionsGrid: {},
+  actionItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+    padding: '16px',
+    borderRadius: '10px',
+    border: '1px solid var(--border-color)',
+    cursor: 'pointer',
+    background: 'rgba(15,23,42,0.01)',
+    transition: 'var(--transition)',
+    textAlign: 'left',
+  },
+  actionTitle: {
+    fontSize: '0.88rem',
+    fontWeight: '600',
+    color: 'var(--text-primary)',
+  },
+  actionDesc: {
+    fontSize: '0.72rem',
+    color: 'var(--text-muted)',
+    marginTop: '2px',
+  },
+  planBanner: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  planHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  planLimit: {
+    fontSize: '0.82rem',
+    color: 'var(--text-muted)',
+  },
+  progressContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  progressLabels: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '0.8rem',
+    color: 'var(--text-secondary)',
+  },
+  progressBarBg: {
+    width: '100%',
+    height: '8px',
+    background: 'rgba(15,23,42,0.04)',
+    borderRadius: '4px',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    background: 'linear-gradient(to right, var(--primary), var(--secondary))',
+    borderRadius: '4px',
+    transition: 'width 0.4s ease',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100dvh',
+    background: 'var(--bg-overlay)',
+    backdropFilter: 'blur(4px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '20px',
+    boxSizing: 'border-box',
+    zIndex: 200,
+  },
+  modal: {
+    width: '100%',
+    maxWidth: '400px',
+    padding: '28px',
+    boxShadow: '0 20px 40px rgba(15,23,42,0.14)',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+  },
+  modalTitle: {
+    fontSize: '1.2rem',
+    color: 'var(--text-primary)',
+  },
+  modalCloseBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    padding: '4px',
+  },
+  modalActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '10px',
+    marginTop: '24px',
+  }
+};
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4

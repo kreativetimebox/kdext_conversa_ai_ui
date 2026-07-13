@@ -68,7 +68,7 @@ export default function Documentation({ navigate, showToast }) {
         <main style={styles.content}>
           {activeSection === 'getting-started' && (
             <div className="animate-fade-in">
-              <h1 style={styles.docTitle}>Getting Started</h1>
+              <h1 style={styles.docTitle} className="hero-page-title">Getting Started</h1>
               <p style={styles.docLead}>
                 Welcome to the Conversa AI Developer Portal. Integrate high-fidelity Text-to-Speech (TTS) and Speech-to-Text (STT) capabilities into your stack in minutes.
               </p>
@@ -146,7 +146,7 @@ export default function Documentation({ navigate, showToast }) {
 
           {activeSection === 'authentication' && (
             <div className="animate-fade-in">
-              <h1 style={styles.docTitle}>Authentication</h1>
+              <h1 style={styles.docTitle} className="hero-page-title">Authentication</h1>
               <p style={styles.docLead}>
                 All API requests require authentication. Pass your private API key in the request headers.
               </p>
@@ -193,7 +193,7 @@ export default function Documentation({ navigate, showToast }) {
 
           {activeSection === 'code-examples' && (
             <div className="animate-fade-in">
-              <h1 style={styles.docTitle}>Code Examples</h1>
+              <h1 style={styles.docTitle} className="hero-page-title">Code Examples</h1>
               <p style={styles.docLead}>
                 Quick integration snippets across multiple languages. Choose your environment:
               </p>
@@ -255,7 +255,7 @@ axios.post('https://api.conversa.ai/v1/voice/tts', payload, {
 
           {activeSection === 'sdk-libraries' && (
             <div className="animate-fade-in">
-              <h1 style={styles.docTitle}>SDK Libraries</h1>
+              <h1 style={styles.docTitle} className="hero-page-title">SDK Libraries</h1>
               <p style={styles.docLead}>
                 Official libraries for language platforms. Install using your package manager:
               </p>
@@ -316,7 +316,7 @@ axios.post('https://api.conversa.ai/v1/voice/tts', payload, {
 
           {activeSection === 'rate-limits' && (
             <div className="animate-fade-in">
-              <h1 style={styles.docTitle}>Rate Limits & Pricing</h1>
+              <h1 style={styles.docTitle} className="hero-page-title">Rate Limits & Pricing</h1>
               <p style={styles.docLead}>
                 Review limits based on your Conversa subscription tier.
               </p>
@@ -362,7 +362,7 @@ axios.post('https://api.conversa.ai/v1/voice/tts', payload, {
 
           {activeSection === 'error-handling' && (
             <div className="animate-fade-in">
-              <h1 style={styles.docTitle}>Error Handling</h1>
+              <h1 style={styles.docTitle} className="hero-page-title">Error Handling</h1>
               <p style={styles.docLead}>
                 Review returned standard HTTP status codes mapping API errors:
               </p>
@@ -559,7 +559,7 @@ const styles = {
     right: '16px',
     fontSize: '1.8rem',
     fontWeight: '800',
-    color: 'rgba(37,99,235, 0.1)',
+    color: 'rgba(124, 58, 237, 0.1)',
   },
   stepTitle: {
     fontSize: '1rem',
@@ -594,7 +594,7 @@ const styles = {
     flexWrap: 'wrap',
   },
   apiRefBox: {
-    background: 'linear-gradient(135deg, rgba(37,99,235, 0.08) 0%, rgba(14,165,233, 0.03) 100%)',
+    background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, rgba(6, 182, 212, 0.03) 100%)',
     border: '1px solid var(--border-hover)',
     borderRadius: '12px',
     padding: '24px',

@@ -4,7 +4,6 @@ import {
   Mic,
   Sparkles,
   Trash2,
-  ArrowLeft,
   Play,
   Square,
   Upload,
@@ -19,6 +18,9 @@ import {
 } from 'lucide-react';
 import { textToSpeech, getVoices, getDemoVoices, speechToText, demoSTT, buildAudioUrl, getJobStatus } from '../services/api';
 import AudioReviewPanel from '../components/AudioReviewPanel';
+import { attachAudioLevelMeter } from '../utils/audioLevel';
+import SiriOrb from '../components/SiriOrb';
+import OrbitField from '../components/OrbitField';
 
 // ─── Available Voices Fallback ─────────────────────────────────────────────────
 const FALLBACK_VOICES = [
@@ -103,8 +105,9 @@ const TTS_LANGUAGES = [
 
 const CHAR_LIMIT = 500;
 
-export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub', user, setHistoryData }) {
+export default function VoiceTools({ showToast, defaultSubView = 'studio', user, historyData = [], setHistoryData }) {
   const [subView, setSubView] = useState(defaultSubView);
+  const [historySearch, setHistorySearch] = useState('');
 
   // ── TTS State ──────────────────────────────────────────────────────────────
   const [text, setText] = useState('');
@@ -129,10 +132,13 @@ export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub'
   const [sttLanguage, setSttLanguage] = useState('en');
   const [sttError, setSttError] = useState('');
   const [ttsError, setTtsError] = useState('');
+  // Live mic volume (0-1) while recording, drives the Siri-style reactive orb.
+  const [micLevel, setMicLevel] = useState(0);
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const discardRecordingRef = useRef(false);
+  const micLevelMeterRef = useRef(null);
   // Generation counters for the async job-polling loops. Each submission takes
   // the next generation; anything that invalidates the in-flight request
   // (closing the panel, recording a new clip, loading another file) bumps the
@@ -373,6 +379,11 @@ export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub'
 
       mr.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
+        if (micLevelMeterRef.current) {
+          micLevelMeterRef.current.stop();
+          micLevelMeterRef.current = null;
+        }
+        setMicLevel(0);
         // Discarding directly stops the tracks, which also triggers this same onstop
         // handler — skip building/showing a review clip when that happened.
         if (discardRecordingRef.current) {
@@ -388,6 +399,19 @@ export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub'
       mr.start();
       setSttState('recording');
       showToast('🎙️ Live recording active...', 'info');
+
+      // Auto-stop once the mic has heard nothing but silence for a while —
+      // otherwise it stays hot indefinitely if no one is speaking. Acts on
+      // this closure's own `mr` directly (not through stopRecording(), which
+      // reads `sttState` as of THIS render — still 'idle' here since the
+      // setter above hasn't applied yet — so it would silently no-op).
+      micLevelMeterRef.current = attachAudioLevelMeter(stream, {
+        onLevel: setMicLevel,
+        silenceTimeoutMs: 3500,
+        onSilence: () => {
+          if (mr.state !== 'inactive') mr.stop();
+        },
+      });
     } catch (err) {
       console.error('Microphone error:', err);
       let msg = 'Microphone access denied or unavailable.';
@@ -650,9 +674,9 @@ export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub'
         <div className="conversa-voice-card-header">
           <span className="conversa-voice-name">{v.name}</span>
           <span className="badge" style={{
-            background: v.gender === 'female' ? 'rgba(14,165,233, 0.1)' : 'rgba(37,99,235, 0.1)',
+            background: v.gender === 'female' ? 'rgba(6, 182, 212, 0.1)' : 'rgba(124, 58, 237, 0.1)',
             color: v.gender === 'female' ? 'var(--secondary)' : 'var(--primary-light)',
-            border: v.gender === 'female' ? '1px solid rgba(14,165,233, 0.2)' : '1px solid rgba(37,99,235, 0.2)'
+            border: v.gender === 'female' ? '1px solid rgba(6, 182, 212, 0.2)' : '1px solid rgba(124, 58, 237, 0.2)'
           }}>
             {v.gender?.toUpperCase()}
           </span>
@@ -664,85 +688,369 @@ export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub'
 
   return (
     <div className="page-container animate-fade-in voice-tools-page">
+      <OrbitField level={micLevel} active={sttState === 'recording'} />
 
-      {/* ═══════════════════ HUB VIEW ═══════════════════ */}
-      {subView === 'hub' ? (
+      {/* ═══════════════════ TABS ═══════════════════ */}
+      {(subView === 'studio' || subView === 'history') && (
+        <div className="tab-list">
+          <button onClick={() => setSubView('studio')} className={`tab-btn ${subView === 'studio' ? 'active' : ''}`}>
+            Studio
+          </button>
+          <button onClick={() => setSubView('history')} className={`tab-btn ${subView === 'history' ? 'active' : ''}`}>
+            History
+          </button>
+        </div>
+      )}
+
+      {/* ═══════════════════ HISTORY VIEW ═══════════════════ */}
+      {subView === 'history' ? (
         <div style={styles.container}>
-          <div style={styles.hubHeader}>
-            <span className="badge badge-purple" style={{ marginBottom: '8px' }}>AI Voice Suite</span>
-            <h1 className="page-title">Conversa Voice Tools</h1>
-            <p className="page-subtitle">High-fidelity neural Speech-to-Text and Text-to-Speech models integrated dynamically.</p>
+          <div style={styles.filtersBarVT}>
+            <input
+              type="text"
+              placeholder="Search by filename..."
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              style={styles.historySearchInput}
+              className="history-search-input"
+            />
           </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>Filename</th>
+                  <th>Type</th>
+                  <th>Submitted</th>
+                  <th>Audio Duration</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyData
+                  .filter(item => item.name.toLowerCase().includes(historySearch.toLowerCase()))
+                  .map((item) => (
+                    <tr key={item.id}>
+                      <td style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {item.type === 'Text to Speech' ? (
+                          <Volume2 size={16} color="var(--primary-light)" style={{ flexShrink: 0 }} />
+                        ) : (
+                          <Mic size={16} color="var(--secondary)" style={{ flexShrink: 0 }} />
+                        )}
+                        <span style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{item.name}</span>
+                      </td>
+                      <td>{item.type}</td>
+                      <td>{item.submitted}</td>
+                      <td>{item.time}</td>
+                      <td>
+                        <span className={`badge ${
+                          item.status === 'Completed' ? 'badge-success' :
+                          item.status === 'Pending' ? 'badge-pending' : 'badge-danger'
+                        }`}>
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
 
-          <div className="voice-hub-grid">
-            {/* STT Card */}
-            <div onClick={() => navigate ? navigate('/services/stt') : setSubView('stt')} className="glass-card glass-card-hover" style={styles.hubCard}>
-              <div style={styles.iconBoxPurple}><Mic size={24} color="var(--primary)" /></div>
-              <h3 style={styles.cardTitle}>Speech to Text</h3>
-              <p style={styles.cardDesc}>
-                Upload pre-recorded audio files or stream live microphone recordings to get precision timestamps and transcripts.
-              </p>
-              <button className="btn btn-outline" style={{ marginTop: 'auto', alignSelf: 'flex-start', padding: '6px 14px', fontSize: '0.85rem' }}>
-                Launch STT
-              </button>
-            </div>
-
-            {/* TTS Card */}
-            <div onClick={() => navigate ? navigate('/services/tts') : setSubView('tts')} className="glass-card glass-card-hover" style={styles.hubCard}>
-              <div style={styles.iconBoxPink}><Volume2 size={24} color="var(--secondary)" /></div>
-              <h3 style={styles.cardTitle}>Text to Speech</h3>
-              <p style={styles.cardDesc}>
-                Synthesize plain text inputs into natural-sounding multi-accented speech using our leading multilingual neural voices.
-              </p>
-              <button className="btn btn-outline" style={{ marginTop: 'auto', alignSelf: 'flex-start', padding: '6px 14px', fontSize: '0.85rem' }}>
-                Launch TTS
-              </button>
-            </div>
-          </div>
-
-          {/* Active API Details */}
-          <div style={styles.apiKeyBanner}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <CheckCircle2 size={16} color="var(--success)" />
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Conversa Gateway Endpoint Active:&nbsp;
-                <code style={{ color: 'var(--primary-light)', fontSize: '0.82rem' }}>
-                  {user?.api_key ? `${user.api_key.slice(0, 12)}...` : 'Demo Gateway'}
-                </code>
-              </span>
-            </div>
-          </div>
-
-          {/* Core Feature Showcases */}
-          <div style={styles.whySection}>
-            <h3 style={styles.secTitle}>Key Operational Strengths</h3>
-            <div style={styles.whyGrid}>
-              <div>
-                <h4 style={styles.whyItemTitle}>Neural Clarity</h4>
-                <p style={styles.whyItemText}>Engineered using custom speaker embeddings to maintain expressive pacing and consistent tone.</p>
-              </div>
-              <div>
-                <h4 style={styles.whyItemTitle}>Dynamic Multilingual Support</h4>
-                <p style={styles.whyItemText}>Handles both Indian regional dialects (Parler pipeline) and global languages (Qwen3-TTS pipeline).</p>
-              </div>
-              <div>
-                <h4 style={styles.whyItemTitle}>Automatic Segment Parsing</h4>
-                <p style={styles.whyItemText}>Extracts and displays timestamps down to milliseconds, perfect for captioning and audio timelines.</p>
-              </div>
-            </div>
+                {historyData.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={styles.historyNoData}>
+                      No voice history yet — synthesize or transcribe something to see it here.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-      /* ═══════════════════ TTS VIEW ═══════════════════ */
-      ) : subView === 'tts' ? (
+      /* ═══════════════════ UNIFIED VOICE STUDIO ═══════════════════ */
+      ) : (
         <div style={styles.container}>
-          <div className="page-header" style={styles.subHeader}>
-            <button onClick={() => navigate ? navigate('/services/hub') : setSubView('hub')} style={styles.backBtn} className="voice-back-btn">
-              <ArrowLeft size={16} /> Back to Hub
-            </button>
-            <h1 className="page-title" style={{ marginTop: '16px' }}>Text to Speech</h1>
-            <p className="page-subtitle">Synthesize premium neural audio files from plain text.</p>
-          </div>
+          <div className="voice-studio-grid">
+            {/* Speech to Text panel */}
+            <div style={styles.studioColumn}>
+              <div style={styles.studioPanelHeader}>
+                <Mic size={18} color="var(--primary)" />
+                <h3 style={styles.studioPanelTitle}>Speech to Text</h3>
+              </div>
+              <div style={styles.sttLayout}>
+                {/* Mode Tab Switcher */}
+                <div style={styles.sttTabBar}>
+                  <button
+                    onClick={() => setSttMode('record')}
+                    style={{ ...styles.sttTab, ...(sttMode === 'record' ? styles.sttTabActive : {}) }}
+                    type="button"
+                  >
+                    <Mic size={15} /> Live Record
+                  </button>
+                  <button
+                    onClick={() => setSttMode('upload')}
+                    style={{ ...styles.sttTab, ...(sttMode === 'upload' ? styles.sttTabActive : {}) }}
+                    type="button"
+                  >
+                    <Upload size={15} /> Choose Audio File
+                  </button>
+                </div>
+
+                {/* Target Language Selector */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                    Acoustic Language:
+                  </label>
+                  <select
+                    value={sttLanguage}
+                    onChange={(e) => setSttLanguage(e.target.value)}
+                    className="form-input"
+                    style={{ maxWidth: '240px', flex: '1 1 160px', cursor: 'pointer', fontSize: '0.88rem' }}
+                  >
+                    {STT_LANGUAGES.map(l => (
+                      <option key={l.code} value={l.code}>{l.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* STT Operational Panel */}
+                <div className="glass-card" style={styles.sttCard}>
+
+                  {/* Hidden file input — always mounted so the review panel's "switch to upload" shortcut works regardless of current mode */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    style={{ display: 'none' }}
+                    accept="audio/*"
+                  />
+
+                  {reviewBlob ? (
+                    /* 🔎 SHARED REVIEW/TRIM PANEL (record + upload both land here). Stays mounted
+                       through transcribing/completed so the same clip can be re-run to check for
+                       model hallucination — it only disappears when the panel's Close (X) is pressed. */
+                    <div>
+                      <h3 style={{ ...styles.cardSubHeader, marginBottom: '16px' }}>Review Audio</h3>
+                      <AudioReviewPanel
+                        blob={reviewBlob}
+                        fileName={reviewBlob?.name || 'recording.wav'}
+                        onBlobChange={setReviewBlob}
+                        onClose={closeReviewPanel}
+                        onReRecord={reviewPanelReRecord}
+                        onReUpload={reviewPanelReUpload}
+                        showToast={showToast}
+                      />
+                      {sttState === 'transcribing' ? (
+                        <div style={{ ...styles.transcribingWrapper, marginTop: '16px' }}>
+                          <Loader2 size={24} className="animate-spin" color="var(--primary)" />
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>
+                            {sttMode === 'record' ? 'Processing acoustic features...' : 'Uploading and parsing file chunks...'}
+                          </span>
+                        </div>
+                      ) : (
+                        <button onClick={submitReviewedAudio} className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }} type="button">
+                          <Sparkles size={16} /> {sttState === 'completed' ? 'Run Again' : 'Run Transcription Models'}
+                        </button>
+                      )}
+                    </div>
+
+                  ) : sttMode === 'record' ? (
+                    /* 🎙️ LIVE RECORDING LAYOUT */
+                    <div className="mic-record-wrapper">
+                      <h3 style={{ ...styles.cardSubHeader, marginBottom: '8px' }}>Microphone Streaming</h3>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '24px', textAlign: 'center' }}>
+                        Speak clearly. Audio streams inside your sandbox, and resolves to text via neural Whisper.
+                      </p>
+
+                      <div className="mic-halo-container">
+                        {sttState === 'recording' && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            pointerEvents: 'none',
+                            zIndex: 0,
+                          }}>
+                            <SiriOrb size={160} level={micLevel} active={true} />
+                          </div>
+                        )}
+                        <button
+                          onClick={sttState === 'recording' ? stopRecording : startRecording}
+                          className={`conversa-mic-btn ${sttState === 'recording' ? 'recording' : ''}`}
+                          type="button"
+                          title={sttState === 'recording' ? "Stop recording" : "Start recording"}
+                          style={{ position: 'relative', zIndex: 1 }}
+                        >
+                          {sttState === 'recording' ? <Square size={24} color="#ffffff" fill="#ffffff" /> : <Mic size={28} color="#ffffff" />}
+                        </button>
+                      </div>
+
+                      {sttState === 'recording' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                          <div className="badge badge-danger" style={{ animation: 'pulse 1s infinite alternate', marginBottom: '10px' }}>
+                            🔴 RECORDING ACTIVE
+                          </div>
+
+                          {/* Timer */}
+                          <div style={styles.recordingTimer}>
+                            {String(Math.floor(recordingTime / 60)).padStart(2, '0')}:{String(recordingTime % 60).padStart(2, '0')}
+                          </div>
+
+                          {/* Visualizer soundwave */}
+                          <div className="conversa-waveform active">
+                            {[...Array(12)].map((_, i) => (
+                              <div
+                                key={i}
+                                className="conversa-wave-bar"
+                                style={{ animationDelay: `${i * 0.08}s` }}
+                              />
+                            ))}
+                          </div>
+
+                          <div style={styles.btnGroup}>
+                            <button onClick={cancelRecording} className="btn btn-outline" style={{ padding: '8px 18px', fontSize: '0.85rem' }} type="button">
+                              Discard
+                            </button>
+                            <button onClick={stopRecording} className="btn btn-primary" style={{ padding: '8px 18px', background: '#ef4444', borderColor: '#ef4444', fontSize: '0.85rem' }} type="button">
+                              Finish & Process
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {sttState === 'idle' && (
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '10px' }}>
+                          Click the microphone to request stream access
+                        </p>
+                      )}
+                    </div>
+
+                  /* 📁 FILE UPLOAD LAYOUT */
+                  ) : (
+                    <div>
+                      <h3 style={{ ...styles.cardSubHeader, marginBottom: '16px' }}>Local File Input</h3>
+
+                      <div
+                        className={`conversa-dropzone ${dragActive ? 'drag-active' : ''}`}
+                        onDragEnter={handleDragEnter}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <div className="conversa-dropzone-icon">
+                          <Upload size={24} color="var(--primary-light)" />
+                        </div>
+                        <p className="conversa-dropzone-text">
+                          Drag and drop audio file here
+                        </p>
+                        <p className="conversa-dropzone-subtext">
+                          or click to browse local files (WAV, MP3, M4A, OGG up to 25MB)
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Error Banner */}
+                {sttError && (
+                  <div style={styles.errorBanner} className="animate-fade-in">
+                    <AlertCircle size={16} color="#ef4444" />
+                    <span>{sttError}</span>
+                  </div>
+                )}
+
+                {/* Results card */}
+                {transcriptResult && (
+                  <div className="glass-card animate-fade-in" style={styles.sttCard}>
+                    <div style={styles.resultsHeader}>
+                      <h3 style={styles.cardSubHeader}>Transcription Complete</h3>
+                      <div style={styles.resultsActions}>
+                        <button onClick={copyTranscriptToClipboard} className="voice-action-icon-btn" style={styles.actionIconBtn} title="Copy Full Text" type="button">
+                          <Copy size={16} />
+                        </button>
+                        <button onClick={handleDownloadTranscriptJSON} className="voice-action-icon-btn" style={styles.actionIconBtn} title="Download JSON Response" type="button">
+                          <File size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Meta details badges */}
+                    <div style={styles.resultsMeta}>
+                      <div style={styles.metaBadge}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Source:</span>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: '600', fontSize: '0.8rem' }}>{transcriptResult.filename}</span>
+                      </div>
+                      {transcriptResult.duration && (
+                        <div style={styles.metaBadge}>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Processing Time:</span>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: '600', fontSize: '0.8rem' }}>{transcriptResult.duration}</span>
+                        </div>
+                      )}
+                      <div style={styles.metaBadge}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Language:</span>
+                        <span style={{ color: 'var(--primary-light)', fontWeight: '600', fontSize: '0.8rem' }}>
+                          {transcriptResult.language?.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Sub-view tab switcher for Result Card (if segments exist) */}
+                    {transcriptResult.segments && transcriptResult.segments.length > 0 && (
+                      <div style={{ ...styles.sttTabBar, marginBottom: '20px', maxWidth: '300px' }}>
+                        <button
+                          onClick={() => setResultTab('text')}
+                          style={{ ...styles.sttTab, padding: '6px 12px', fontSize: '0.82rem', ...(resultTab === 'text' ? styles.sttTabActive : {}) }}
+                          type="button"
+                        >
+                          Full Paragraph
+                        </button>
+                        <button
+                          onClick={() => setResultTab('timeline')}
+                          style={{ ...styles.sttTab, padding: '6px 12px', fontSize: '0.82rem', ...(resultTab === 'timeline' ? styles.sttTabActive : {}) }}
+                          type="button"
+                        >
+                          Segments Timeline
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Content Box */}
+                    {resultTab === 'text' ? (
+                      <div style={styles.transcriptBox}>
+                        <h4 style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '12px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                          Text Transcript
+                        </h4>
+                        <p style={{ fontSize: '0.92rem', color: 'var(--text-primary)', lineHeight: '1.7', whiteSpace: 'pre-wrap' }}>
+                          {transcriptResult.text}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="conversa-timeline">
+                        {transcriptResult.segments.map((seg, idx) => (
+                          <div key={idx} className="conversa-timeline-item">
+                            <div className="conversa-timeline-dot"></div>
+                            <div className="conversa-timeline-time">
+                              {formatSegmentTime(seg.start)} &rarr; {formatSegmentTime(seg.end)}
+                            </div>
+                            <div className="conversa-timeline-text">{seg.text ?? seg.word ?? ''}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Text to Speech panel */}
+            <div style={styles.studioColumn}>
+              <div style={styles.studioPanelHeader}>
+                <Volume2 size={18} color="var(--secondary)" />
+                <h3 style={styles.studioPanelTitle}>Text to Speech</h3>
+              </div>
 
           <div className="glass-card" style={styles.ttsCard}>
             {/* Target Language dropdown */}
@@ -767,12 +1075,12 @@ export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub'
             </div>
 
             {/* Premium Voice Selector */}
-            <div className="form-group" style={{ marginTop: '24px' }}>
+            <div className="form-group" style={{ marginTop: '16px' }}>
               <label className="form-label">Available Speaker Voices</label>
               
               {femaleVoices.length > 0 && (
-                <div style={{ marginBottom: '20px' }}>
-                  <h5 style={{ fontSize: '0.8rem', color: 'var(--secondary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Female Voices</h5>
+                <div style={{ marginBottom: '12px' }}>
+                  <h5 style={{ fontSize: '0.75rem', color: 'var(--secondary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Female Voices</h5>
                   <div className="conversa-voice-grid">
                     {femaleVoices.map((v) => renderVoiceCard(v))}
                   </div>
@@ -780,8 +1088,8 @@ export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub'
               )}
 
               {maleVoices.length > 0 && (
-                <div style={{ marginBottom: '10px' }}>
-                  <h5 style={{ fontSize: '0.8rem', color: 'var(--primary-light)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Male Voices</h5>
+                <div style={{ marginBottom: '6px' }}>
+                  <h5 style={{ fontSize: '0.75rem', color: 'var(--primary-light)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Male Voices</h5>
                   <div className="conversa-voice-grid">
                     {maleVoices.map((v) => renderVoiceCard(v))}
                   </div>
@@ -790,7 +1098,7 @@ export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub'
             </div>
 
             {/* Output Format */}
-            <div className="form-group" style={{ marginTop: '24px' }}>
+            <div className="form-group" style={{ marginTop: '16px' }}>
               <label className="form-label">Output Audio Format</label>
               <div style={{ display: 'flex', gap: '10px' }}>
                 {['wav', 'mp3'].map((format) => (
@@ -801,7 +1109,7 @@ export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub'
                     style={{
                       flex: 1,
                       border: audioFormat === format ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                      background: audioFormat === format ? 'rgba(37,99,235, 0.08)' : 'transparent',
+                      background: audioFormat === format ? 'rgba(124, 58, 237, 0.08)' : 'transparent',
                       color: audioFormat === format ? 'var(--text-primary)' : 'var(--text-secondary)',
                       padding: '10px',
                     }}
@@ -814,7 +1122,7 @@ export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub'
             </div>
 
             {/* Synthesis Text Input */}
-            <div className="form-group" style={{ marginTop: '24px' }}>
+            <div className="form-group" style={{ marginTop: '16px' }}>
               <label className="form-label">Plain Text Input</label>
               <textarea
                 rows={6}
@@ -910,273 +1218,39 @@ export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub'
               </div>
             )}
           </div>
-        </div>
-
-      /* ═══════════════════ STT VIEW ═══════════════════ */
-      ) : (
-        <div style={styles.container}>
-          <div className="page-header" style={styles.subHeader}>
-            <button onClick={() => navigate ? navigate('/services/hub') : setSubView('hub')} style={styles.backBtn} className="voice-back-btn">
-              <ArrowLeft size={16} /> Back to Hub
-            </button>
-            <h1 className="page-title" style={{ marginTop: '16px' }}>Speech to Text</h1>
-            <p className="page-subtitle">Transcribe dynamic vocal streams or upload existing audio files.</p>
+            </div>
           </div>
 
-          <div style={styles.sttLayout}>
-            {/* Mode Tab Switcher */}
-            <div style={styles.sttTabBar}>
-              <button
-                onClick={() => setSttMode('record')}
-                style={{ ...styles.sttTab, ...(sttMode === 'record' ? styles.sttTabActive : {}) }}
-                type="button"
-              >
-                <Mic size={15} /> Live Record
-              </button>
-              <button
-                onClick={() => setSttMode('upload')}
-                style={{ ...styles.sttTab, ...(sttMode === 'upload' ? styles.sttTabActive : {}) }}
-                type="button"
-              >
-                <Upload size={15} /> Choose Audio File
-              </button>
+          {/* Active API Details */}
+          <div style={styles.apiKeyBanner}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <CheckCircle2 size={16} color="var(--success)" />
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Conversa Gateway Endpoint Active:&nbsp;
+                <code style={{ color: 'var(--primary-light)', fontSize: '0.82rem' }}>
+                  {user?.api_key ? `${user.api_key.slice(0, 12)}...` : 'Demo Gateway'}
+                </code>
+              </span>
             </div>
+          </div>
 
-            {/* Target Language Selector */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600', whiteSpace: 'nowrap' }}>
-                Acoustic Language:
-              </label>
-              <select
-                value={sttLanguage}
-                onChange={(e) => setSttLanguage(e.target.value)}
-                className="form-input"
-                style={{ maxWidth: '240px', cursor: 'pointer', fontSize: '0.88rem' }}
-              >
-                {STT_LANGUAGES.map(l => (
-                  <option key={l.code} value={l.code}>{l.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* STT Operational Panel */}
-            <div className="glass-card" style={styles.sttCard}>
-
-              {/* Hidden file input — always mounted so the review panel's "switch to upload" shortcut works regardless of current mode */}
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
-                accept="audio/*"
-              />
-
-              {reviewBlob ? (
-                /* 🔎 SHARED REVIEW/TRIM PANEL (record + upload both land here). Stays mounted
-                   through transcribing/completed so the same clip can be re-run to check for
-                   model hallucination — it only disappears when the panel's Close (X) is pressed. */
-                <div>
-                  <h3 style={{ ...styles.cardSubHeader, marginBottom: '16px' }}>Review Audio</h3>
-                  <AudioReviewPanel
-                    blob={reviewBlob}
-                    fileName={reviewBlob?.name || 'recording.wav'}
-                    onBlobChange={setReviewBlob}
-                    onClose={closeReviewPanel}
-                    onReRecord={reviewPanelReRecord}
-                    onReUpload={reviewPanelReUpload}
-                    showToast={showToast}
-                  />
-                  {sttState === 'transcribing' ? (
-                    <div style={{ ...styles.transcribingWrapper, marginTop: '16px' }}>
-                      <Loader2 size={24} className="animate-spin" color="var(--primary)" />
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>
-                        {sttMode === 'record' ? 'Processing acoustic features...' : 'Uploading and parsing file chunks...'}
-                      </span>
-                    </div>
-                  ) : (
-                    <button onClick={submitReviewedAudio} className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }} type="button">
-                      <Sparkles size={16} /> {sttState === 'completed' ? 'Run Again' : 'Run Transcription Models'}
-                    </button>
-                  )}
-                </div>
-
-              ) : sttMode === 'record' ? (
-                /* 🎙️ LIVE RECORDING LAYOUT */
-                <div className="mic-record-wrapper">
-                  <h3 style={{ ...styles.cardSubHeader, marginBottom: '8px' }}>Microphone Streaming</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '24px', textAlign: 'center' }}>
-                    Speak clearly. Audio streams inside your sandbox, and resolves to text via neural Whisper.
-                  </p>
-
-                  <div className="mic-halo-container">
-                    {sttState === 'recording' && <div className="mic-halo-ring active"></div>}
-                    {sttState === 'recording' && <div className="mic-halo-ring active" style={{ animationDelay: '0.6s' }}></div>}
-                    {sttState === 'recording' && <div className="mic-halo-ring active" style={{ animationDelay: '1.2s' }}></div>}
-                    <button
-                      onClick={sttState === 'recording' ? stopRecording : startRecording}
-                      className={`conversa-mic-btn ${sttState === 'recording' ? 'recording' : ''}`}
-                      type="button"
-                      title={sttState === 'recording' ? "Stop recording" : "Start recording"}
-                    >
-                      {sttState === 'recording' ? <Square size={24} color="#ffffff" fill="#ffffff" /> : <Mic size={28} color="#ffffff" />}
-                    </button>
-                  </div>
-
-                  {sttState === 'recording' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                      <div className="badge badge-danger" style={{ animation: 'pulse 1s infinite alternate', marginBottom: '10px' }}>
-                        🔴 RECORDING ACTIVE
-                      </div>
-
-                      {/* Timer */}
-                      <div style={styles.recordingTimer}>
-                        {String(Math.floor(recordingTime / 60)).padStart(2, '0')}:{String(recordingTime % 60).padStart(2, '0')}
-                      </div>
-
-                      {/* Visualizer soundwave */}
-                      <div className="conversa-waveform active">
-                        {[...Array(12)].map((_, i) => (
-                          <div
-                            key={i}
-                            className="conversa-wave-bar"
-                            style={{ animationDelay: `${i * 0.08}s` }}
-                          />
-                        ))}
-                      </div>
-
-                      <div style={styles.btnGroup}>
-                        <button onClick={cancelRecording} className="btn btn-outline" style={{ padding: '8px 18px', fontSize: '0.85rem' }} type="button">
-                          Discard
-                        </button>
-                        <button onClick={stopRecording} className="btn btn-primary" style={{ padding: '8px 18px', background: '#ef4444', borderColor: '#ef4444', fontSize: '0.85rem' }} type="button">
-                          Finish & Process
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {sttState === 'idle' && (
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '10px' }}>
-                      Click the microphone to request stream access
-                    </p>
-                  )}
-                </div>
-
-              /* 📁 FILE UPLOAD LAYOUT */
-              ) : (
-                <div>
-                  <h3 style={{ ...styles.cardSubHeader, marginBottom: '16px' }}>Local File Input</h3>
-
-                  <div
-                    className={`conversa-dropzone ${dragActive ? 'drag-active' : ''}`}
-                    onDragEnter={handleDragEnter}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <div className="conversa-dropzone-icon">
-                      <Upload size={24} color="var(--primary-light)" />
-                    </div>
-                    <p className="conversa-dropzone-text">
-                      Drag and drop audio file here
-                    </p>
-                    <p className="conversa-dropzone-subtext">
-                      or click to browse local files (WAV, MP3, M4A, OGG up to 25MB)
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Error Banner */}
-            {sttError && (
-              <div style={styles.errorBanner} className="animate-fade-in">
-                <AlertCircle size={16} color="#ef4444" />
-                <span>{sttError}</span>
+          {/* Core Feature Showcases */}
+          <div style={styles.whySection}>
+            <h3 style={styles.secTitle}>Key Operational Strengths</h3>
+            <div style={styles.whyGrid}>
+              <div>
+                <h4 style={styles.whyItemTitle}>Neural Clarity</h4>
+                <p style={styles.whyItemText}>Engineered using custom speaker embeddings to maintain expressive pacing and consistent tone.</p>
               </div>
-            )}
-
-            {/* Results card */}
-            {transcriptResult && (
-              <div className="glass-card animate-fade-in" style={styles.sttCard}>
-                <div style={styles.resultsHeader}>
-                  <h3 style={styles.cardSubHeader}>Transcription Complete</h3>
-                  <div style={styles.resultsActions}>
-                    <button onClick={copyTranscriptToClipboard} className="voice-action-icon-btn" style={styles.actionIconBtn} title="Copy Full Text" type="button">
-                      <Copy size={16} />
-                    </button>
-                    <button onClick={handleDownloadTranscriptJSON} className="voice-action-icon-btn" style={styles.actionIconBtn} title="Download JSON Response" type="button">
-                      <File size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Meta details badges */}
-                <div style={styles.resultsMeta}>
-                  <div style={styles.metaBadge}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Source:</span>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: '600', fontSize: '0.8rem' }}>{transcriptResult.filename}</span>
-                  </div>
-                  {transcriptResult.duration && (
-                    <div style={styles.metaBadge}>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Processing Time:</span>
-                      <span style={{ color: 'var(--text-primary)', fontWeight: '600', fontSize: '0.8rem' }}>{transcriptResult.duration}</span>
-                    </div>
-                  )}
-                  <div style={styles.metaBadge}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Language:</span>
-                    <span style={{ color: 'var(--primary-light)', fontWeight: '600', fontSize: '0.8rem' }}>
-                      {transcriptResult.language?.toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Sub-view tab switcher for Result Card (if segments exist) */}
-                {transcriptResult.segments && transcriptResult.segments.length > 0 && (
-                  <div style={{ ...styles.sttTabBar, marginBottom: '20px', maxWidth: '300px' }}>
-                    <button
-                      onClick={() => setResultTab('text')}
-                      style={{ ...styles.sttTab, padding: '6px 12px', fontSize: '0.82rem', ...(resultTab === 'text' ? styles.sttTabActive : {}) }}
-                      type="button"
-                    >
-                      Full Paragraph
-                    </button>
-                    <button
-                      onClick={() => setResultTab('timeline')}
-                      style={{ ...styles.sttTab, padding: '6px 12px', fontSize: '0.82rem', ...(resultTab === 'timeline' ? styles.sttTabActive : {}) }}
-                      type="button"
-                    >
-                      Segments Timeline
-                    </button>
-                  </div>
-                )}
-
-                {/* Content Box */}
-                {resultTab === 'text' ? (
-                  <div style={styles.transcriptBox}>
-                    <h4 style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '12px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                      Text Transcript
-                    </h4>
-                    <p style={{ fontSize: '0.92rem', color: 'var(--text-primary)', lineHeight: '1.7', whiteSpace: 'pre-wrap' }}>
-                      {transcriptResult.text}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="conversa-timeline">
-                    {transcriptResult.segments.map((seg, idx) => (
-                      <div key={idx} className="conversa-timeline-item">
-                        <div className="conversa-timeline-dot"></div>
-                        <div className="conversa-timeline-time">
-                          {formatSegmentTime(seg.start)} &rarr; {formatSegmentTime(seg.end)}
-                        </div>
-                        <div className="conversa-timeline-text">{seg.text ?? seg.word ?? ''}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div>
+                <h4 style={styles.whyItemTitle}>Dynamic Multilingual Support</h4>
+                <p style={styles.whyItemText}>Handles both Indian regional dialects (Parler pipeline) and global languages (Qwen3-TTS pipeline).</p>
               </div>
-            )}
+              <div>
+                <h4 style={styles.whyItemTitle}>Automatic Segment Parsing</h4>
+                <p style={styles.whyItemText}>Extracts and displays timestamps down to milliseconds, perfect for captioning and audio timelines.</p>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1185,17 +1259,35 @@ export default function VoiceTools({ navigate, showToast, defaultSubView = 'hub'
 }
 
 const styles = {
-  container: { maxWidth: 'var(--max-width)', margin: '0 auto' },
-  hubHeader: {
-    textAlign: 'center', maxWidth: '600px', margin: '0 auto 48px auto',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
+  container: { width: '100%' },
+  filtersBarVT: { display: 'flex', marginBottom: '20px' },
+  historySearchInput: {
+    width: '100%',
+    maxWidth: '360px',
+    padding: '10px 16px',
+    background: 'var(--bg-subtle)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '8px',
+    color: 'var(--text-primary)',
+    fontSize: '0.9rem',
+    outline: 'none',
+  },
+  historyNoData: {
+    padding: '32px',
+    textAlign: 'center',
+    color: 'var(--text-muted)',
+    fontSize: '0.9rem',
+  },
+  studioColumn: {
+    display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0,
+  },
+  studioPanelHeader: {
+    display: 'flex', alignItems: 'center', gap: '10px',
+  },
+  studioPanelTitle: {
+    fontSize: '1.15rem', color: 'var(--text-primary)', margin: 0,
   },
 
-  hubCard: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '16px', cursor: 'pointer', minHeight: '220px' },
-  iconBoxPurple: { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(37,99,235,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  iconBoxPink:   { width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(14,165,233,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: '1.2rem', color: 'var(--text-primary)' },
-  cardDesc: { fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' },
   apiKeyBanner: {
     marginTop: '24px', maxWidth: '700px', margin: '24px auto 0',
     background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.15)',
@@ -1206,13 +1298,7 @@ const styles = {
   whyGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px,1fr))', gap: '32px', textAlign: 'left' },
   whyItemTitle: { fontSize: '1.05rem', color: 'var(--text-primary)', marginBottom: '8px' },
   whyItemText: { fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' },
-  subHeader: { textAlign: 'left', maxWidth: '800px', margin: '0 auto 32px auto' },
-  backBtn: {
-    background: 'transparent', border: 'none', color: 'var(--text-secondary)',
-    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
-    fontSize: '0.9rem', transition: 'var(--transition)',
-  },
-  ttsCard: { maxWidth: '800px', margin: '0 auto', padding: '32px' },
+  ttsCard: { padding: '22px' },
   cardSubHeader: { fontSize: '1.1rem', color: 'var(--text-primary)', fontWeight: '600', marginBottom: '16px' },
   textareaFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', fontSize: '0.8rem', color: 'var(--text-muted)' },
   clearBtn: { background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: 'var(--transition)' },
@@ -1221,7 +1307,7 @@ const styles = {
   soundwave: { display: 'flex', alignItems: 'center', gap: '4px', height: '32px' },
   waveBar: { width: '4px', height: '10px', background: 'var(--primary-light)', borderRadius: '2px', animation: 'wave 1s infinite alternate ease-in-out' },
   audioPlayerBox: {
-    marginTop: '24px', background: 'rgba(37,99,235,0.03)', border: '1px solid var(--border-color)',
+    marginTop: '24px', background: 'rgba(124, 58, 237,0.03)', border: '1px solid var(--border-color)',
     borderRadius: '12px', padding: '16px',
   },
   audioPlayerHeader: { display: 'flex', alignItems: 'center', gap: '10px' },
@@ -1230,7 +1316,7 @@ const styles = {
     borderRadius: '8px', padding: '12px 16px', display: 'flex', alignItems: 'center',
     gap: '10px', fontSize: '0.85rem', color: 'var(--error)', margin: '16px 0',
   },
-  sttLayout: { maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' },
+  sttLayout: { display: 'flex', flexDirection: 'column', gap: '16px' },
   sttTabBar: {
     display: 'flex', gap: '4px', background: 'rgba(15,23,42,0.02)',
     border: '1px solid var(--border-color)', borderRadius: '12px', padding: '4px',
@@ -1242,15 +1328,15 @@ const styles = {
     transition: 'var(--transition)',
   },
   sttTabActive: {
-    background: 'rgba(37,99,235, 0.15)', color: 'var(--text-primary)',
-    boxShadow: '0 0 0 1px rgba(37,99,235, 0.3)',
+    background: 'rgba(124, 58, 237, 0.15)', color: 'var(--text-primary)',
+    boxShadow: '0 0 0 1px rgba(124, 58, 237, 0.3)',
   },
-  sttCard: { padding: '32px' },
+  sttCard: { padding: '22px' },
   recordingTimer: { fontSize: '2.2rem', fontWeight: '700', color: 'var(--text-primary)', fontFamily: 'monospace', marginBottom: '8px' },
   btnGroup: { display: 'flex', gap: '10px', marginTop: '16px' },
   transcribingWrapper: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
-    padding: '20px', background: 'rgba(37,99,235,0.03)', borderRadius: '8px',
+    padding: '20px', background: 'rgba(124, 58, 237,0.03)', borderRadius: '8px',
     border: '1px solid var(--border-color)', width: '100%',
   },
   resultsHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' },

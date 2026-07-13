@@ -12,6 +12,7 @@ import {
   Code,
   Mic
 } from 'lucide-react';
+import ConstellationField from '../components/ConstellationField';
 
 export default function History({ historyData, showToast }) {
   const [activeTab, setActiveTab] = useState('voice-logs'); // 'overview' | 'voice-logs'
@@ -65,6 +66,7 @@ export default function History({ historyData, showToast }) {
 
   return (
     <div className="page-container animate-fade-in history-page">
+      <ConstellationField />
       <div className="page-header">
         <h1 className="page-title">Processing History</h1>
         <p className="page-subtitle">View and track all your speech synthesis and voice transcribing activities.</p>
@@ -438,13 +440,15 @@ const styles = {
     position: 'fixed',
     top: 0,
     left: 0,
-    width: '100vw',
+    width: '100%',
     height: '100dvh',
     background: 'var(--bg-overlay)',
     backdropFilter: 'blur(4px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: '20px',
+    boxSizing: 'border-box',
     zIndex: 200,
   },
   modal: {
@@ -454,6 +458,7 @@ const styles = {
     boxShadow: '0 20px 40px rgba(15,23,42,0.14)',
     maxHeight: '90vh',
     overflowY: 'auto',
+    boxSizing: 'border-box',
   },
   modalHeader: {
     display: 'flex',
@@ -492,6 +497,7 @@ const styles = {
     fontSize: '0.92rem',
     color: 'var(--text-primary)',
     marginTop: '4px',
+    wordBreak: 'break-word',
     fontWeight: '500',
   },
   jsonSection: {

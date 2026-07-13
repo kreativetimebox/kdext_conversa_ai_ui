@@ -1,7 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowRightLeft, Volume2, Copy, Sparkles, CheckCircle2, Globe, ChevronDown, Zap, X, Search, Bot, Mic, MicOff, StopCircle, Loader2 } from 'lucide-react';
 import { translateText, voiceTTS, voiceSTT, getWsBaseUrl } from '../services/api';
+<<<<<<< HEAD
 import { logEvent } from '../utils/logger';
+=======
+import { attachAudioLevelMeter } from '../utils/audioLevel';
+import SiriOrb from '../components/SiriOrb';
+import WaveGridField from '../components/WaveGridField';
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
 
 const LANGUAGES = [
   { code: 'auto', name: 'Detect Language', flag: '🔍', region: '' },
@@ -82,8 +88,8 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
           alignItems: 'center',
           gap: '10px',
           padding: '10px 14px',
-          background: open ? 'rgba(37,99,235,0.12)' : 'rgba(15,23,42,0.05)',
-          border: `1.5px solid ${open ? 'rgba(37,99,235,0.5)' : 'rgba(15,23,42,0.12)'}`,
+          background: open ? 'rgba(124, 58, 237,0.12)' : 'rgba(15,23,42,0.05)',
+          border: `1.5px solid ${open ? 'rgba(124, 58, 237,0.5)' : 'rgba(15,23,42,0.12)'}`,
           borderRadius: '12px',
           color: 'var(--text-primary)',
           cursor: 'pointer',
@@ -102,7 +108,7 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
         <span style={{ flex: 1, textAlign: 'left', color: 'var(--text-primary)' }}>{selected?.name || placeholder}</span>
         <ChevronDown
           size={16}
-          color="#3b82f6"
+          color="#a78bfa"
           style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', flexShrink: 0 }}
         />
       </button>
@@ -116,9 +122,9 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
           right: align === 'right' ? 0 : 'auto',
           zIndex: 999,
           background: 'var(--bg-card)',
-          border: '1.5px solid rgba(37,99,235,0.3)',
+          border: '1.5px solid rgba(124, 58, 237,0.3)',
           borderRadius: '16px',
-          boxShadow: '0 25px 50px rgba(15,23,42,0.16), 0 0 0 1px rgba(37,99,235,0.1)',
+          boxShadow: '0 25px 50px rgba(15,23,42,0.16), 0 0 0 1px rgba(124, 58, 237,0.1)',
           width: '280px',
           backdropFilter: 'blur(20px)',
           overflow: 'hidden',
@@ -163,14 +169,14 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
                   gap: '12px',
                   padding: '10px 16px',
                   width: '100%',
-                  background: lang.code === value ? 'rgba(37,99,235,0.15)' : 'transparent',
+                  background: lang.code === value ? 'rgba(124, 58, 237,0.15)' : 'transparent',
                   border: 'none',
                   cursor: 'pointer',
                   color: 'var(--text-primary)',
                   fontSize: '0.9rem',
                   textAlign: 'left',
                   transition: 'background 0.15s ease',
-                  borderLeft: lang.code === value ? '3px solid #2563eb' : '3px solid transparent',
+                  borderLeft: lang.code === value ? '3px solid #7c3aed' : '3px solid transparent',
                 }}
                 onMouseEnter={e => { if (lang.code !== value) e.currentTarget.style.background = 'rgba(15,23,42,0.05)'; }}
                 onMouseLeave={e => { if (lang.code !== value) e.currentTarget.style.background = 'transparent'; }}
@@ -187,7 +193,7 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
                   )}
                 </div>
                 {lang.code === value && (
-                  <CheckCircle2 size={14} color="#2563eb" style={{ flexShrink: 0 }} />
+                  <CheckCircle2 size={14} color="#7c3aed" style={{ flexShrink: 0 }} />
                 )}
               </button>
             ))}
@@ -199,6 +205,7 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
 }
 
 export default function Translate({ user, showToast }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer toggle only — always visible on desktop
   const [sourceLang, setSourceLang] = useState('auto');
   const [targetLang, setTargetLang] = useState('es');
   const [sourceText, setSourceText] = useState('');
@@ -206,8 +213,16 @@ export default function Translate({ user, showToast }) {
   const [detectedLang, setDetectedLang] = useState(null);
   const [engine, setEngine] = useState('live');
   const [isTranslating, setIsTranslating] = useState(false);
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState(() => {
+    try {
+      const raw = localStorage.getItem('conversa_translate_history');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
   const [copied, setCopied] = useState(false);
+<<<<<<< HEAD
   const [copiedSource, setCopiedSource] = useState(false);
   // TTS phase per panel: 'idle' | 'loading' (request in flight) | 'playing'.
   // The explicit loading phase keeps the button honest while the audio file
@@ -217,6 +232,20 @@ export default function Translate({ user, showToast }) {
   // Bumped on every TTS stop/start so a response arriving after Stop is
   // discarded instead of playing with no visible Stop control.
   const ttsGenRef = useRef(0);
+=======
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Persist translation history across reloads/navigation, same as the
+  // sidebar's other data sources — otherwise it resets to empty every time
+  // and looks broken even though it's working.
+  useEffect(() => {
+    try {
+      localStorage.setItem('conversa_translate_history', JSON.stringify(history));
+    } catch {
+      // ignore quota/serialization errors — history is a nice-to-have, not critical
+    }
+  }, [history]);
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
   const audioRef = useRef(null); // tracks the current TTS Audio object so we can stop it on unmount
   const [wsConnected, setWsConnected] = useState(false);
 
@@ -225,11 +254,13 @@ export default function Translate({ user, showToast }) {
   // The browser records mic audio in short complete segments, POSTs each to
   // the STT endpoint, then sends the transcript into wsRef for LLM translation.
   const [voiceActive, setVoiceActive] = useState(false);
+  const [voiceLevel, setVoiceLevel] = useState(0); // live mic volume (0-1), drives the Siri-style orb
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const voiceActiveRef = useRef(false);  // ref so async callbacks see latest value
   const voiceMediaRecorderRef = useRef(null);
   const voiceStreamRef = useRef(null);
   const voiceCycleTimerRef = useRef(null);
+<<<<<<< HEAD
 
   // Dead-air auto-stop: the live mic stays on until the user stops it —
   // the only automatic cutoff is 30s of continuous silence.
@@ -237,6 +268,12 @@ export default function Translate({ user, showToast }) {
   const voiceAnalyserRef = useRef(null);
   const voiceSilenceRafRef = useRef(null);
   const voiceSilenceStartRef = useRef(null);
+=======
+  // Auto-stops the mic after a stretch of silence so it doesn't stay hot
+  // forever if no one is speaking.
+  const voiceLevelMeterRef = useRef(null);
+  const VOICE_SILENCE_TIMEOUT_MS = 3500;
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
   // Segment STT calls run in parallel, so a slow chunk must not let a later
   // chunk's text land first: each chunk takes a sequence number and results
   // are buffered, then appended in order — but only up to a bounded wait, so
@@ -846,8 +883,18 @@ export default function Translate({ user, showToast }) {
       // Start the record → STT → translate cycle
       startRecordingCycle(stream);
 
+<<<<<<< HEAD
        // Watchdog: end the session only after 30s of continuous dead air
       startSilenceDetection(stream);
+=======
+      // Auto-stop once the mic has heard nothing but silence for a while —
+      // otherwise it stays hot indefinitely if no one is speaking.
+      voiceLevelMeterRef.current = attachAudioLevelMeter(stream, {
+        onLevel: setVoiceLevel,
+        silenceTimeoutMs: VOICE_SILENCE_TIMEOUT_MS,
+        onSilence: () => stopVoiceRecording('silence'),
+      });
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
     } catch (err) {
       let msg = 'Microphone access denied or unavailable.';
       if (err.name === 'NotAllowedError') {
@@ -860,12 +907,18 @@ export default function Translate({ user, showToast }) {
     }
   };
 
-  const stopVoiceRecording = () => {
+  const stopVoiceRecording = (reason = 'manual') => {
+    if (!voiceActiveRef.current) return;
     voiceActiveRef.current = false;
     setVoiceActive(false);
     stopSilenceDetection();
     clearTimeout(voiceCycleTimerRef.current);
     clearTimeout(voiceGapTimerRef.current);
+    if (voiceLevelMeterRef.current) {
+      voiceLevelMeterRef.current.stop();
+      voiceLevelMeterRef.current = null;
+    }
+    setVoiceLevel(0);
     if (voiceMediaRecorderRef.current &&
         voiceMediaRecorderRef.current.state !== 'inactive') {
       try { voiceMediaRecorderRef.current.stop(); } catch (_) {}
@@ -876,7 +929,10 @@ export default function Translate({ user, showToast }) {
       voiceStreamRef.current = null;
     }
     setIsTranslating(false);
-    showToast('Recording stopped.', 'success');
+    showToast(
+      reason === 'silence' ? 'Mic stopped — no speech detected.' : 'Recording stopped.',
+      reason === 'silence' ? 'info' : 'success'
+    );
   };
 
   
@@ -885,6 +941,10 @@ export default function Translate({ user, showToast }) {
       voiceActiveRef.current = false;
       stopSilenceDetection();
       clearTimeout(voiceCycleTimerRef.current);
+      if (voiceLevelMeterRef.current) {
+        voiceLevelMeterRef.current.stop();
+        voiceLevelMeterRef.current = null;
+      }
       if (voiceMediaRecorderRef.current) {
         try { voiceMediaRecorderRef.current.stop(); } catch (_) {}
       }
@@ -1243,6 +1303,7 @@ export default function Translate({ user, showToast }) {
 
   return (
     <div className="page-container animate-fade-in translate-page">
+      <WaveGridField level={voiceLevel} active={voiceActive} />
       {/* Dropdown animation */}
       <style>{`
         @keyframes dropdownFadeIn {
@@ -1270,7 +1331,7 @@ export default function Translate({ user, showToast }) {
         }
         .translate-textarea::-webkit-scrollbar { width: 4px; }
         .translate-textarea::-webkit-scrollbar-track { background: transparent; }
-        .translate-textarea::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.3); border-radius: 2px; }
+        .translate-textarea::-webkit-scrollbar-thumb { background: rgba(124, 58, 237,0.3); border-radius: 2px; }
         @media (max-width: 768px) {
           .translate-page { padding: 20px 14px 40px !important; }
           .translate-page h1 { font-size: 1.35rem !important; }
@@ -1318,6 +1379,44 @@ export default function Translate({ user, showToast }) {
         
       </div>
 
+      <div className="translate-layout-row">
+        <button className="translate-history-toggle" onClick={() => setSidebarOpen(true)}>
+          History
+        </button>
+
+        <aside className={`translate-sidebar ${sidebarOpen ? 'open' : ''}`}>
+          <div style={styles.historyHeader}>
+            <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '600', margin: 0 }}>
+              Recent Translations
+            </h3>
+          </div>
+          {history.length === 0 ? (
+            <div style={styles.historyEmpty}>No translations yet this session.</div>
+          ) : (
+            <div style={styles.historyList}>
+              {history.map(item => (
+                <div key={item.id} className="glass-card" style={styles.historyItem}>
+                  <div style={styles.historyLangRow}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '1.1rem' }}>
+                      {item.sFlag === '🔍' ? <Search size={14} color="var(--primary)" /> : item.sFlag}
+                    </span>
+                    <span style={styles.historyLangName}>{item.sLang}</span>
+                    <ArrowRightLeft size={12} color="#64748b" />
+                    <span style={{ fontSize: '1.1rem' }}>{item.tFlag}</span>
+                    <span style={styles.historyLangName}>{item.tLang}</span>
+                  </div>
+                  <div className="translate-history-texts">
+                    <p style={styles.historySource}>"{item.source.substring(0, 80)}{item.source.length > 80 ? '...' : ''}"</p>
+                    <p style={styles.historyResult}>{item.result.substring(0, 80)}{item.result.length > 80 ? '...' : ''}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
+        {sidebarOpen && <div className="translate-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+
+        <div style={{ flex: 1, minWidth: 0 }}>
       {/* Main Translation Card */}
       <div style={styles.card}>
 
@@ -1346,7 +1445,7 @@ export default function Translate({ user, showToast }) {
             title="Swap languages"
             className="translate-swap-btn"
           >
-            <ArrowRightLeft size={18} color="#3b82f6" />
+            <ArrowRightLeft size={18} color="#a78bfa" />
           </button>
 
           {/* Target language */}
@@ -1362,7 +1461,7 @@ export default function Translate({ user, showToast }) {
         </div>
 
         {/* Divider */}
-        <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(37,99,235,0.3), transparent)' }} />
+        <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(124, 58, 237,0.3), transparent)' }} />
 
         {/* Text areas */}
         <div className="translate-text-panels">
@@ -1370,6 +1469,7 @@ export default function Translate({ user, showToast }) {
               the top corner, mic + speaker + copy along the bottom-left,
               char count + status on the bottom-right. */}
           <div style={styles.panel}>
+<<<<<<< HEAD
             <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
               <textarea
                 className="translate-textarea"
@@ -1391,6 +1491,76 @@ export default function Translate({ user, showToast }) {
                 >
                   <X size={20} />
                 </button>
+=======
+           <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
+  <textarea
+    className="translate-textarea"
+    style={styles.textarea}
+    placeholder="Type or tap the mic to speak — translation appears instantly..."
+    value={sourceText}
+    onChange={e => setSourceText(e.target.value)}
+    onKeyDown={handleKeyDown}
+    maxLength={maxChars}
+    rows={8}
+    dir="auto"
+  />
+
+  <button
+    onClick={voiceActive ? stopVoiceRecording : startVoiceRecording}
+    title={voiceActive ? 'Stop recording' : 'Speak instead of typing'}
+    style={{
+      position: 'absolute',
+      bottom: '12px',
+      right: '12px',
+      width: '44px',
+      height: '44px',
+      borderRadius: '50%',
+      border: 'none',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: voiceActive
+        ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+        : 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+      boxShadow: voiceActive
+        ? '0 0 0 6px rgba(239,68,68,0.2), 0 6px 16px rgba(239,68,68,0.4)'
+        : '0 6px 16px rgba(124, 58, 237,0.4)',
+      animation: voiceActive ? 'voicePulse 1.4s ease-in-out infinite' : 'none',
+    }}
+  >
+    {voiceActive ? <MicOff size={20} color="#fff" /> : <Mic size={20} color="#fff" />}
+  </button>
+
+  {voiceActive && (
+    <div
+      style={{
+        position: 'absolute',
+        top: '12px',
+        right: '12px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        padding: '6px 14px 6px 6px',
+        borderRadius: '30px',
+        background: 'var(--bg-overlay)',
+        border: '1px solid var(--border-color)',
+      }}
+    >
+      <SiriOrb size={56} level={voiceLevel} active={voiceActive} />
+      <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600 }}>Listening…</span>
+    </div>
+  )}
+</div>
+            <div style={styles.panelFooter}>
+              {engine !== 'voice' && (
+                <span style={{
+                  fontSize: '0.8rem',
+                  color: charCount > maxChars * 0.9 ? '#f59e0b' : '#64748b',
+                }}>
+                  {charCount.toLocaleString()} / {maxChars.toLocaleString()}
+                </span>
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
               )}
             </div>
             <div style={styles.panelFooter}>
@@ -1455,12 +1625,12 @@ export default function Translate({ user, showToast }) {
                   <span style={{
                     display: 'flex', alignItems: 'center', gap: '7px',
                     padding: '8px 14px', borderRadius: '10px',
-                    background: 'rgba(14,165,233,0.10)',
-                    color: '#0284c7', fontSize: '0.82rem', fontWeight: 600,
+                    background: 'rgba(6, 182, 212,0.10)',
+                    color: '#0e7490', fontSize: '0.82rem', fontWeight: 600,
                   }}>
                     <span style={{
                       width: '7px', height: '7px', borderRadius: '50%',
-                      background: isTranslating ? '#0ea5e9' : '#16a34a',
+                      background: isTranslating ? '#0891b2' : '#16a34a',
                       animation: isTranslating ? 'streamBlink 0.8s steps(2) infinite' : 'none',
                     }} />
                     {isTranslating ? 'Translating live…' : 'Live — just type'}
@@ -1496,7 +1666,7 @@ export default function Translate({ user, showToast }) {
           <div className="translate-panel-divider" />
 
           {/* Target panel */}
-          <div style={{ ...styles.panel, background: 'rgba(37,99,235,0.03)' }}>
+          <div style={{ ...styles.panel, background: 'rgba(124, 58, 237,0.03)' }}>
             <div className="translate-textarea" style={{ ...styles.textarea, overflowY: 'auto', cursor: 'default' }}>
               {translatedText ? (
                 // Show existing text AS-IS while a newer translation is in
@@ -1520,6 +1690,7 @@ export default function Translate({ user, showToast }) {
                 <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>Translation will appear here...</span>
               )}
             </div>
+<<<<<<< HEAD
             <div style={styles.panelFooter}>
               {/* Bottom-left: listen — mirrors Google Translate's output panel */}
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center', minHeight: '40px' }}>
@@ -1534,6 +1705,13 @@ export default function Translate({ user, showToast }) {
                       : outTts === 'playing'
                       ? <StopCircle size={17} color="#2563eb" />
                       : <Volume2 size={17} />}
+=======
+            <div style={{ ...styles.panelFooter, justifyContent: 'flex-end' }}>
+              {translatedText && (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={handleSpeak} disabled={isPlaying} style={styles.iconActionBtn} title="Listen">
+                    <Volume2 size={14} color={isPlaying ? '#7c3aed' : 'currentColor'} />
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
                   </button>
                 )}
               </div>
@@ -1608,7 +1786,7 @@ export default function Translate({ user, showToast }) {
             }} />
           )}
           Engine: <span style={{
-            color: engine === 'live' ? '#0ea5e9' : engine === 'voice' ? '#f87171' : engine === 'api' ? '#16a34a' : '#3b82f6',
+            color: engine === 'live' ? '#0891b2' : engine === 'voice' ? '#f87171' : engine === 'api' ? '#16a34a' : '#a78bfa',
             fontWeight: '600'
           }}>
             {engine === 'live'
@@ -1619,49 +1797,8 @@ export default function Translate({ user, showToast }) {
           </span>
         </span>
       </div>
-
-      {/* Translation History */}
-      {history.length > 0 && (
-        <div style={styles.historySection} className="animate-fade-in">
-          <div style={styles.historyHeader}>
-            <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', fontWeight: '600', margin: 0 }}>
-              Recent Translations ({history.length})
-            </h3>
-          </div>
-          <div style={styles.historyList}>
-            {history.map(item => (
-              <div key={item.id} className="glass-card" style={styles.historyItem}>
-                <div style={styles.historyLangRow}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '1.1rem' }}>
-                    {item.sFlag === '🔍' ? <Search size={14} color="var(--primary)" /> : item.sFlag}
-                  </span>
-                  <span style={styles.historyLangName}>{item.sLang}</span>
-                  <ArrowRightLeft size={12} color="#64748b" />
-                  <span style={{ fontSize: '1.1rem' }}>{item.tFlag}</span>
-                  <span style={styles.historyLangName}>{item.tLang}</span>
-                  <span style={{
-                    marginLeft: 'auto',
-                    background: item.engine === 'live' ? 'rgba(14,165,233,0.15)' : item.engine === 'llm' ? 'rgba(37,99,235,0.15)' : 'rgba(34,197,94,0.15)',
-                    color: item.engine === 'live' ? '#38bdf8' : item.engine === 'llm' ? '#3b82f6' : '#16a34a',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    fontSize: '0.7rem',
-                    fontWeight: '600',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}>
-                    {item.engine === 'live' ? 'LIVE' : item.engine === 'llm' ? 'AI' : 'API'}
-                  </span>
-                </div>
-                <div className="translate-history-texts">
-                  <p style={styles.historySource}>"{item.source.substring(0, 120)}{item.source.length > 120 ? '...' : ''}"</p>
-                  <p style={styles.historyResult}>{item.result.substring(0, 120)}{item.result.length > 120 ? '...' : ''}</p>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -1700,9 +1837,9 @@ const styles = {
     gap: '4px',
   },
   engineBtnActive: {
-    background: 'rgba(37,99,235,0.15)',
+    background: 'rgba(124, 58, 237,0.15)',
     color: 'var(--primary-light)',
-    boxShadow: '0 2px 8px rgba(37,99,235,0.2)',
+    boxShadow: '0 2px 8px rgba(124, 58, 237,0.2)',
   },
   badge: {
     marginLeft: '6px',
@@ -1750,8 +1887,8 @@ const styles = {
     width: '42px',
     height: '42px',
     borderRadius: '50%',
-    background: 'rgba(37,99,235,0.08)',
-    border: '1.5px solid rgba(37,99,235,0.25)',
+    background: 'rgba(124, 58, 237,0.08)',
+    border: '1.5px solid rgba(124, 58, 237,0.25)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1806,7 +1943,7 @@ const styles = {
   translateBtn: {
     display: 'flex',
     alignItems: 'center',
-    background: 'linear-gradient(135deg, #1d4ed8 0%, #1d4ed8 100%)',
+    background: 'linear-gradient(135deg, #6d28d9 0%, #6d28d9 100%)',
     border: 'none',
     borderRadius: '10px',
     color: '#fff',
@@ -1824,7 +1961,7 @@ const styles = {
     height: '13px',
     marginLeft: '8px',
     verticalAlign: 'middle',
-    border: '2px solid rgba(37,99,235,0.2)',
+    border: '2px solid rgba(124, 58, 237,0.2)',
     borderTopColor: 'var(--primary)',
     borderRadius: '50%',
     animation: 'spin 0.7s linear infinite',
@@ -1866,8 +2003,13 @@ const styles = {
     fontFamily: 'monospace',
     color: 'var(--text-secondary)',
   },
-  historySection: {
-    marginTop: '40px',
+  historyEmpty: {
+    padding: '32px 16px',
+    textAlign: 'center',
+    color: 'var(--text-muted)',
+    fontSize: '0.85rem',
+    border: '1px dashed var(--border-color)',
+    borderRadius: 'var(--border-radius)',
   },
   historyHeader: {
     marginBottom: '16px',

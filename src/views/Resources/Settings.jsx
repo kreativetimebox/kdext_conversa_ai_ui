@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Moon, Sun, Type, Monitor, Eye, Layout } from 'lucide-react';
+<<<<<<< HEAD
 import { downloadLogs, clearLogs } from '../../utils/logger';
+=======
+import ConstellationField from '../../components/ConstellationField';
+>>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
 
 export default function Settings({ user, showToast }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('conversa_theme') || 'light');
@@ -41,6 +45,7 @@ export default function Settings({ user, showToast }) {
 
   return (
     <div className="page-container animate-fade-in settings-page">
+      <ConstellationField />
       <div className="page-header">
         <h1 className="page-title">Preferences</h1>
         <p className="page-subtitle">Customize your Conversa AI workspace</p>
@@ -64,7 +69,7 @@ export default function Settings({ user, showToast }) {
               onClick={() => setTheme('light')}
               className="glass-card-hover"
             >
-              <Sun size={24} color={theme === 'light' ? '#2563eb' : '#64748b'} />
+              <Sun size={24} color={theme === 'light' ? '#7c3aed' : '#64748b'} />
               <div style={{...styles.optionLabel, color: '#0f172a'}}>Light Mode</div>
               <div style={{...styles.optionDesc, color: '#475569'}}>Clean and bright interface</div>
             </button>
@@ -77,7 +82,7 @@ export default function Settings({ user, showToast }) {
               onClick={() => setTheme('dark')}
               className="glass-card-hover"
             >
-              <Moon size={24} color={theme === 'dark' ? '#3b82f6' : '#94a3b8'} />
+              <Moon size={24} color={theme === 'dark' ? '#a78bfa' : '#94a3b8'} />
               <div style={{...styles.optionLabel, color: '#f8fafc'}}>Dark Mode</div>
               <div style={{...styles.optionDesc, color: '#94a3b8'}}>Default sleek dark theme</div>
             </button>
@@ -213,16 +218,16 @@ const styles = {
     textAlign: 'center',
   },
   optionActive: {
-    background: 'rgba(37,99,235, 0.08)',
+    background: 'rgba(124, 58, 237, 0.08)',
     borderColor: 'var(--primary)',
-    boxShadow: '0 0 15px rgba(37,99,235, 0.1)',
+    boxShadow: '0 0 15px rgba(124, 58, 237, 0.1)',
   },
   darkPreview: {
     background: '#1e293b',
     borderColor: 'rgba(255,255,255,0.06)',
   },
   darkPreviewActive: {
-    borderColor: '#3b82f6',
+    borderColor: '#a78bfa',
     boxShadow: '0 0 15px rgba(59,130,246,0.25)',
   },
   lightPreview: {
@@ -230,8 +235,8 @@ const styles = {
     borderColor: 'rgba(15,23,42,0.08)',
   },
   lightPreviewActive: {
-    borderColor: '#2563eb',
-    boxShadow: '0 0 15px rgba(37,99,235,0.15)',
+    borderColor: '#7c3aed',
+    boxShadow: '0 0 15px rgba(124, 58, 237,0.15)',
   },
   contrastPreview: {
     background: '#121212',
