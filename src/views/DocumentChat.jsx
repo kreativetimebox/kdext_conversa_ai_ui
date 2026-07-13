@@ -160,73 +160,65 @@ export default function DocumentChat({ user, showToast }) {
       // 1024 max_tokens (not 2048): the folded document makes the prompt much
       // longer than a normal chat turn, and prompt + max_tokens must fit the
       // model's context window or the engine generates nothing.
-      const res = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', true, 1024);
+      let res;
+      let usedStreaming = true;
+      try {
+        res = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', true, 1024);
+      } catch (streamErr) {
+        // If the gateway rejects the streaming request (e.g. "stream no stream",
+        // voicegateway_1 errors), fall back to non-streaming immediately.
+        console.warn('doc-chat: streaming request failed, falling back to non-streaming:', streamErr.message);
+        usedStreaming = false;
+        res = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', false, 1024);
+      }
 
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = '';
-      let rawBody = '';   // full response text, for non-SSE fallback below
-      let hasFinished = false;
+      // Check if the response is actually an SSE stream or a JSON blob.
+      // The gateway sometimes returns JSON errors with 200 status.
+      const contentType = res.headers?.get('content-type') || '';
+      const isSSE = usedStreaming && (contentType.includes('text/event-stream') || contentType.includes('text/plain'));
 
-      while (!hasFinished) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const decoded = dec.decode(value, { stream: true });
-        rawBody += decoded;
-        buf += decoded;
-        const lines = buf.split('\n');
-        buf = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') {
-            hasFinished = true;
-            break;
+      if (usedStreaming && !isSSE) {
+        // Response is JSON (not SSE) — parse it directly.
+        const data = await res.json();
+        // Check for error payloads first
+        if (data?.error || data?.detail || data?.message) {
+          const errMsg = data.error || data.detail || data.message;
+          // If the error is about streaming, retry without streaming
+          const isStreamError = typeof errMsg === 'string' && /stream/i.test(errMsg);
+          if (isStreamError) {
+            console.warn('doc-chat: gateway returned stream error, retrying non-streaming:', errMsg);
+            res = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', false, 1024);
+            usedStreaming = false;
+          } else {
+            throw new Error(errMsg);
           }
-          let obj = null;
-          try {
-            obj = JSON.parse(data);
-          } catch (jsonErr) {
-            continue;
-          }
-          if (obj.error) throw new Error(obj.error);
-          if (obj.content) {
-            const token = obj.content;
-            assistantReply += token;
+        } else {
+          assistantReply =
+            data?.choices?.[0]?.message?.content ||
+            data?.content ||
+            '';
+          if (assistantReply) {
             setMessages(prev => {
               const newMsgs = [...prev];
-              newMsgs[assistantMsgIndex] = {
-                ...newMsgs[assistantMsgIndex],
-                content: (newMsgs[assistantMsgIndex]?.content || '') + token,
-              };
+              newMsgs[assistantMsgIndex] = { ...newMsgs[assistantMsgIndex], content: assistantReply };
               return newMsgs;
             });
           }
         }
       }
 
-      // Nothing streamed as SSE — the backend may have answered with plain
-      // JSON (non-streaming shape). Fall back before declaring failure, and
-      // if it's still empty, say so explicitly instead of leaving a blank
-      // bubble with no explanation.
-      if (!assistantReply && rawBody.trim()) {
-        try {
-          const data = JSON.parse(rawBody);
-          assistantReply =
-            data?.choices?.[0]?.message?.content ||
-            data?.content ||
-            '';
-          if (!assistantReply && (data?.error || data?.message || data?.detail)) {
-            throw new Error(data.error || data.message || data.detail);
-          }
-        } catch (parseErr) {
-          if (parseErr instanceof SyntaxError) {
-            throw new Error(`Unexpected response from server: ${rawBody.slice(0, 200)}`);
-          }
-          throw parseErr;
+      // If we fell back to non-streaming mode, parse the JSON response
+      if (!usedStreaming && !assistantReply) {
+        const data = await res.json();
+        if (data?.error || data?.detail) {
+          throw new Error(data.error || data.detail || data.message);
         }
+        assistantReply =
+          data?.choices?.[0]?.message?.content ||
+          data?.content ||
+          '';
         if (assistantReply) {
+          console.info('doc-chat: non-streaming fallback succeeded');
           setMessages(prev => {
             const newMsgs = [...prev];
             newMsgs[assistantMsgIndex] = { ...newMsgs[assistantMsgIndex], content: assistantReply };
@@ -234,32 +226,111 @@ export default function DocumentChat({ user, showToast }) {
           });
         }
       }
-      if (!assistantReply) {
-        // The stream produced nothing. Retry once WITHOUT streaming — that is
-        // a different code path on the LLM service, and also tells us (via
-        // console) which leg is broken if this one succeeds.
-        console.warn('doc-chat: empty stream response, retrying non-streaming');
-        try {
-          const res2 = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', false, 1024);
-          const data2 = await res2.json();
-          assistantReply =
-            data2?.choices?.[0]?.message?.content ||
-            data2?.content ||
-            '';
+
+      // SSE streaming path — only if we actually got an SSE response
+      if (isSSE && !assistantReply) {
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+        let rawBody = '';   // full response text, for non-SSE fallback below
+        let hasFinished = false;
+
+        while (!hasFinished) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const decoded = dec.decode(value, { stream: true });
+          rawBody += decoded;
+          buf += decoded;
+          const lines = buf.split('\n');
+          buf = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') {
+              hasFinished = true;
+              break;
+            }
+            let obj = null;
+            try {
+              obj = JSON.parse(data);
+            } catch (jsonErr) {
+              continue;
+            }
+            if (obj.error) throw new Error(obj.error);
+            if (obj.content) {
+              const token = obj.content;
+              assistantReply += token;
+              setMessages(prev => {
+                const newMsgs = [...prev];
+                newMsgs[assistantMsgIndex] = {
+                  ...newMsgs[assistantMsgIndex],
+                  content: (newMsgs[assistantMsgIndex]?.content || '') + token,
+                };
+                return newMsgs;
+              });
+            }
+          }
+        }
+
+        // Nothing streamed — try parsing the raw body as JSON
+        if (!assistantReply && rawBody.trim()) {
+          try {
+            const data = JSON.parse(rawBody);
+            assistantReply =
+              data?.choices?.[0]?.message?.content ||
+              data?.content ||
+              '';
+            if (!assistantReply && (data?.error || data?.message || data?.detail)) {
+              throw new Error(data.error || data.message || data.detail);
+            }
+          } catch (parseErr) {
+            if (parseErr instanceof SyntaxError) {
+              // Not valid JSON — might be a text error; retry non-streaming
+              console.warn('doc-chat: unparseable stream body, retrying non-streaming');
+            } else {
+              throw parseErr;
+            }
+          }
           if (assistantReply) {
-            console.warn('doc-chat: non-streaming retry succeeded — streaming path is the problem');
             setMessages(prev => {
               const newMsgs = [...prev];
               newMsgs[assistantMsgIndex] = { ...newMsgs[assistantMsgIndex], content: assistantReply };
               return newMsgs;
             });
           }
-        } catch (retryErr) {
-          console.error('doc-chat: non-streaming retry also failed:', retryErr);
+        }
+
+        // Last resort: retry without streaming
+        if (!assistantReply) {
+          console.warn('doc-chat: empty stream response, retrying non-streaming');
+          try {
+            const res2 = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', false, 1024);
+            const data2 = await res2.json();
+            if (data2?.error || data2?.detail) {
+              throw new Error(data2.error || data2.detail || data2.message);
+            }
+            assistantReply =
+              data2?.choices?.[0]?.message?.content ||
+              data2?.content ||
+              '';
+            if (assistantReply) {
+              console.info('doc-chat: non-streaming retry succeeded — streaming path is the problem');
+              setMessages(prev => {
+                const newMsgs = [...prev];
+                newMsgs[assistantMsgIndex] = { ...newMsgs[assistantMsgIndex], content: assistantReply };
+                return newMsgs;
+              });
+            }
+          } catch (retryErr) {
+            console.error('doc-chat: non-streaming retry also failed:', retryErr);
+            throw retryErr;
+          }
         }
       }
+
       if (!assistantReply) {
-        throw new Error('The AI returned an empty response (streaming and non-streaming). Please try again.');
+        throw new Error('The AI returned an empty response. The document may be too large or the service may be temporarily unavailable — please try again.');
       }
       setIsTyping(false);
 

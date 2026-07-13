@@ -336,7 +336,7 @@ export async function addMessage(apiKey, id, role, content) {
  * Header: x-api-key: <apiKey>
  * Body: { messages, model, stream: true }
  */
-export async function chatCompletion(apiKey, messages, model = "gemini-3.1-pro", stream = true, maxTokens = 2048) {
+export async function chatCompletion(apiKey, messages, model = null, stream = true, maxTokens = 2048) {
   const res = await fetch(`${BASE_URL}/api/chat`, {
     method: 'POST',
     headers: {
@@ -355,7 +355,12 @@ export async function chatCompletion(apiKey, messages, model = "gemini-3.1-pro",
   });
   
   if (!res.ok) {
-    throw new Error(`chat ${res.status}`);
+    let errMsg = `chat ${res.status}`;
+    try {
+      const errData = await res.json();
+      errMsg = errData?.error || errData?.detail || errData?.message || errMsg;
+    } catch (_) {}
+    throw new Error(errMsg);
   }
   return res;
 }
