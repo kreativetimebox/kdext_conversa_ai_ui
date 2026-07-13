@@ -5,44 +5,38 @@ import {
 } from 'lucide-react';
 import {
   referenceDocument, getDocumentContent, parseDocumentRequestId,
-  chatCompletion, createConversation, addMessage,
+  documentChat, chatCompletion, createConversation, addMessage,
 } from '../services/api';
 
-// Document + instructions + question as one user turn. Sent through the SAME
-// /api/chat pipe as the main Conversa chat (the only transport verified to
-// work with the deployed LLM service) — the gateway's /documents/{id}/chat
-// endpoint remains available for API consumers.
-// Neutralize characters that can break server-side prompt templating: curly
-// braces crash `.format()`-style prompt assembly (the OCR text contains
-// patterns like `tableItems[3]{description,...}`), which reads back as the
-// model "returning nothing".
+// Document chat uses the gateway's /documents/{id}/chat endpoint, which
+// injects the full OCR text server-side — the client sends only the question
+// and prior turns.  This avoids blowing the model's context window on large
+// docs and lets the backend handle chunking / summarisation internally.
+//
+// Fallback: if the gateway endpoint is down, we fall back to /api/chat with
+// the document text crammed into the prompt (truncated to fit 8192 tokens).
+
+// Neutralize characters that can break server-side prompt templating.
 const sanitizeDocText = (text) =>
   (text || '').replace(/\{/g, '(').replace(/\}/g, ')');
 
-// ── Context-window budgeting ─────────────────────────────────────────────────
-// The GPU-deployed model has a hard 8 192-token context window.
-// Rule of thumb: ~4 characters ≈ 1 token (conservative for English + OCR).
+// ── Fallback: client-side prompt (only used when gateway endpoint fails) ─────
 const MODEL_CONTEXT_LIMIT = 8192;
 const CHARS_PER_TOKEN = 4;
-const MIN_OUTPUT_TOKENS = 512;       // guarantee room for a useful answer
-const INSTRUCTION_OVERHEAD_TOKENS = 180; // system prompt wrapper + delimiters
-
+const MIN_OUTPUT_TOKENS = 512;
+const INSTRUCTION_OVERHEAD_TOKENS = 180;
 const estimateTokens = (text) => Math.ceil((text || '').length / CHARS_PER_TOKEN);
 
-const buildDocumentPrompt = (doc, question, maxDocChars = Infinity) => {
+const buildFallbackPrompt = (doc, question, maxDocChars) => {
   let docText = sanitizeDocText(doc.text);
   const wasTruncated = docText.length > maxDocChars;
-  if (wasTruncated) {
-    docText = docText.slice(0, maxDocChars);
-  }
+  if (wasTruncated) docText = docText.slice(0, maxDocChars);
   return (
     `I have attached a scanned document named '${doc.filename || doc.request_id}'. ` +
-    'Answer my question using ONLY the document content below — everything the ' +
-    'OCR scan extracted from it. If the answer is not present in the document, ' +
-    'say so plainly instead of guessing. Quote the document where it helps.' +
-    (wasTruncated ? ' (Note: the document was too long and has been truncated to fit the model\'s context limit.)' : '') +
-    '\n\n' +
-    '--- DOCUMENT CONTENT START ---\n' +
+    'Answer my question using ONLY the document content below. If the answer is not ' +
+    'present in the document, say so plainly instead of guessing.' +
+    (wasTruncated ? ' (Note: truncated to fit context limit.)' : '') +
+    '\n\n--- DOCUMENT CONTENT START ---\n' +
     `${docText}\n` +
     '--- DOCUMENT CONTENT END ---\n\n' +
     `My question: ${question}`
@@ -151,8 +145,6 @@ export default function DocumentChat({ user, showToast }) {
     if (!input.trim() || isTyping || !doc) return;
 
     const question = input.trim();
-    // Prior turns (role/content only) so the model keeps multi-question context.
-    // The document itself is injected server-side — never resent from here.
     const history = messages
       .filter(m => !m.isError && m.content)
       .map(m => ({ role: m.role, content: m.content }));
@@ -167,106 +159,77 @@ export default function DocumentChat({ user, showToast }) {
 
     abortControllerRef.current = new AbortController();
 
-    // Prior turns keep their raw text; only the current turn carries the
-    // document, so context stays small and the model still sees the full doc.
-    //
-    // ── Token budget calculation ──────────────────────────────────────────
-    // Model context = 8192 tokens.  We need to fit:
-    //   history tokens + instruction overhead + doc text + question + output
-    // So:  maxDocTokens = 8192 − history − overhead − question − minOutput
-    const historyTokens = history.reduce((t, m) => t + estimateTokens(m.content), 0);
-    const questionTokens = estimateTokens(question);
-    const availableForDoc = MODEL_CONTEXT_LIMIT
-      - historyTokens
-      - INSTRUCTION_OVERHEAD_TOKENS
-      - questionTokens
-      - MIN_OUTPUT_TOKENS;
-    const maxDocChars = Math.max(availableForDoc * CHARS_PER_TOKEN, 400); // at least 400 chars
-
-    const llmMessages = [...history, { role: 'user', content: buildDocumentPrompt(doc, question, maxDocChars) }];
-
-    // Dynamic max_tokens: whatever remains after the prompt, capped at 1024
-    const promptTokens = llmMessages.reduce((t, m) => t + estimateTokens(m.content), 0);
-    const maxTokens = Math.min(1024, Math.max(128, MODEL_CONTEXT_LIMIT - promptTokens));
-    console.log(`doc-chat budget → prompt ~${promptTokens} tok, max_tokens ${maxTokens}, limit ${MODEL_CONTEXT_LIMIT}`);
-
     let assistantReply = '';
     try {
-      // max_tokens is calculated dynamically above to fit within the
-      // model's 8192-token context window.
+      // ── Primary: gateway /documents/{id}/chat ────────────────────────────
+      // Document text is injected server-side → full document, tiny client
+      // payload, no token-budget math needed on the frontend.
       let res;
-      let usedStreaming = true;
+      let usedGatewayEndpoint = true;
+
       try {
-        res = await chatCompletion(apiKey, llmMessages, null, true, maxTokens);
-      } catch (streamErr) {
-        // If the gateway rejects the streaming request (e.g. "stream no stream",
-        // voicegateway_1 errors), fall back to non-streaming immediately.
-        console.warn('doc-chat: streaming request failed, falling back to non-streaming:', streamErr.message);
-        usedStreaming = false;
-        res = await chatCompletion(apiKey, llmMessages, null, false, maxTokens);
-      }
-
-      // Check if the response is actually an SSE stream or a JSON blob.
-      // The gateway sometimes returns JSON errors with 200 status.
-      const contentType = res.headers?.get('content-type') || '';
-      const isSSE = usedStreaming && (contentType.includes('text/event-stream') || contentType.includes('text/plain'));
-
-      if (usedStreaming && !isSSE) {
-        // Response is JSON (not SSE) — parse it directly.
-        const data = await res.json();
-        // Check for error payloads first
-        if (data?.error || data?.detail || data?.message) {
-          const errMsg = data.error || data.detail || data.message;
-          // If the error is about streaming, retry without streaming
-          const isStreamError = typeof errMsg === 'string' && /stream/i.test(errMsg);
-          if (isStreamError) {
-            console.warn('doc-chat: gateway returned stream error, retrying non-streaming:', errMsg);
-            res = await chatCompletion(apiKey, llmMessages, null, false, maxTokens);
-            usedStreaming = false;
-          } else {
-            throw new Error(errMsg);
-          }
-        } else {
-          assistantReply =
-            data?.choices?.[0]?.message?.content ||
-            data?.content ||
-            '';
-          if (assistantReply) {
-            setMessages(prev => {
-              const newMsgs = [...prev];
-              newMsgs[assistantMsgIndex] = { ...newMsgs[assistantMsgIndex], content: assistantReply };
-              return newMsgs;
-            });
-          }
+        res = await documentChat(apiKey, doc.request_id, question, history, true);
+      } catch (gatewayErr) {
+        // If streaming fails on the gateway endpoint, try non-streaming
+        console.warn('doc-chat: gateway streaming failed, trying non-streaming:', gatewayErr.message);
+        try {
+          res = await documentChat(apiKey, doc.request_id, question, history, false);
+        } catch (gatewayErr2) {
+          // Gateway endpoint completely unavailable — fall back to /api/chat
+          console.warn('doc-chat: gateway endpoint unavailable, falling back to /api/chat:', gatewayErr2.message);
+          usedGatewayEndpoint = false;
         }
       }
 
-      // If we fell back to non-streaming mode, parse the JSON response
-      if (!usedStreaming && !assistantReply) {
+      // ── Fallback: /api/chat with document in prompt (truncated) ──────────
+      if (!usedGatewayEndpoint) {
+        const historyTokens = history.reduce((t, m) => t + estimateTokens(m.content), 0);
+        const questionTokens = estimateTokens(question);
+        const availableForDoc = MODEL_CONTEXT_LIMIT - historyTokens - INSTRUCTION_OVERHEAD_TOKENS - questionTokens - MIN_OUTPUT_TOKENS;
+        const maxDocChars = Math.max(availableForDoc * CHARS_PER_TOKEN, 400);
+
+        const llmMessages = [...history, { role: 'user', content: buildFallbackPrompt(doc, question, maxDocChars) }];
+        const promptTokens = llmMessages.reduce((t, m) => t + estimateTokens(m.content), 0);
+        const maxTokens = Math.min(1024, Math.max(128, MODEL_CONTEXT_LIMIT - promptTokens));
+        console.log(`doc-chat fallback → prompt ~${promptTokens} tok, max_tokens ${maxTokens}`);
+
+        try {
+          res = await chatCompletion(apiKey, llmMessages, null, true, maxTokens);
+        } catch (streamErr) {
+          console.warn('doc-chat fallback: streaming failed, trying non-streaming');
+          res = await chatCompletion(apiKey, llmMessages, null, false, maxTokens);
+        }
+      }
+
+      // ── Parse response ──────────────────────────────────────────────────
+      const contentType = res.headers?.get('content-type') || '';
+      const isSSE = contentType.includes('text/event-stream') || contentType.includes('text/plain');
+
+      if (!isSSE) {
+        // JSON response (non-streaming or gateway JSON reply)
         const data = await res.json();
         if (data?.error || data?.detail) {
           throw new Error(data.error || data.detail || data.message);
         }
         assistantReply =
           data?.choices?.[0]?.message?.content ||
+          data?.response ||
           data?.content ||
+          data?.answer ||
           '';
         if (assistantReply) {
-          console.info('doc-chat: non-streaming fallback succeeded');
           setMessages(prev => {
             const newMsgs = [...prev];
             newMsgs[assistantMsgIndex] = { ...newMsgs[assistantMsgIndex], content: assistantReply };
             return newMsgs;
           });
         }
-      }
-
-      // SSE streaming path — only if we actually got an SSE response
-      if (isSSE && !assistantReply) {
+      } else {
+        // SSE streaming
         const reader = res.body.getReader();
         const dec = new TextDecoder();
         let buf = '';
-        let rawBody = '';   // full response text, for non-SSE fallback below
+        let rawBody = '';
         let hasFinished = false;
 
         while (!hasFinished) {
@@ -281,19 +244,12 @@ export default function DocumentChat({ user, showToast }) {
           for (const line of lines) {
             if (!line.startsWith('data: ')) continue;
             const data = line.slice(6).trim();
-            if (data === '[DONE]') {
-              hasFinished = true;
-              break;
-            }
+            if (data === '[DONE]') { hasFinished = true; break; }
             let obj = null;
-            try {
-              obj = JSON.parse(data);
-            } catch (jsonErr) {
-              continue;
-            }
+            try { obj = JSON.parse(data); } catch { continue; }
             if (obj.error) throw new Error(obj.error);
-            if (obj.content) {
-              const token = obj.content;
+            const token = obj.content || obj.response || obj.answer || '';
+            if (token) {
               assistantReply += token;
               setMessages(prev => {
                 const newMsgs = [...prev];
@@ -307,24 +263,16 @@ export default function DocumentChat({ user, showToast }) {
           }
         }
 
-        // Nothing streamed — try parsing the raw body as JSON
+        // Fallback: parse raw body as JSON if nothing streamed
         if (!assistantReply && rawBody.trim()) {
           try {
             const data = JSON.parse(rawBody);
-            assistantReply =
-              data?.choices?.[0]?.message?.content ||
-              data?.content ||
-              '';
-            if (!assistantReply && (data?.error || data?.message || data?.detail)) {
-              throw new Error(data.error || data.message || data.detail);
+            assistantReply = data?.choices?.[0]?.message?.content || data?.response || data?.content || data?.answer || '';
+            if (!assistantReply && (data?.error || data?.detail)) {
+              throw new Error(data.error || data.detail);
             }
           } catch (parseErr) {
-            if (parseErr instanceof SyntaxError) {
-              // Not valid JSON — might be a text error; retry non-streaming
-              console.warn('doc-chat: unparseable stream body, retrying non-streaming');
-            } else {
-              throw parseErr;
-            }
+            if (!(parseErr instanceof SyntaxError)) throw parseErr;
           }
           if (assistantReply) {
             setMessages(prev => {
@@ -334,42 +282,14 @@ export default function DocumentChat({ user, showToast }) {
             });
           }
         }
-
-        // Last resort: retry without streaming
-        if (!assistantReply) {
-          console.warn('doc-chat: empty stream response, retrying non-streaming');
-          try {
-            const res2 = await chatCompletion(apiKey, llmMessages, null, false, maxTokens);
-            const data2 = await res2.json();
-            if (data2?.error || data2?.detail) {
-              throw new Error(data2.error || data2.detail || data2.message);
-            }
-            assistantReply =
-              data2?.choices?.[0]?.message?.content ||
-              data2?.content ||
-              '';
-            if (assistantReply) {
-              console.info('doc-chat: non-streaming retry succeeded — streaming path is the problem');
-              setMessages(prev => {
-                const newMsgs = [...prev];
-                newMsgs[assistantMsgIndex] = { ...newMsgs[assistantMsgIndex], content: assistantReply };
-                return newMsgs;
-              });
-            }
-          } catch (retryErr) {
-            console.error('doc-chat: non-streaming retry also failed:', retryErr);
-            throw retryErr;
-          }
-        }
       }
 
       if (!assistantReply) {
-        throw new Error('The AI returned an empty response. The document may be too large or the service may be temporarily unavailable — please try again.');
+        throw new Error('The AI returned an empty response — please try again.');
       }
       setIsTyping(false);
 
-      // Persist client-side via /conversations, like Chat.jsx (chatCompletion
-      // sends x-client-persist so the gateway doesn't double-save).
+      // Persist conversation
       if (assistantReply) {
         try {
           if (conversationId) {
