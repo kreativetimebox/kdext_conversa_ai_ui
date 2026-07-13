@@ -130,12 +130,15 @@ export default function DocumentChat({ user, showToast }) {
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = '';
+      let rawBody = '';   // full response text, for non-SSE fallback below
       let hasFinished = false;
 
       while (!hasFinished) {
         const { done, value } = await reader.read();
         if (done) break;
-        buf += dec.decode(value, { stream: true });
+        const decoded = dec.decode(value, { stream: true });
+        rawBody += decoded;
+        buf += decoded;
         const lines = buf.split('\n');
         buf = lines.pop() || '';
 
@@ -166,6 +169,38 @@ export default function DocumentChat({ user, showToast }) {
             });
           }
         }
+      }
+
+      // Nothing streamed as SSE — the backend may have answered with plain
+      // JSON (non-streaming shape). Fall back before declaring failure, and
+      // if it's still empty, say so explicitly instead of leaving a blank
+      // bubble with no explanation.
+      if (!assistantReply && rawBody.trim()) {
+        try {
+          const data = JSON.parse(rawBody);
+          assistantReply =
+            data?.choices?.[0]?.message?.content ||
+            data?.content ||
+            '';
+          if (!assistantReply && (data?.error || data?.message || data?.detail)) {
+            throw new Error(data.error || data.message || data.detail);
+          }
+        } catch (parseErr) {
+          if (parseErr instanceof SyntaxError) {
+            throw new Error(`Unexpected response from server: ${rawBody.slice(0, 200)}`);
+          }
+          throw parseErr;
+        }
+        if (assistantReply) {
+          setMessages(prev => {
+            const newMsgs = [...prev];
+            newMsgs[assistantMsgIndex] = { ...newMsgs[assistantMsgIndex], content: assistantReply };
+            return newMsgs;
+          });
+        }
+      }
+      if (!assistantReply) {
+        throw new Error('The AI returned an empty response. Please try again.');
       }
       setIsTyping(false);
 
