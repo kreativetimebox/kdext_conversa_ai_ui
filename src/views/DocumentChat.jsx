@@ -19,16 +19,35 @@ import {
 const sanitizeDocText = (text) =>
   (text || '').replace(/\{/g, '(').replace(/\}/g, ')');
 
-const buildDocumentPrompt = (doc, question) => (
-  `I have attached a scanned document named '${doc.filename || doc.request_id}'. ` +
-  'Answer my question using ONLY the document content below — everything the ' +
-  'OCR scan extracted from it. If the answer is not present in the document, ' +
-  'say so plainly instead of guessing. Quote the document where it helps.\n\n' +
-  '--- DOCUMENT CONTENT START ---\n' +
-  `${sanitizeDocText(doc.text)}\n` +
-  '--- DOCUMENT CONTENT END ---\n\n' +
-  `My question: ${question}`
-);
+// ── Context-window budgeting ─────────────────────────────────────────────────
+// The GPU-deployed model has a hard 8 192-token context window.
+// Rule of thumb: ~4 characters ≈ 1 token (conservative for English + OCR).
+const MODEL_CONTEXT_LIMIT = 8192;
+const CHARS_PER_TOKEN = 4;
+const MIN_OUTPUT_TOKENS = 512;       // guarantee room for a useful answer
+const INSTRUCTION_OVERHEAD_TOKENS = 180; // system prompt wrapper + delimiters
+
+const estimateTokens = (text) => Math.ceil((text || '').length / CHARS_PER_TOKEN);
+
+const buildDocumentPrompt = (doc, question, maxDocChars = Infinity) => {
+  let docText = sanitizeDocText(doc.text);
+  const wasTruncated = docText.length > maxDocChars;
+  if (wasTruncated) {
+    docText = docText.slice(0, maxDocChars);
+  }
+  return (
+    `I have attached a scanned document named '${doc.filename || doc.request_id}'. ` +
+    'Answer my question using ONLY the document content below — everything the ' +
+    'OCR scan extracted from it. If the answer is not present in the document, ' +
+    'say so plainly instead of guessing. Quote the document where it helps.' +
+    (wasTruncated ? ' (Note: the document was too long and has been truncated to fit the model\'s context limit.)' : '') +
+    '\n\n' +
+    '--- DOCUMENT CONTENT START ---\n' +
+    `${docText}\n` +
+    '--- DOCUMENT CONTENT END ---\n\n' +
+    `My question: ${question}`
+  );
+};
 
 // Same lightweight markdown rendering approach as Chat.jsx (bold + newlines).
 const renderMarkdown = (text) => {
@@ -150,26 +169,41 @@ export default function DocumentChat({ user, showToast }) {
 
     // Prior turns keep their raw text; only the current turn carries the
     // document, so context stays small and the model still sees the full doc.
-    const llmMessages = [...history, { role: 'user', content: buildDocumentPrompt(doc, question) }];
-    // For manual bisecting: copy this from the console into the main Conversa
-    // chat — if it also returns nothing there, the CONTENT trips the model.
-    console.log('doc-chat prompt →\n', llmMessages[llmMessages.length - 1].content);
+    //
+    // ── Token budget calculation ──────────────────────────────────────────
+    // Model context = 8192 tokens.  We need to fit:
+    //   history tokens + instruction overhead + doc text + question + output
+    // So:  maxDocTokens = 8192 − history − overhead − question − minOutput
+    const historyTokens = history.reduce((t, m) => t + estimateTokens(m.content), 0);
+    const questionTokens = estimateTokens(question);
+    const availableForDoc = MODEL_CONTEXT_LIMIT
+      - historyTokens
+      - INSTRUCTION_OVERHEAD_TOKENS
+      - questionTokens
+      - MIN_OUTPUT_TOKENS;
+    const maxDocChars = Math.max(availableForDoc * CHARS_PER_TOKEN, 400); // at least 400 chars
+
+    const llmMessages = [...history, { role: 'user', content: buildDocumentPrompt(doc, question, maxDocChars) }];
+
+    // Dynamic max_tokens: whatever remains after the prompt, capped at 1024
+    const promptTokens = llmMessages.reduce((t, m) => t + estimateTokens(m.content), 0);
+    const maxTokens = Math.min(1024, Math.max(128, MODEL_CONTEXT_LIMIT - promptTokens));
+    console.log(`doc-chat budget → prompt ~${promptTokens} tok, max_tokens ${maxTokens}, limit ${MODEL_CONTEXT_LIMIT}`);
 
     let assistantReply = '';
     try {
-      // 1024 max_tokens (not 2048): the folded document makes the prompt much
-      // longer than a normal chat turn, and prompt + max_tokens must fit the
-      // model's context window or the engine generates nothing.
+      // max_tokens is calculated dynamically above to fit within the
+      // model's 8192-token context window.
       let res;
       let usedStreaming = true;
       try {
-        res = await chatCompletion(apiKey, llmMessages, null, true, 1024);
+        res = await chatCompletion(apiKey, llmMessages, null, true, maxTokens);
       } catch (streamErr) {
         // If the gateway rejects the streaming request (e.g. "stream no stream",
         // voicegateway_1 errors), fall back to non-streaming immediately.
         console.warn('doc-chat: streaming request failed, falling back to non-streaming:', streamErr.message);
         usedStreaming = false;
-        res = await chatCompletion(apiKey, llmMessages, null, false, 1024);
+        res = await chatCompletion(apiKey, llmMessages, null, false, maxTokens);
       }
 
       // Check if the response is actually an SSE stream or a JSON blob.
@@ -187,7 +221,7 @@ export default function DocumentChat({ user, showToast }) {
           const isStreamError = typeof errMsg === 'string' && /stream/i.test(errMsg);
           if (isStreamError) {
             console.warn('doc-chat: gateway returned stream error, retrying non-streaming:', errMsg);
-            res = await chatCompletion(apiKey, llmMessages, null, false, 1024);
+            res = await chatCompletion(apiKey, llmMessages, null, false, maxTokens);
             usedStreaming = false;
           } else {
             throw new Error(errMsg);
@@ -305,7 +339,7 @@ export default function DocumentChat({ user, showToast }) {
         if (!assistantReply) {
           console.warn('doc-chat: empty stream response, retrying non-streaming');
           try {
-            const res2 = await chatCompletion(apiKey, llmMessages, null, false, 1024);
+            const res2 = await chatCompletion(apiKey, llmMessages, null, false, maxTokens);
             const data2 = await res2.json();
             if (data2?.error || data2?.detail) {
               throw new Error(data2.error || data2.detail || data2.message);
