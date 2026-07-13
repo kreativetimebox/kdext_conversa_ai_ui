@@ -779,20 +779,33 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
                 {/* Mode Tab Switcher */}
                 <div style={styles.sttTabBar}>
                   <button
-                    onClick={() => setSttMode('record')}
+                    onClick={() => {
+                      sttGenRef.current += 1; // cancel any in-flight transcription for the discarded clip
+                      setReviewBlob(null);
+                      setTranscriptResult(null);
+                      setSttError('');
+                      setSttMode('record');
+                    }}
                     style={{ ...styles.sttTab, ...(sttMode === 'record' ? styles.sttTabActive : {}) }}
                     type="button"
                   >
                     <Mic size={15} /> Live Record
                   </button>
                   <button
-                    onClick={() => setSttMode('upload')}
+                    onClick={() => {
+                      sttGenRef.current += 1; // cancel any in-flight transcription for the discarded clip
+                      setReviewBlob(null);
+                      setTranscriptResult(null);
+                      setSttError('');
+                      setSttMode('upload');
+                    }}
                     style={{ ...styles.sttTab, ...(sttMode === 'upload' ? styles.sttTabActive : {}) }}
                     type="button"
                   >
                     <Upload size={15} /> Choose Audio File
                   </button>
                 </div>
+                
 
                 {/* Target Language Selector */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
