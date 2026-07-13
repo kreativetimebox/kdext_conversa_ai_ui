@@ -12,13 +12,20 @@ import {
 // /api/chat pipe as the main Conversa chat (the only transport verified to
 // work with the deployed LLM service) — the gateway's /documents/{id}/chat
 // endpoint remains available for API consumers.
+// Neutralize characters that can break server-side prompt templating: curly
+// braces crash `.format()`-style prompt assembly (the OCR text contains
+// patterns like `tableItems[3]{description,...}`), which reads back as the
+// model "returning nothing".
+const sanitizeDocText = (text) =>
+  (text || '').replace(/\{/g, '(').replace(/\}/g, ')');
+
 const buildDocumentPrompt = (doc, question) => (
   `I have attached a scanned document named '${doc.filename || doc.request_id}'. ` +
   'Answer my question using ONLY the document content below — everything the ' +
   'OCR scan extracted from it. If the answer is not present in the document, ' +
   'say so plainly instead of guessing. Quote the document where it helps.\n\n' +
   '--- DOCUMENT CONTENT START ---\n' +
-  `${doc.text}\n` +
+  `${sanitizeDocText(doc.text)}\n` +
   '--- DOCUMENT CONTENT END ---\n\n' +
   `My question: ${question}`
 );
@@ -144,10 +151,16 @@ export default function DocumentChat({ user, showToast }) {
     // Prior turns keep their raw text; only the current turn carries the
     // document, so context stays small and the model still sees the full doc.
     const llmMessages = [...history, { role: 'user', content: buildDocumentPrompt(doc, question) }];
+    // For manual bisecting: copy this from the console into the main Conversa
+    // chat — if it also returns nothing there, the CONTENT trips the model.
+    console.log('doc-chat prompt →\n', llmMessages[llmMessages.length - 1].content);
 
     let assistantReply = '';
     try {
-      const res = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', true);
+      // 1024 max_tokens (not 2048): the folded document makes the prompt much
+      // longer than a normal chat turn, and prompt + max_tokens must fit the
+      // model's context window or the engine generates nothing.
+      const res = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', true, 1024);
 
       const reader = res.body.getReader();
       const dec = new TextDecoder();
@@ -227,7 +240,7 @@ export default function DocumentChat({ user, showToast }) {
         // console) which leg is broken if this one succeeds.
         console.warn('doc-chat: empty stream response, retrying non-streaming');
         try {
-          const res2 = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', false);
+          const res2 = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', false, 1024);
           const data2 = await res2.json();
           assistantReply =
             data2?.choices?.[0]?.message?.content ||

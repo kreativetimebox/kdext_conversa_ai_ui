@@ -336,7 +336,7 @@ export async function addMessage(apiKey, id, role, content) {
  * Header: x-api-key: <apiKey>
  * Body: { messages, model, stream: true }
  */
-export async function chatCompletion(apiKey, messages, model = "gemini-3.1-pro", stream = true) {
+export async function chatCompletion(apiKey, messages, model = "gemini-3.1-pro", stream = true, maxTokens = 2048) {
   const res = await fetch(`${BASE_URL}/api/chat`, {
     method: 'POST',
     headers: {
@@ -346,11 +346,11 @@ export async function chatCompletion(apiKey, messages, model = "gemini-3.1-pro",
       // not to double-save the exchange server-side.
       'x-client-persist': '1'
     },
-    body: JSON.stringify({ 
-      messages, 
-      temperature: 0.7, 
-      max_tokens: 2048, 
-      stream 
+    body: JSON.stringify({
+      messages,
+      temperature: 0.7,
+      max_tokens: maxTokens,
+      stream
     }),
   });
   
