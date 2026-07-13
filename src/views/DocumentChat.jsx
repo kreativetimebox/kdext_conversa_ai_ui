@@ -163,13 +163,13 @@ export default function DocumentChat({ user, showToast }) {
       let res;
       let usedStreaming = true;
       try {
-        res = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', true, 1024);
+        res = await chatCompletion(apiKey, llmMessages, null, true, 1024);
       } catch (streamErr) {
         // If the gateway rejects the streaming request (e.g. "stream no stream",
         // voicegateway_1 errors), fall back to non-streaming immediately.
         console.warn('doc-chat: streaming request failed, falling back to non-streaming:', streamErr.message);
         usedStreaming = false;
-        res = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', false, 1024);
+        res = await chatCompletion(apiKey, llmMessages, null, false, 1024);
       }
 
       // Check if the response is actually an SSE stream or a JSON blob.
@@ -187,7 +187,7 @@ export default function DocumentChat({ user, showToast }) {
           const isStreamError = typeof errMsg === 'string' && /stream/i.test(errMsg);
           if (isStreamError) {
             console.warn('doc-chat: gateway returned stream error, retrying non-streaming:', errMsg);
-            res = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', false, 1024);
+            res = await chatCompletion(apiKey, llmMessages, null, false, 1024);
             usedStreaming = false;
           } else {
             throw new Error(errMsg);
@@ -305,7 +305,7 @@ export default function DocumentChat({ user, showToast }) {
         if (!assistantReply) {
           console.warn('doc-chat: empty stream response, retrying non-streaming');
           try {
-            const res2 = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', false, 1024);
+            const res2 = await chatCompletion(apiKey, llmMessages, null, false, 1024);
             const data2 = await res2.json();
             if (data2?.error || data2?.detail) {
               throw new Error(data2.error || data2.detail || data2.message);
