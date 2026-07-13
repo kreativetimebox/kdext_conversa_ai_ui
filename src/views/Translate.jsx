@@ -1,13 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowRightLeft, Volume2, Copy, Sparkles, CheckCircle2, Globe, ChevronDown, Zap, X, Search, Bot, Mic, MicOff, StopCircle, Loader2 } from 'lucide-react';
+import { ArrowRightLeft, Volume2, Copy, Sparkles, CheckCircle2, Globe, ChevronDown, Zap, RotateCcw, Search, Bot, Mic, MicOff } from 'lucide-react';
 import { translateText, voiceTTS, voiceSTT, getWsBaseUrl } from '../services/api';
-<<<<<<< HEAD
-import { logEvent } from '../utils/logger';
-=======
 import { attachAudioLevelMeter } from '../utils/audioLevel';
 import SiriOrb from '../components/SiriOrb';
 import WaveGridField from '../components/WaveGridField';
->>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
 
 const LANGUAGES = [
   { code: 'auto', name: 'Detect Language', flag: '🔍', region: '' },
@@ -222,17 +218,6 @@ export default function Translate({ user, showToast }) {
     }
   });
   const [copied, setCopied] = useState(false);
-<<<<<<< HEAD
-  const [copiedSource, setCopiedSource] = useState(false);
-  // TTS phase per panel: 'idle' | 'loading' (request in flight) | 'playing'.
-  // The explicit loading phase keeps the button honest while the audio file
-  // is being generated — audio can never start with the button showing idle.
-  const [srcTts, setSrcTts] = useState('idle');
-  const [outTts, setOutTts] = useState('idle');
-  // Bumped on every TTS stop/start so a response arriving after Stop is
-  // discarded instead of playing with no visible Stop control.
-  const ttsGenRef = useRef(0);
-=======
   const [isPlaying, setIsPlaying] = useState(false);
 
   // Persist translation history across reloads/navigation, same as the
@@ -245,7 +230,6 @@ export default function Translate({ user, showToast }) {
       // ignore quota/serialization errors — history is a nice-to-have, not critical
     }
   }, [history]);
->>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
   const audioRef = useRef(null); // tracks the current TTS Audio object so we can stop it on unmount
   const [wsConnected, setWsConnected] = useState(false);
 
@@ -260,20 +244,10 @@ export default function Translate({ user, showToast }) {
   const voiceMediaRecorderRef = useRef(null);
   const voiceStreamRef = useRef(null);
   const voiceCycleTimerRef = useRef(null);
-<<<<<<< HEAD
-
-  // Dead-air auto-stop: the live mic stays on until the user stops it —
-  // the only automatic cutoff is 30s of continuous silence.
-  const voiceAudioCtxRef = useRef(null);
-  const voiceAnalyserRef = useRef(null);
-  const voiceSilenceRafRef = useRef(null);
-  const voiceSilenceStartRef = useRef(null);
-=======
   // Auto-stops the mic after a stretch of silence so it doesn't stay hot
   // forever if no one is speaking.
   const voiceLevelMeterRef = useRef(null);
   const VOICE_SILENCE_TIMEOUT_MS = 3500;
->>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
   // Segment STT calls run in parallel, so a slow chunk must not let a later
   // chunk's text land first: each chunk takes a sequence number and results
   // are buffered, then appended in order — but only up to a bounded wait, so
@@ -466,7 +440,6 @@ export default function Translate({ user, showToast }) {
           wsToastShownRef.current = true;
           showToast(`Live stream unavailable: ${ev.reason}. Using instant fallback.`, 'error');
         }
-        logEvent('error', 'Translate WebSocket closed', { code: ev.code, reason: ev.reason || '(no reason)' })
         reconnectTimerRef.current = setTimeout(connectWs, reconnectDelayRef.current);
         reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, 15000);
       };
@@ -568,19 +541,6 @@ export default function Translate({ user, showToast }) {
   // GPU (sub-second per chunk) 1.2s keeps subtitles snappy; go back toward
   // 2000 if the STT engine ever runs on CPU.
   const VOICE_SEGMENT_MS = 1200;
-
-  // ── Auto-stop tuning ──────────────────────────────────────────────────────
-  // The detector is ADAPTIVE: a fixed volume threshold cut people off
-  // mid-sentence (quiet mics never crossed it — especially with autoGainControl
-  // off — so the mic "stopped immediately"). Instead we sample the room's
-  // ambient noise for a moment after the mic opens and treat speech as
-  // anything clearly above that floor.
-  // Live mode stays on until the user stops it manually — the ONLY automatic
-  // stop is a long dead-air cutoff: 30s of continuous silence.
-  const VOICE_CALIBRATION_MS = 600;      // learn ambient noise before judging
-  const VOICE_MIN_SPEECH_RMS = 0.006;    // absolute floor for very quiet rooms
-  const VOICE_NOISE_MULT = 2.5;          // speech = louder than noise × this
-  const VOICE_SILENCE_MS = 30000;        // 30s of dead air ends the session
 
   // Pick a MediaRecorder mime type the browser actually supports. Hardcoding
   // 'audio/webm' makes the MediaRecorder constructor THROW on Safari / some
@@ -761,94 +721,7 @@ export default function Translate({ user, showToast }) {
       }
     }, VOICE_SEGMENT_MS);
   };
-  const startSilenceDetection = (stream) => {
-    try {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      const audioCtx = new AudioContextClass();
-      const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 512;
-      source.connect(analyser);
 
-      voiceAudioCtxRef.current = audioCtx;
-      voiceAnalyserRef.current = analyser;
-      voiceSilenceStartRef.current = null;
-
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-      // All detector state lives in this closure — one recording, one detector.
-      let startTime = 0;       // stamped on the first tick
-      let noiseFloor = 0;      // learned ambient RMS
-      let calibSamples = 0;
-      let calibrated = false;
-      let loudStreak = 0;      // consecutive loud frames — filters out clicks/pops
-
-      const checkVolume = () => {
-        if (!voiceActiveRef.current) return;
-        if (!startTime) startTime = Date.now();
-
-        analyser.getByteTimeDomainData(dataArray);
-        let sumSquares = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          const normalized = (dataArray[i] - 128) / 128;
-          sumSquares += normalized * normalized;
-        }
-        const rms = Math.sqrt(sumSquares / dataArray.length);
-
-        // Phase 1: learn what "this room when nobody talks" sounds like.
-        // Judging silence against a fixed constant is what made the mic stop
-        // the instant it opened on quiet setups.
-        if (!calibrated) {
-          noiseFloor = (noiseFloor * calibSamples + rms) / (calibSamples + 1);
-          calibSamples += 1;
-          if (Date.now() - startTime >= VOICE_CALIBRATION_MS) calibrated = true;
-          voiceSilenceRafRef.current = requestAnimationFrame(checkVolume);
-          return;
-        }
-
-        const speechThreshold = Math.max(VOICE_MIN_SPEECH_RMS, noiseFloor * VOICE_NOISE_MULT);
-
-        if (rms >= speechThreshold) {
-          // ~3 frames (≈50ms) of sustained sound before counting it as speech,
-          // so a keyboard click can't fake it.
-          loudStreak += 1;
-          if (loudStreak >= 3) {
-            voiceSilenceStartRef.current = null; // speech → restart the 30s clock
-          }
-        } else {
-          loudStreak = 0;
-          // Keep tracking the room so the threshold adapts if noise changes.
-          noiseFloor = noiseFloor * 0.95 + rms * 0.05;
-          if (voiceSilenceStartRef.current === null) {
-            voiceSilenceStartRef.current = Date.now();
-          } else if (Date.now() - voiceSilenceStartRef.current > VOICE_SILENCE_MS) {
-            // 30s of dead air — end the session so the mic isn't left on.
-            stopVoiceRecording();
-            return;
-          }
-        }
-
-        voiceSilenceRafRef.current = requestAnimationFrame(checkVolume);
-      };
-
-      checkVolume();
-    } catch (err) {
-      console.warn('Silence detection setup failed:', err);
-    }
-  };
-
-  const stopSilenceDetection = () => {
-    if (voiceSilenceRafRef.current) {
-      cancelAnimationFrame(voiceSilenceRafRef.current);
-      voiceSilenceRafRef.current = null;
-    }
-    if (voiceAudioCtxRef.current) {
-      try { voiceAudioCtxRef.current.close(); } catch (_) {}
-      voiceAudioCtxRef.current = null;
-    }
-    voiceAnalyserRef.current = null;
-    voiceSilenceStartRef.current = null;
-};
   const startVoiceRecording = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showToast('Microphone not supported in this browser.', 'error');
@@ -883,10 +756,6 @@ export default function Translate({ user, showToast }) {
       // Start the record → STT → translate cycle
       startRecordingCycle(stream);
 
-<<<<<<< HEAD
-       // Watchdog: end the session only after 30s of continuous dead air
-      startSilenceDetection(stream);
-=======
       // Auto-stop once the mic has heard nothing but silence for a while —
       // otherwise it stays hot indefinitely if no one is speaking.
       voiceLevelMeterRef.current = attachAudioLevelMeter(stream, {
@@ -894,7 +763,6 @@ export default function Translate({ user, showToast }) {
         silenceTimeoutMs: VOICE_SILENCE_TIMEOUT_MS,
         onSilence: () => stopVoiceRecording('silence'),
       });
->>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
     } catch (err) {
       let msg = 'Microphone access denied or unavailable.';
       if (err.name === 'NotAllowedError') {
@@ -903,7 +771,6 @@ export default function Translate({ user, showToast }) {
         msg = 'No microphone found. Connect one and try again.';
       }
       showToast(msg, 'error');
-      logEvent('error', 'Voice translate mic error', { errorName: err.name, error: err.message })
     }
   };
 
@@ -911,7 +778,6 @@ export default function Translate({ user, showToast }) {
     if (!voiceActiveRef.current) return;
     voiceActiveRef.current = false;
     setVoiceActive(false);
-    stopSilenceDetection();
     clearTimeout(voiceCycleTimerRef.current);
     clearTimeout(voiceGapTimerRef.current);
     if (voiceLevelMeterRef.current) {
@@ -939,7 +805,6 @@ export default function Translate({ user, showToast }) {
   useEffect(() => {
     return () => {
       voiceActiveRef.current = false;
-      stopSilenceDetection();
       clearTimeout(voiceCycleTimerRef.current);
       if (voiceLevelMeterRef.current) {
         voiceLevelMeterRef.current.stop();
@@ -1182,7 +1047,6 @@ export default function Translate({ user, showToast }) {
     } catch (err) {
       if (currentSeq === seqRef.current) {
         showToast(err.message || 'Translation failed. Please check your connection.', 'error');
-        logEvent('error', 'Translation request failed', { error: err.message, targetLang });
       }
     } finally {
       if (currentSeq === seqRef.current) {
@@ -1218,78 +1082,41 @@ export default function Translate({ user, showToast }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleCopySource = () => {
-    if (!sourceText) return;
-    navigator.clipboard.writeText(sourceText);
-    setCopiedSource(true);
-    setTimeout(() => setCopiedSource(false), 2000);
-  };
-
   const handleClear = () => {
     setSourceText('');
     setTranslatedText('');
     setDetectedLang(null);
   };
 
-  // Stops whichever panel's audio is playing/generating and resets both.
-  const stopSpeaking = () => {
-    ttsGenRef.current += 1; // invalidates any TTS request still in flight
+  const handleSpeak = async () => {
+    if (!translatedText) return;
+    // Stop any currently playing audio before starting a new one.
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = '';
       audioRef.current = null;
+      setIsPlaying(false);
     }
-    setSrcTts('idle');
-    setOutTts('idle');
-  };
-
-  // Shared TTS playback for both panels (source + translation), Google
-  // Translate style: clicking the speaker while loading or playing stops it.
-  const speakText = async (text, lang, setPhase, phase) => {
-    if (phase !== 'idle') {
-      stopSpeaking();
-      return;
-    }
-    if (!text?.trim()) return;
-    stopSpeaking();
-    const gen = ++ttsGenRef.current;
-    setPhase('loading');
+    setIsPlaying(true);
     try {
       // Edge TTS via /api/voice/tts streams audio back immediately (the
       // gateway's /text-to-speech is an async queued job with no instant URL).
-      const blobUrl = await voiceTTS(apiKey, text, lang);
-      // User pressed stop (or started the other panel) while generating —
-      // discard the late audio instead of playing it with the button idle.
-      if (gen !== ttsGenRef.current) {
-        URL.revokeObjectURL(blobUrl);
-        return;
-      }
+      const blobUrl = await voiceTTS(apiKey, translatedText, targetLang);
       const audio = new Audio(blobUrl);
       audioRef.current = audio;
       const done = () => {
+        setIsPlaying(false);
         URL.revokeObjectURL(blobUrl);
-        if (gen !== ttsGenRef.current) return;
         audioRef.current = null;
-        setPhase('idle');
       };
       audio.onended = done;
       audio.onerror = done;
       await audio.play();
-      if (gen === ttsGenRef.current) setPhase('playing');
     } catch (err) {
-      if (gen !== ttsGenRef.current) return; // cancelled by the user
       showToast(err.message || 'Failed to synthesize speech.', 'error');
-      setPhase('idle');
+      setIsPlaying(false);
     }
   };
-
-  const handleSpeak = () => speakText(translatedText, targetLang, setOutTts, outTts);
-  const handleSpeakSource = () => speakText(
-    sourceText,
-    sourceLang === 'auto' ? (detectedLang || 'en') : sourceLang,
-    setSrcTts,
-    srcTts,
-  );
 
   const handleKeyDown = (e) => {
     // Live Mode translates automatically — no manual submit shortcut needed.
@@ -1309,25 +1136,6 @@ export default function Translate({ user, showToast }) {
         @keyframes dropdownFadeIn {
           from { opacity: 0; transform: translateY(-8px); }
           to   { opacity: 1; transform: translateY(0); }
-        }
-        /* Google-Translate-style circular icon buttons (theme colors kept) */
-        .tr-circle-btn {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          border: none;
-          background: transparent;
-          color: var(--text-secondary);
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          transition: background 0.15s ease, color 0.15s ease;
-        }
-        .tr-circle-btn:hover {
-          background: rgba(37,99,235,0.10);
-          color: var(--primary);
         }
         .translate-textarea::-webkit-scrollbar { width: 4px; }
         .translate-textarea::-webkit-scrollbar-track { background: transparent; }
@@ -1465,33 +1273,8 @@ export default function Translate({ user, showToast }) {
 
         {/* Text areas */}
         <div className="translate-text-panels">
-          {/* Source panel — Google Translate layout: text with a ✕ clear in
-              the top corner, mic + speaker + copy along the bottom-left,
-              char count + status on the bottom-right. */}
+          {/* Source panel */}
           <div style={styles.panel}>
-<<<<<<< HEAD
-            <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <textarea
-                className="translate-textarea"
-                style={{ ...styles.textarea, paddingRight: '52px' }}
-                placeholder="Type or tap the mic to speak — translation appears instantly..."
-                value={sourceText}
-                onChange={e => setSourceText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                maxLength={maxChars}
-                rows={8}
-                dir="auto"
-              />
-              {sourceText && (
-                <button
-                  onClick={handleClear}
-                  className="tr-circle-btn"
-                  title="Clear text"
-                  style={{ position: 'absolute', top: '14px', right: '12px' }}
-                >
-                  <X size={20} />
-                </button>
-=======
            <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
   <textarea
     className="translate-textarea"
@@ -1560,64 +1343,12 @@ export default function Translate({ user, showToast }) {
                 }}>
                   {charCount.toLocaleString()} / {maxChars.toLocaleString()}
                 </span>
->>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
               )}
-            </div>
-            <div style={styles.panelFooter}>
-              {/* Bottom-left: mic, listen, copy — like Google Translate */}
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <button
-                  onClick={voiceActive ? stopVoiceRecording : startVoiceRecording}
-                  title={voiceActive ? 'Stop recording' : 'Translate by voice'}
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    background: voiceActive
-                      ? 'linear-gradient(135deg, #ef4444, #dc2626)'
-                      : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-                    boxShadow: voiceActive
-                      ? '0 0 0 5px rgba(239,68,68,0.2), 0 4px 12px rgba(239,68,68,0.4)'
-                      : '0 4px 12px rgba(37,99,235,0.35)',
-                    animation: voiceActive ? 'voicePulse 1.4s ease-in-out infinite' : 'none',
-                  }}
-                >
-                  {voiceActive ? <MicOff size={18} color="#fff" /> : <Mic size={18} color="#fff" />}
-                </button>
-                {sourceText && (
-                  <>
-                    <button
-                      onClick={handleSpeakSource}
-                      className="tr-circle-btn"
-                      title={srcTts === 'idle' ? 'Listen' : srcTts === 'loading' ? 'Cancel' : 'Stop'}
-                    >
-                      {srcTts === 'loading'
-                        ? <Loader2 size={17} color="#2563eb" style={{ animation: 'spin 0.8s linear infinite' }} />
-                        : srcTts === 'playing'
-                        ? <StopCircle size={17} color="#2563eb" />
-                        : <Volume2 size={17} />}
-                    </button>
-                    <button onClick={handleCopySource} className="tr-circle-btn" title="Copy text">
-                      {copiedSource ? <CheckCircle2 size={17} color="#16a34a" /> : <Copy size={17} />}
-                    </button>
-                  </>
-                )}
-              </div>
-              {/* Bottom-right: char count + live status / translate button */}
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginLeft: 'auto' }}>
-                {engine !== 'voice' && (
-                  <span style={{
-                    fontSize: '0.8rem',
-                    color: charCount > maxChars * 0.9 ? '#f59e0b' : '#64748b',
-                  }}>
-                    {charCount.toLocaleString()} / {maxChars.toLocaleString()}
-                  </span>
+              <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+                {engine !== 'voice' && sourceText && (
+                  <button onClick={handleClear} style={styles.iconActionBtn} title="Clear">
+                    <RotateCcw size={14} />
+                  </button>
                 )}
                 {engine === 'live' ? (
                   // Live Mode translates automatically as you type — show a
@@ -1690,39 +1421,17 @@ export default function Translate({ user, showToast }) {
                 <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>Translation will appear here...</span>
               )}
             </div>
-<<<<<<< HEAD
-            <div style={styles.panelFooter}>
-              {/* Bottom-left: listen — mirrors Google Translate's output panel */}
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', minHeight: '40px' }}>
-                {translatedText && (
-                  <button
-                    onClick={handleSpeak}
-                    className="tr-circle-btn"
-                    title={outTts === 'idle' ? 'Listen' : outTts === 'loading' ? 'Cancel' : 'Stop'}
-                  >
-                    {outTts === 'loading'
-                      ? <Loader2 size={17} color="#2563eb" style={{ animation: 'spin 0.8s linear infinite' }} />
-                      : outTts === 'playing'
-                      ? <StopCircle size={17} color="#2563eb" />
-                      : <Volume2 size={17} />}
-=======
             <div style={{ ...styles.panelFooter, justifyContent: 'flex-end' }}>
               {translatedText && (
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={handleSpeak} disabled={isPlaying} style={styles.iconActionBtn} title="Listen">
                     <Volume2 size={14} color={isPlaying ? '#7c3aed' : 'currentColor'} />
->>>>>>> e63b984c077b1491350cd57fa6f611ce6c7db1d4
                   </button>
-                )}
-              </div>
-              {/* Bottom-right: copy */}
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginLeft: 'auto' }}>
-                {translatedText && (
-                  <button onClick={handleCopy} className="tr-circle-btn" title="Copy translation">
-                    {copied ? <CheckCircle2 size={17} color="#16a34a" /> : <Copy size={17} />}
+                  <button onClick={handleCopy} style={styles.iconActionBtn} title="Copy translation">
+                    {copied ? <CheckCircle2 size={14} color="#16a34a" /> : <Copy size={14} />}
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1910,13 +1619,12 @@ const styles = {
     border: 'none',
     padding: '24px',
     color: 'var(--text-primary)',
-    // Larger reading size, like Google Translate's input/output panels
-    fontSize: '1.2rem',
-    lineHeight: '1.65',
+    fontSize: '1.05rem',
+    lineHeight: '1.7',
     resize: 'none',
     outline: 'none',
     fontFamily: 'inherit',
-    minHeight: '220px',
+    minHeight: '200px',
   },
   panelFooter: {
     padding: '12px 20px',
