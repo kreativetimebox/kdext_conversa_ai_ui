@@ -336,7 +336,7 @@ export async function addMessage(apiKey, id, role, content) {
  * Header: x-api-key: <apiKey>
  * Body: { messages, model, stream: true }
  */
-export async function chatCompletion(apiKey, messages, model = "gemini-3.1-pro", stream = true) {
+export async function chatCompletion(apiKey, messages, model = null, stream = true, maxTokens = 2048) {
   const res = await fetch(`${BASE_URL}/api/chat`, {
     method: 'POST',
     headers: {
@@ -346,16 +346,91 @@ export async function chatCompletion(apiKey, messages, model = "gemini-3.1-pro",
       // not to double-save the exchange server-side.
       'x-client-persist': '1'
     },
-    body: JSON.stringify({ 
-      messages, 
-      temperature: 0.7, 
-      max_tokens: 2048, 
-      stream 
+    body: JSON.stringify({
+      messages,
+      temperature: 0.7,
+      max_tokens: maxTokens,
+      stream
     }),
   });
   
   if (!res.ok) {
-    throw new Error(`chat ${res.status}`);
+    let errMsg = `chat ${res.status}`;
+    try {
+      const errData = await res.json();
+      errMsg = errData?.error || errData?.detail || errData?.message || errMsg;
+    } catch (_) {}
+    throw new Error(errMsg);
+  }
+  return res;
+}
+
+// ─── Document Chat (OCR-scanned documents) ────────────────────────────────────
+
+/**
+ * Extract the OCR request id from user input — accepts either a bare id or a
+ * full URL like https://apiocr.dexaitech.com/v1/requests/{request_id}.
+ */
+export function parseDocumentRequestId(input) {
+  const trimmed = (input || '').trim();
+  if (!trimmed) return null;
+  const urlMatch = trimmed.match(/\/requests\/([A-Za-z0-9_-]+)/);
+  if (urlMatch) return urlMatch[1];
+  if (/^[A-Za-z0-9_-]+$/.test(trimmed)) return trimmed;
+  return null;
+}
+
+/**
+ * POST /documents/reference
+ * Header: x-api-key: <apiKey>
+ * Body: { request_id, refresh? }
+ * Response: { request_id, status, filename, pages, characters, preview, cached }
+ * Errors: 404 unknown id, 409 scan not finished yet, 422 no text extracted
+ */
+export async function referenceDocument(apiKey, requestId, refresh = false) {
+  const res = await fetch(`${BASE_URL}/documents/reference`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+    },
+    body: JSON.stringify({ request_id: requestId, refresh }),
+  });
+  return handleResponse(res);
+}
+
+/**
+ * GET /documents/{request_id} — full scanned text + metadata
+ */
+export async function getDocumentContent(apiKey, requestId) {
+  const res = await fetch(`${BASE_URL}/documents/${encodeURIComponent(requestId)}`, {
+    headers: { 'x-api-key': apiKey },
+  });
+  return handleResponse(res);
+}
+
+/**
+ * POST /documents/{request_id}/chat  (SSE streaming — same shape as /api/chat)
+ * Body: { question, history, stream, persist }
+ * The document text is injected server-side; only the question + prior turns
+ * are sent. persist:false because this UI saves chats itself via /conversations.
+ */
+export async function documentChat(apiKey, requestId, question, history = [], stream = true) {
+  const res = await fetch(`${BASE_URL}/documents/${encodeURIComponent(requestId)}/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+    },
+    body: JSON.stringify({ question, history, stream, persist: false }),
+  });
+  if (!res.ok) {
+    let errMsg = `document chat ${res.status}`;
+    try {
+      const data = await res.json();
+      errMsg = data?.detail || data?.message || errMsg;
+    } catch (_) {}
+    throw new Error(errMsg);
   }
   return res;
 }

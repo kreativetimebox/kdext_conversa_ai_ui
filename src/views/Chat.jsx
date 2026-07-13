@@ -424,7 +424,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
 
     let assistantReply = "";
     try {
-      const res = await chatCompletion(apiKey, newMessages, 'gemini-3.1-pro', true);
+      const res = await chatCompletion(apiKey, newMessages, null, true);
       
       const reader = res.body.getReader();
       const dec = new TextDecoder();

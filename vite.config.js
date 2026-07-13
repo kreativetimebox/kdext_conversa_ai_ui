@@ -17,6 +17,7 @@ export default defineConfig({
       // Proxy all other root endpoints to bypass CORS on localhost with custom ports (e.g. 5174)
       ...[
         '/conversations',
+        '/documents',
         '/signup',
         '/verify-otp',
         '/login',
