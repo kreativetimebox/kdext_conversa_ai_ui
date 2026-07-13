@@ -200,7 +200,31 @@ export default function DocumentChat({ user, showToast }) {
         }
       }
       if (!assistantReply) {
-        throw new Error('The AI returned an empty response. Please try again.');
+        // The stream produced nothing. Retry once WITHOUT streaming — that is
+        // a different code path on the LLM service, and also tells us (via
+        // console) which leg is broken if this one succeeds.
+        console.warn('doc-chat: empty stream response, retrying non-streaming');
+        try {
+          const res2 = await documentChat(apiKey, doc.request_id, question, history, false);
+          const data2 = await res2.json();
+          assistantReply =
+            data2?.choices?.[0]?.message?.content ||
+            data2?.content ||
+            '';
+          if (assistantReply) {
+            console.warn('doc-chat: non-streaming retry succeeded — streaming path is the problem');
+            setMessages(prev => {
+              const newMsgs = [...prev];
+              newMsgs[assistantMsgIndex] = { ...newMsgs[assistantMsgIndex], content: assistantReply };
+              return newMsgs;
+            });
+          }
+        } catch (retryErr) {
+          console.error('doc-chat: non-streaming retry also failed:', retryErr);
+        }
+      }
+      if (!assistantReply) {
+        throw new Error('The AI returned an empty response (streaming and non-streaming). Please try again.');
       }
       setIsTyping(false);
 
