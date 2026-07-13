@@ -4,9 +4,24 @@ import {
   Loader2, RefreshCw, Paperclip, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import {
-  referenceDocument, documentChat, parseDocumentRequestId,
-  createConversation, addMessage,
+  referenceDocument, getDocumentContent, parseDocumentRequestId,
+  chatCompletion, createConversation, addMessage,
 } from '../services/api';
+
+// Document + instructions + question as one user turn. Sent through the SAME
+// /api/chat pipe as the main Conversa chat (the only transport verified to
+// work with the deployed LLM service) — the gateway's /documents/{id}/chat
+// endpoint remains available for API consumers.
+const buildDocumentPrompt = (doc, question) => (
+  `I have attached a scanned document named '${doc.filename || doc.request_id}'. ` +
+  'Answer my question using ONLY the document content below — everything the ' +
+  'OCR scan extracted from it. If the answer is not present in the document, ' +
+  'say so plainly instead of guessing. Quote the document where it helps.\n\n' +
+  '--- DOCUMENT CONTENT START ---\n' +
+  `${doc.text}\n` +
+  '--- DOCUMENT CONTENT END ---\n\n' +
+  `My question: ${question}`
+);
 
 // Same lightweight markdown rendering approach as Chat.jsx (bold + newlines).
 const renderMarkdown = (text) => {
@@ -71,7 +86,10 @@ export default function DocumentChat({ user, showToast }) {
     setLoadingDoc(true);
     try {
       const summary = await referenceDocument(apiKey, requestId, refresh);
-      setDoc(summary);
+      // Pull the full scanned text now — questions are sent through the main
+      // /api/chat pipe with the document folded into the user turn client-side.
+      const full = await getDocumentContent(apiKey, requestId);
+      setDoc({ ...summary, text: full.text });
       setMessages([]);
       setConversationId(null);
       setPreviewOpen(false);
@@ -123,9 +141,13 @@ export default function DocumentChat({ user, showToast }) {
 
     abortControllerRef.current = new AbortController();
 
+    // Prior turns keep their raw text; only the current turn carries the
+    // document, so context stays small and the model still sees the full doc.
+    const llmMessages = [...history, { role: 'user', content: buildDocumentPrompt(doc, question) }];
+
     let assistantReply = '';
     try {
-      const res = await documentChat(apiKey, doc.request_id, question, history, true);
+      const res = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', true);
 
       const reader = res.body.getReader();
       const dec = new TextDecoder();
@@ -205,7 +227,7 @@ export default function DocumentChat({ user, showToast }) {
         // console) which leg is broken if this one succeeds.
         console.warn('doc-chat: empty stream response, retrying non-streaming');
         try {
-          const res2 = await documentChat(apiKey, doc.request_id, question, history, false);
+          const res2 = await chatCompletion(apiKey, llmMessages, 'gemini-3.1-pro', false);
           const data2 = await res2.json();
           assistantReply =
             data2?.choices?.[0]?.message?.content ||
@@ -228,8 +250,8 @@ export default function DocumentChat({ user, showToast }) {
       }
       setIsTyping(false);
 
-      // Persist client-side via /conversations, like Chat.jsx (documentChat
-      // sends persist:false so the gateway doesn't double-save).
+      // Persist client-side via /conversations, like Chat.jsx (chatCompletion
+      // sends x-client-persist so the gateway doesn't double-save).
       if (assistantReply) {
         try {
           if (conversationId) {
