@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Copy, 
-  Check, 
-  Eye, 
-  EyeOff, 
+import {
+  Plus,
+  Copy,
+  Check,
+  Eye,
+  EyeOff,
   Trash2,
-  FileText, 
-  TrendingUp, 
-  Volume2, 
+  FileText,
+  TrendingUp,
+  Volume2,
   Activity,
   ArrowRight,
   BookOpen,
@@ -22,14 +22,14 @@ import {
 import { getProfile } from '../services/api';
 import ConstellationField from '../components/ConstellationField';
 
-export default function Dashboard({ 
-  navigate, 
+export default function Dashboard({
+  navigate,
   user,
-  apiKeys, 
-  setApiKeys, 
-  historyData, 
-  toasts, 
-  showToast 
+  apiKeys,
+  setApiKeys,
+  historyData,
+  toasts,
+  showToast
 }) {
   const [copiedKey, setCopiedKey] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,12 +50,12 @@ export default function Dashboard({
     };
     fetchProfile();
   }, [user]);
-  
+
   // Calculate voice processing counts dynamically from historyData
   const ttsCount = historyData.filter(d => d.type === 'Text to Speech').length;
   const sttCount = historyData.filter(d => d.type === 'Speech to Text').length;
   const totalRequests = profile?.total_processing || (ttsCount + sttCount);
-  
+
   // Calculate total seconds processed
   const totalSeconds = historyData.reduce((acc, d) => {
     const secs = parseFloat(d.time) || 0;
@@ -183,7 +183,7 @@ export default function Dashboard({
                 <Plus size={14} /> New Key
               </button>
             </div>
-            
+
             <div style={styles.keysList}>
               {displayKeys.map((k) => (
                 <div key={k.id} style={styles.keyRow} className="dashboard-key-row">
@@ -201,7 +201,7 @@ export default function Dashboard({
                     </div>
                     <div style={styles.keyCreated}>Created: {k.created}</div>
                   </div>
-                  
+
                   <div style={styles.keyActions} className="dashboard-key-actions">
                     <button onClick={() => toggleKeyVisibility(k.id)} style={styles.iconBtn} className="dashboard-icon-btn" title="Toggle Visibility">
                       {k.visible ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -209,7 +209,7 @@ export default function Dashboard({
                     <button onClick={() => copyKeyToClipboard(k.key, k.id)} style={styles.iconBtn} className="dashboard-icon-btn" title="Copy Key">
                       {copiedKey === k.id ? <Check size={16} color="var(--success)" /> : <Copy size={16} />}
                     </button>
-                    <button onClick={() => handleDeleteKey(k.id, k.name)} style={{...styles.iconBtn, color: 'rgba(239, 68, 68, 0.6)'}} className="dashboard-icon-btn" title="Delete Key">
+                    <button onClick={() => handleDeleteKey(k.id, k.name)} style={{ ...styles.iconBtn, color: 'rgba(239, 68, 68, 0.6)' }} className="dashboard-icon-btn" title="Delete Key">
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -226,7 +226,7 @@ export default function Dashboard({
                 View All <ArrowRight size={14} />
               </button>
             </div>
-            
+
             <div style={styles.activityList}>
               {historyData.slice(0, 3).map((act, idx) => (
                 <div key={act.id || idx} style={styles.activityRow}>
@@ -254,7 +254,7 @@ export default function Dashboard({
         <div style={styles.rightCol}>
           {/* Quick Actions */}
           <div className="glass-card" style={styles.card}>
-            <h3 style={{...styles.cardTitle, marginBottom: '16px'}}>Quick Actions</h3>
+            <h3 style={{ ...styles.cardTitle, marginBottom: '16px' }}>Quick Actions</h3>
             <div className="dashboard-actions-grid">
               <div onClick={() => navigate('/documents')} style={styles.actionItem} className="glass-card-hover">
                 <FileText size={18} color="var(--primary-light)" />
@@ -300,13 +300,13 @@ export default function Dashboard({
 
           {/* Subscription Usage */}
           <div className="glass-card" style={styles.card}>
-            <h3 style={{...styles.cardTitle, marginBottom: '16px'}}>Subscription &amp; Billing</h3>
+            <h3 style={{ ...styles.cardTitle, marginBottom: '16px' }}>Subscription &amp; Billing</h3>
             <div style={styles.planBanner}>
               <div style={styles.planHeader}>
                 <span style={{ fontWeight: '700', fontSize: '1rem' }}>Free Plan</span>
                 <span style={styles.planLimit}>10,000s / month</span>
               </div>
-              
+
               {/* Progress bar */}
               <div style={styles.progressContainer}>
                 <div style={styles.progressLabels}>
@@ -314,18 +314,18 @@ export default function Dashboard({
                   <span>{totalSeconds}s / 10,000s used</span>
                 </div>
                 <div style={styles.progressBarBg}>
-                  <div 
+                  <div
                     style={{
-                      ...styles.progressBarFill, 
+                      ...styles.progressBarFill,
                       width: `${Math.min((parseFloat(totalSeconds) / 10000) * 100, 100)}%`
                     }}
                   ></div>
                 </div>
               </div>
 
-              <button 
+              <button
                 onClick={() => showToast('Starting Pro upgrade wizard (simulated)...', 'success')}
-                className="btn btn-primary" 
+                className="btn btn-primary"
                 style={{ width: '100%', padding: '10px' }}
               >
                 Upgrade to Pro
@@ -345,17 +345,17 @@ export default function Dashboard({
                 <X size={18} />
               </button>
             </div>
-            
+
             <form onSubmit={handleCreateKey}>
               <div className="form-group">
                 <label className="form-label">Key Name *</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
                   placeholder="e.g. Production Client Access"
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
-                  className="form-input" 
+                  className="form-input"
                 />
               </div>
               <div style={styles.modalActions}>
