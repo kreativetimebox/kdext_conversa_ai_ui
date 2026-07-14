@@ -207,7 +207,6 @@ export default function App() {
   // short greeting screen. Every other app page flows naturally with its
   // content, so the footer follows directly after whatever content there is
   // instead of leaving a dead gap on sparse pages.
-  // Document chat shares the same fixed-viewport chat shell.
   const isChatRoute = path === '/chat' || path.startsWith('/chat/');
 
   return (

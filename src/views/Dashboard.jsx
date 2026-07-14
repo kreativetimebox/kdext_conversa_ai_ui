@@ -256,13 +256,6 @@ export default function Dashboard({
           <div className="glass-card" style={styles.card}>
             <h3 style={{ ...styles.cardTitle, marginBottom: '16px' }}>Quick Actions</h3>
             <div className="dashboard-actions-grid">
-              <div onClick={() => navigate('/documents')} style={styles.actionItem} className="glass-card-hover">
-                <FileText size={18} color="var(--primary-light)" />
-                <div>
-                  <div style={styles.actionTitle}>Chat with Document</div>
-                  <div style={styles.actionDesc}>Ask questions about a scanned doc</div>
-                </div>
-              </div>
 
               <div onClick={() => navigate('/documentation')} style={styles.actionItem} className="glass-card-hover">
                 <BookOpen size={18} color="var(--primary-light)" />
