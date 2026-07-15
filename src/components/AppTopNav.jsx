@@ -14,7 +14,6 @@ import {
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Dashboard' },
   { path: '/chat', label: 'Converse' },
-  { path: '/documents', label: 'Doc Chat' },
   { path: '/translate', label: 'Bhasha' },
   { path: '/services/hub', label: 'Vaani' },
   { path: '/history', label: 'History Logs' },

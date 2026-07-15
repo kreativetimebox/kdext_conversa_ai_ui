@@ -20,7 +20,6 @@ import VoiceTools from './views/VoiceTools';
 
 // New Views
 import Chat from './views/Chat';
-import DocumentChat from './views/DocumentChat';
 import Translate from './views/Translate';
 import Profile from './views/Resources/Profile';
 import Settings from './views/Resources/Settings';
@@ -133,7 +132,7 @@ export default function App() {
     }
 
     // Protected Route Redirect to Sign In
-    const protectedPaths = ['/dashboard', '/history', '/services', '/services/hub', '/services/tts', '/services/stt', '/chat', '/documents', '/translate', '/profile', '/settings'];
+    const protectedPaths = ['/dashboard', '/history', '/services', '/services/hub', '/services/tts', '/services/stt', '/chat', '/translate', '/profile', '/settings'];
     const isProtected = protectedPaths.some(p => path === p || path.startsWith('/chat/'));
 
     if (isProtected && !user) {
@@ -184,8 +183,6 @@ export default function App() {
         return <VoiceTools navigate={navigate} showToast={showToast} defaultSubView="studio" user={user} historyData={historyData} setHistoryData={setHistoryData} />;
       case path === '/chat' || path.startsWith('/chat/'):
         return <Chat navigate={navigate} user={user} showToast={showToast} currentPath={path} />;
-      case path === '/documents':
-        return <DocumentChat user={user} showToast={showToast} />;
       case path === '/translate':
         return <Translate user={user} showToast={showToast} />;
       case path === '/profile':
@@ -199,7 +196,7 @@ export default function App() {
   };
 
   const path = currentPath.toLowerCase().trim();
-  const protectedPaths = ['/dashboard', '/history', '/services', '/services/hub', '/services/tts', '/services/stt', '/chat', '/documents', '/translate', '/profile', '/settings'];
+  const protectedPaths = ['/dashboard', '/history', '/services', '/services/hub', '/services/tts', '/services/stt', '/chat', '/translate', '/profile', '/settings'];
   const isProtected = protectedPaths.some(p => path === p || path.startsWith('/chat/'));
   
   // Use the top-nav app layout for logged-in protected routes
@@ -210,8 +207,7 @@ export default function App() {
   // short greeting screen. Every other app page flows naturally with its
   // content, so the footer follows directly after whatever content there is
   // instead of leaving a dead gap on sparse pages.
-  // Document chat shares the same fixed-viewport chat shell.
-  const isChatRoute = path === '/chat' || path.startsWith('/chat/') || path === '/documents';
+  const isChatRoute = path === '/chat' || path.startsWith('/chat/');
 
   return (
     <div style={useAppLayout ? {} : styles.appWrapper} className={useAppLayout ? "app-container" : ""}>
