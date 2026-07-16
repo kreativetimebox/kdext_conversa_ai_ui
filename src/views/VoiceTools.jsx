@@ -16,7 +16,7 @@ import {
   AlertCircle,
   CheckCircle2,
 } from 'lucide-react';
-import { textToSpeech, getVoices, getDemoVoices, speechToText, demoSTT, buildAudioUrl, getJobStatus } from '../services/api';
+import { textToSpeech, getVoices, getDemoVoices, speechToText, demoSTT, buildAudioUrl, getJobStatus, translateText } from '../services/api';
 import AudioReviewPanel from '../components/AudioReviewPanel';
 import { attachAudioLevelMeter } from '../utils/audioLevel';
 import SiriOrb from '../components/SiriOrb';
@@ -572,14 +572,33 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
 
       if (!isCurrent()) return;
 
-      const transcript = result?.detail ?? result?.transcript ?? result?.text ?? JSON.stringify(result);
+      let transcript = result?.detail ?? result?.transcript ?? result?.text ?? JSON.stringify(result);
       const processingTime = result?.processing_time ? `${result.processing_time.toFixed(2)}s` : '-';
       const filename = file.name || `recording.wav`;
+
+      // Check for language mismatch and translate if necessary
+      const detectedLanguage = result?.language || 'en';
+      if (user?.api_key && sttLanguage && sttLanguage !== 'auto' && sttLanguage !== detectedLanguage) {
+        try {
+          const translationResult = await translateText(
+            user.api_key,
+            transcript,
+            detectedLanguage,
+            sttLanguage,
+            'api'
+          );
+          if (translationResult && translationResult.translation) {
+            transcript = translationResult.translation;
+          }
+        } catch (transErr) {
+          console.warn('Auto-translation failed, using raw transcript:', transErr);
+        }
+      }
 
       setTranscriptResult({
         filename,
         duration: processingTime,
-        language: result?.language || sttLanguage || 'en',
+        language: sttLanguage || detectedLanguage,
         confidence: null,
         text: transcript,
         segments: result?.segments || null,
