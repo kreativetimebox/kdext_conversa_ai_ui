@@ -118,6 +118,9 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
+  // Separate download URL: presigned to save-with-filename (Content-Disposition)
+  // rather than play inline. Falls back to audioUrl if the server omits it.
+  const [downloadUrl, setDownloadUrl] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
 
@@ -157,6 +160,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
     setTranscriptResult(null);
     setAudioBlob(null);
     setAudioUrl(null);
+    setDownloadUrl(null);
     setSttError('');
     setTtsError('');
   }, [defaultSubView]);
@@ -249,6 +253,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
     setTtsError('');
     setAudioBlob(null);
     setAudioUrl(null);
+    setDownloadUrl(null);
     setIsPlaying(false);
 
     try {
@@ -293,6 +298,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
       // Build absolute URL from server base
       const fullAudioUrl = buildAudioUrl(data.audio_url);
       setAudioUrl(fullAudioUrl);
+      setDownloadUrl(data.download_url ? buildAudioUrl(data.download_url) : fullAudioUrl);
       setAudioBlob(data);
       showToast('✅ Audio synthesized successfully!', 'success');
 
@@ -328,11 +334,12 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
   };
 
   const handleDownloadAudio = () => {
-    if (!audioUrl) return;
+    const url = downloadUrl || audioUrl;
+    if (!url) return;
+    // The download URL is presigned with Content-Disposition: attachment, so a
+    // plain click saves the file (with a proper name) without opening a new tab.
     const a = document.createElement('a');
-    a.href = audioUrl;
-    a.download = audioUrl.split('/').pop() || `conversa_tts.${audioFormat}`;
-    a.target = '_blank';
+    a.href = url;
     a.click();
     showToast('Audio download started!', 'success');
   };
@@ -343,6 +350,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
     setIsSynthesizing(false);
     setAudioBlob(null);
     setAudioUrl(null);
+    setDownloadUrl(null);
     setIsPlaying(false);
     setTtsError('');
     if (audioRef.current) audioRef.current.pause();
