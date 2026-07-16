@@ -269,10 +269,12 @@ export default function Translate({ user, showToast }) {
 
   const wsRef = useRef(null);
   const seqRef = useRef(0);
-  // True until the first delta of the current request arrives — the previous
-  // translation stays visible while typing (subtitle-style) and is replaced,
-  // not blanked, when the new stream starts.
-  const freshStreamRef = useRef(false);
+  // Id of the LLM stream currently rendering deltas. The first delta of a NEW
+  // id replaces the panel text; same-id deltas append. (This replaced a shared
+  // freshStream boolean, which a late delta of an OLD overlapping stream could
+  // consume — the new stream then APPENDED to the stale translation, splicing
+  // two different translations together on screen.)
+  const streamingIdRef = useRef(0);
   const debounceTimerRef = useRef(null);
   // Instant (subtitle) pass bookkeeping: throttle timer, last-fire time, and
   // which engine each request id used ('api' instant vs 'llm' refine).
@@ -388,9 +390,9 @@ export default function Translate({ user, showToast }) {
 
           if (msg.type === 'delta') {
             setIsTranslating(true);
-            if (freshStreamRef.current) {
+            if (streamingIdRef.current !== msg.id) {
               // First token of a new stream replaces the previous translation.
-              freshStreamRef.current = false;
+              streamingIdRef.current = msg.id;
               setTranslatedText(msg.content);
             } else {
               setTranslatedText(prev => prev + msg.content);
@@ -413,7 +415,15 @@ export default function Translate({ user, showToast }) {
             // just the refined (pause) translations, not every keystroke.
             if (kind === 'api') return;
 
-            pushHistory(cur, msg.translation, msg.source_lang);
+            // Record the text THIS request actually translated (meta.text),
+            // not whatever is in the textarea now — a slow 'done' landing
+            // after the user edited/cleared the box used to pair the new
+            // source with the old translation in history.
+            pushHistory(
+              meta?.text ? { ...cur, sourceText: meta.text } : cur,
+              msg.translation,
+              msg.source_lang
+            );
           } else if (msg.type === 'error') {
             delete reqEngineRef.current[msg.id];
             delete reqMetaRef.current[msg.id];
@@ -518,7 +528,6 @@ export default function Translate({ user, showToast }) {
     const id = seqRef.current;
     reqEngineRef.current[id] = 'llm';
     reqMetaRef.current[id] = { text: trimmed, target };
-    freshStreamRef.current = true;
     setIsTranslating(true);
     wsRef.current.send(JSON.stringify({
       type: 'translate',
@@ -844,6 +853,15 @@ export default function Translate({ user, showToast }) {
       return;
     }
 
+    // Voice mode drives sourceText programmatically and fires its own
+    // translation per segment (sendVoiceTranslation). Without this bail-out,
+    // every voice chunk ALSO triggered the typing pipeline here — up to three
+    // competing requests per chunk translating different text ranges, whose
+    // interleaved replies made the output panel thrash between translations.
+    if (voiceActiveRef.current) {
+      return;
+    }
+
     if (!sourceText.trim()) {
       clearTimeout(instantTimerRef.current);
       instantTimerRef.current = null;
@@ -868,9 +886,6 @@ export default function Translate({ user, showToast }) {
       // Mark as translating for BOTH engines, not just 'llm' — otherwise the
       // instant pass swaps the text in with no visible feedback at all.
       setIsTranslating(true);
-      if (wsEngine === 'llm') {
-        freshStreamRef.current = true;
-      }
       wsRef.current.send(JSON.stringify({
         type: 'translate',
         id,
@@ -885,7 +900,6 @@ export default function Translate({ user, showToast }) {
     const applyCached = (cached) => {
       seqRef.current += 1;
       lastAppliedIdRef.current = seqRef.current;
-      freshStreamRef.current = false;
       setTranslatedText(cached);
       setIsTranslating(false);
     };
