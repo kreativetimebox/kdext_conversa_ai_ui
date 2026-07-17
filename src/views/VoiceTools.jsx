@@ -175,6 +175,18 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
     };
   }, []);
 
+  // ── Auto-play newly synthesized audio ───────────────────────────────────────
+  // Runs after React commits the new `audioUrl`, so the <audio> element (which is
+  // conditionally rendered) is mounted and its `src` is applied — this replaces
+  // the old setTimeout(…, 200) that merely guessed when the ref/src were ready.
+  // No `.load()`: the declarative `src={audioUrl}` binding already starts the
+  // fetch; calling load() here would abort it and re-fetch the same file.
+  useEffect(() => {
+    if (!audioUrl || !audioRef.current) return;
+    // Autoplay may be blocked by the browser — the rejection is harmless.
+    audioRef.current.play().catch(() => {});
+  }, [audioUrl]);
+
   // ── Dynamic Voice Fetching ──────────────────────────────────────────────────
   useEffect(() => {
     const fetchVoices = async () => {
@@ -302,14 +314,8 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
       setAudioBlob(data);
       showToast('✅ Audio synthesized successfully!', 'success');
 
-      // Auto-play audio
-      setTimeout(() => {
-        if (audioRef.current) {
-          audioRef.current.load();
-          audioRef.current.play().catch(() => {});
-          setIsPlaying(true);
-        }
-      }, 200);
+      // Auto-play is handled by the effect keyed on `audioUrl` above, which
+      // fires once React has mounted the <audio> element and applied its src.
 
       // Log to history log
       if (setHistoryData) {
