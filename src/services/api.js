@@ -336,7 +336,7 @@ export async function addMessage(apiKey, id, role, content) {
  * Header: x-api-key: <apiKey>
  * Body: { messages, model, stream: true }
  */
-export async function chatCompletion(apiKey, messages, model = null, stream = true, maxTokens = 2048) {
+export async function chatCompletion(apiKey, messages, model = null, stream = true, maxTokens = 2048, signal = null) {
   const res = await fetch(`${BASE_URL}/api/chat`, {
     method: 'POST',
     headers: {
@@ -352,6 +352,8 @@ export async function chatCompletion(apiKey, messages, model = null, stream = tr
       max_tokens: maxTokens,
       stream
     }),
+    // Wire the caller's AbortController through so Stop actually stops.
+    signal,
   });
   
   if (!res.ok) {
@@ -373,13 +375,19 @@ export async function chatCompletion(apiKey, messages, model = null, stream = tr
  * Body: { text, source, target, engine }
  */
 export async function translateText(apiKey, text, source, target, engine = 'api') {
+  // source was previously accepted but never sent — an explicitly selected
+  // source language was silently discarded and the server always auto-detected
+  // (wrong for ambiguous short strings). Send it when it isn't auto-detect;
+  // servers without the field simply ignore it.
+  const body = { text, target_lang: target, engine };
+  if (source && source !== 'auto') body.source_lang = source;
   const res = await fetch(`${BASE_URL}/api/translate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-api-key': apiKey
     },
-    body: JSON.stringify({ text, target_lang: target, engine }),
+    body: JSON.stringify(body),
   });
   return handleResponse(res);
 }

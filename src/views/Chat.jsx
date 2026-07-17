@@ -119,14 +119,27 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
       }
     };
   }, []);
+  // Fully stop THIS button's playback: pause, free the blob URL, reset UI.
+  // Registered in the shared currentAudioRef so that when another SpeakButton
+  // starts, it can stop us AND reset our UI (previously only the audio was
+  // paused — the superseded button stayed stuck on "Stop" and leaked its URL).
+  const stopSelf = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
+    setIsPlaying(false);
+  };
+
   const handleSpeak = async () => {
     // If already playing, stop it
     if (isPlaying) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      setIsPlaying(false);
+      stopSelf();
+      if (currentAudioRef.current?.owner === stopSelf) currentAudioRef.current = null;
       return;
     }
 
@@ -134,29 +147,28 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
     setIsPlaying(true);
 
     try {
-      // Revoke previous blob URL to free memory
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
+      // Stop whichever bubble is currently speaking (resets its UI too).
+      if (currentAudioRef.current?.stop) {
+        currentAudioRef.current.stop();
+      } else if (currentAudioRef.current?.pause) {
+        currentAudioRef.current.pause(); // legacy shape, just in case
       }
-if (currentAudioRef.current) {
-  currentAudioRef.current.pause();
-  currentAudioRef.current.currentTime = 0;
-}
+      currentAudioRef.current = null;
+
       const blobUrl = await voiceTTS(apiKey, text, 'en', 'divya');
       blobUrlRef.current = blobUrl;
 
       const audio = new Audio(blobUrl);
-      currentAudioRef.current = audio;
       audioRef.current = audio;
+      currentAudioRef.current = { stop: stopSelf, owner: stopSelf };
       audio.play();
       audio.onended = () => {
-        setIsPlaying(false);
-        audioRef.current = null;
+        stopSelf();
+        if (currentAudioRef.current?.owner === stopSelf) currentAudioRef.current = null;
       };
       audio.onerror = () => {
-        setIsPlaying(false);
-        audioRef.current = null;
+        stopSelf();
+        if (currentAudioRef.current?.owner === stopSelf) currentAudioRef.current = null;
         showToast('Failed to play audio.', 'error');
       };
     } catch (err) {
@@ -203,11 +215,21 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   // Bumped on every new recording so a slow transcription from a PREVIOUS
   // recording can't append its (stale) text after a newer one has started.
   const voiceGenRef = useRef(0);
+  // Same pattern for chat streams: bumped on submit AND on conversation
+  // switch, so an in-flight stream can never write tokens into a different
+  // conversation's messages after the user navigates away.
+  const chatGenRef = useRef(0);
 
   const pathParts = currentPath ? currentPath.split('/') : [];
   const activeConversationId = pathParts.length > 2 ? pathParts[2] : null;
 
   useEffect(() => {
+    // Invalidate + abort any in-flight stream: without this, a stream started
+    // in the previous conversation keeps writing tokens into the newly loaded
+    // message list at a stale index.
+    chatGenRef.current += 1;
+    abortControllerRef.current?.abort();
+
     const loadConversation = async () => {
       if (activeConversationId) {
         setIsTyping(true);
@@ -411,7 +433,28 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
     const assistantMsgIndex = newMessages.length;
 
     abortControllerRef.current = new AbortController();
+    const gen = ++chatGenRef.current; // invalidated on conversation switch
     const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
+
+    // ── Prompt budget ────────────────────────────────────────────────────────
+    // The model has an 8192-token context and every request asks for 2048
+    // output tokens, so the prompt must stay under ~5800 tokens or the engine
+    // rejects the request outright. Send the newest turns that fit, skipping
+    // error bubbles (previously the FULL history — error messages included —
+    // was sent every turn, so long chats eventually broke permanently).
+    const estTokens = (t) => Math.ceil((t || '').length / 3);
+    const PROMPT_TOKEN_BUDGET = 5500;
+    const priorTurns = [];
+    let usedTokens = estTokens(userMsgContent);
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.isError || !m.content) continue;
+      const cost = estTokens(m.content);
+      if (usedTokens + cost > PROMPT_TOKEN_BUDGET) break;
+      priorTurns.unshift({ role: m.role, content: m.content });
+      usedTokens += cost;
+    }
+    const llmMessages = [...priorTurns, userMsg];
 
     // Persist user message immediately if conversation exists
     if (activeConversationId) {
@@ -424,49 +467,60 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
 
     let assistantReply = "";
     try {
-      const res = await chatCompletion(apiKey, newMessages, null, true);
-      
+      const res = await chatCompletion(
+        apiKey, llmMessages, null, true, 2048, abortControllerRef.current.signal
+      );
+
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = "";
       let hasFinished = false;
-      
-      while (!hasFinished) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() || "";
-        
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6).trim();
-          if (data === "[DONE]") {
-            hasFinished = true;
-            break;
-          }
-          let obj = null;
-          try {
-            obj = JSON.parse(data);
-          } catch (jsonErr) {
-            continue; // skip malformed SSE fragments
-          }
-          // Surface upstream errors instead of silently dropping them
-          // (a throw here must NOT be caught by the JSON-parse handler).
-          if (obj.error) throw new Error(obj.error);
-          if (obj.content) {
-            const token = obj.content;
-            assistantReply += token;
-            setMessages(prev => {
-              const newMsgs = [...prev];
-              newMsgs[assistantMsgIndex] = {
-                ...newMsgs[assistantMsgIndex],
-                content: (newMsgs[assistantMsgIndex]?.content || "") + token
-              };
-              return newMsgs;
-            });
+
+      try {
+        while (!hasFinished) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          // Conversation switched while streaming — stop before writing tokens
+          // into the newly loaded message list.
+          if (gen !== chatGenRef.current) break;
+          buf += dec.decode(value, { stream: true });
+          const lines = buf.split("\n");
+          buf = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6).trim();
+            if (data === "[DONE]") {
+              hasFinished = true;
+              break;
+            }
+            let obj = null;
+            try {
+              obj = JSON.parse(data);
+            } catch (jsonErr) {
+              continue; // skip malformed SSE fragments
+            }
+            // Surface upstream errors instead of silently dropping them
+            // (a throw here must NOT be caught by the JSON-parse handler).
+            if (obj.error) throw new Error(obj.error);
+            if (obj.content) {
+              const token = obj.content;
+              assistantReply += token;
+              setMessages(prev => {
+                const newMsgs = [...prev];
+                newMsgs[assistantMsgIndex] = {
+                  ...newMsgs[assistantMsgIndex],
+                  content: (newMsgs[assistantMsgIndex]?.content || "") + token
+                };
+                return newMsgs;
+              });
+            }
           }
         }
+      } finally {
+        // Release the HTTP connection on every exit path (error, abort,
+        // conversation switch) — previously it dangled until GC.
+        reader.cancel().catch(() => {});
       }
       setIsTyping(false);
 
@@ -477,6 +531,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
             await addMessage(apiKey, activeConversationId, 'assistant', assistantReply);
           } catch (err) {
             console.error("Failed to save assistant message to db:", err);
+            showToast('Reply shown but could not be saved to history.', 'warning');
           }
         } else {
           try {
@@ -492,31 +547,41 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
             }
           } catch (err) {
             console.error("Failed to create conversation:", err);
+            showToast('This chat could not be saved to history.', 'warning');
           }
         }
       }
 
     } catch (err) {
+      setIsTyping(false);
+
+      // User hit Stop (or switched conversation): keep whatever streamed,
+      // save the partial reply, and don't paint an error bubble.
+      if (err.name === 'AbortError') {
+        if (assistantReply && activeConversationId && gen === chatGenRef.current) {
+          try {
+            await addMessage(apiKey, activeConversationId, 'assistant', assistantReply);
+          } catch (errDb) {
+            console.error("Failed to save stopped reply:", errDb);
+          }
+        }
+        return;
+      }
+
+      // Real error: keep any partial content above the error note instead of
+      // discarding streamed tokens, and DON'T persist the error text as an
+      // assistant turn (it used to be saved + replayed to the model as
+      // context on the next question).
       const errorText = `Error: ${err.message || 'Failed to connect to AI engine.'}`;
       setMessages(prev => {
         const newMsgs = [...prev];
         newMsgs[assistantMsgIndex] = {
           ...newMsgs[assistantMsgIndex],
-          content: errorText,
+          content: assistantReply ? `${assistantReply}\n\n${errorText}` : errorText,
           isError: true
         };
         return newMsgs;
       });
-      setIsTyping(false);
-
-      // If active conversation and we got an error, save the error message as assistant response
-      if (activeConversationId && errorText) {
-        try {
-          await addMessage(apiKey, activeConversationId, 'assistant', errorText);
-        } catch (errDb) {
-          console.error("Failed to save error response to db:", errDb);
-        }
-      }
     }
   };
 
