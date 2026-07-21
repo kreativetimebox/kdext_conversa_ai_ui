@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import AppTopNav from './components/AppTopNav';
@@ -41,8 +41,10 @@ export default function App() {
 
   // Initialize theme from localStorage on startup
   useEffect(() => {
-    const savedTheme = localStorage.getItem('conversa_theme') || 'light';
+    const storedTheme = localStorage.getItem('conversa_theme');
+    const savedTheme = storedTheme === 'dark' ? 'midnight-ocean' : storedTheme === 'light' || storedTheme === 'contrast' || !storedTheme ? 'aurora-violet' : storedTheme;
     document.documentElement.setAttribute('data-theme', savedTheme);
+    localStorage.setItem('conversa_theme', savedTheme);
   }, []);
 
   // Session Recovery
@@ -311,3 +313,4 @@ const styles = {
     fontWeight: '500',
   }
 };
+

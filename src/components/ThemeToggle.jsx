@@ -1,61 +1,84 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sun, Moon } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { THEMES, applyTheme, normalizeTheme } from '../utils/themeSystem';
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('conversa_theme');
-    return saved === 'dark' ? 'dark' : 'light';
-  });
+  const [theme, setTheme] = useState(() => normalizeTheme(localStorage.getItem('conversa_theme')));
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('conversa_theme', theme);
+    applyTheme(theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+  useEffect(() => {
+    const handleThemeChange = (event) => setTheme(normalizeTheme(event.detail));
+    window.addEventListener('conversa-theme-change', handleThemeChange);
+    return () => window.removeEventListener('conversa-theme-change', handleThemeChange);
+  }, []);
 
   return (
-    <motion.button
-      onClick={toggleTheme}
-      aria-label="Toggle dark and light theme"
-      whileHover={{ scale: 1.08 }}
-      whileTap={{ scale: 0.92 }}
-      style={styles.toggle}
-    >
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.span
-          key={theme}
-          initial={{ rotate: -90, opacity: 0 }}
-          animate={{ rotate: 0, opacity: 1 }}
-          exit={{ rotate: 90, opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          style={styles.iconWrap}
-        >
-          {theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
-        </motion.span>
-      </AnimatePresence>
-    </motion.button>
+    <div style={styles.switcher} role="radiogroup" aria-label="Theme selector">
+      {THEMES.map(({ id, label, Icon }) => {
+        const active = theme === id;
+        return (
+          <motion.button
+            key={id}
+            type="button"
+            onClick={() => setTheme(id)}
+            aria-label={`Use ${label} theme`}
+            aria-checked={active}
+            role="radio"
+            title={label}
+            whileHover={{ scale: 1.06 }}
+            whileTap={{ scale: 0.94 }}
+            className={`theme-switcher-btn ${active ? 'active' : ''}`}
+            style={styles.option}
+          >
+            <Icon size={16} />
+            <span style={styles.srOnly}>{label}</span>
+          </motion.button>
+        );
+      })}
+    </div>
   );
 }
 
+
 const styles = {
-  toggle: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
+  switcher: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '5px',
+    borderRadius: '999px',
     border: '1px solid var(--border-color)',
-    background: 'var(--bg-subtle)',
-    color: 'var(--text-primary)',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    background: 'var(--glass)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 30px var(--shadow-color)',
+    backdropFilter: 'blur(30px)',
+    WebkitBackdropFilter: 'blur(30px)',
   },
-  iconWrap: {
-    display: 'flex',
+  option: {
+    width: '34px',
+    height: '34px',
+    borderRadius: '999px',
+    border: '1px solid transparent',
+    background: 'transparent',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
+    display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    transition: 'var(--transition)',
+  },
+  srOnly: {
+    position: 'absolute',
+    width: '1px',
+    height: '1px',
+    padding: 0,
+    margin: '-1px',
+    overflow: 'hidden',
+    clip: 'rect(0, 0, 0, 0)',
+    whiteSpace: 'nowrap',
+    border: 0,
   },
 };
+

@@ -1,17 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Moon, Sun, Type, Monitor, Eye, Layout } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Type, Layout } from 'lucide-react';
 import ConstellationField from '../../components/ConstellationField';
+import { THEMES, normalizeTheme, applyTheme } from '../../utils/themeSystem';
 
-export default function Settings({ user, showToast }) {
-  const [theme, setTheme] = useState(() => localStorage.getItem('conversa_theme') || 'light');
+export default function Settings({ showToast }) {
+  const [theme, setTheme] = useState(() => normalizeTheme(localStorage.getItem('conversa_theme')));
   const [textSize, setTextSize] = useState('medium');
   const [animations, setAnimations] = useState(true);
 
-  // Apply settings to document when they change
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('conversa_theme', theme);
+    applyTheme(theme);
   }, [theme]);
+
+  useEffect(() => {
+    const handleThemeChange = (event) => setTheme(normalizeTheme(event.detail));
+    window.addEventListener('conversa-theme-change', handleThemeChange);
+    return () => window.removeEventListener('conversa-theme-change', handleThemeChange);
+  }, []);
 
   useEffect(() => {
     if (textSize === 'large') {
@@ -36,81 +41,56 @@ export default function Settings({ user, showToast }) {
       </div>
 
       <div style={styles.card} className="glass-card">
-        
-        {/* Theme Settings */}
         <div style={styles.section}>
           <div style={styles.sectionHeader}>
             <Layout size={18} color="var(--primary-light)" />
             <h3 style={styles.sectionTitle}>Appearance & Theme</h3>
           </div>
           <div style={styles.optionsGrid}>
-            <button 
-              style={{
-                ...styles.optionCard, 
-                ...styles.lightPreview, 
-                ...(theme === 'light' ? styles.lightPreviewActive : {})
-              }}
-              onClick={() => setTheme('light')}
-              className="glass-card-hover"
-            >
-              <Sun size={24} color={theme === 'light' ? '#7c3aed' : '#64748b'} />
-              <div style={{...styles.optionLabel, color: '#0f172a'}}>Light Mode</div>
-              <div style={{...styles.optionDesc, color: '#475569'}}>Clean and bright interface</div>
-            </button>
-            <button 
-              style={{
-                ...styles.optionCard, 
-                ...styles.darkPreview, 
-                ...(theme === 'dark' ? styles.darkPreviewActive : {})
-              }}
-              onClick={() => setTheme('dark')}
-              className="glass-card-hover"
-            >
-              <Moon size={24} color={theme === 'dark' ? '#a78bfa' : '#94a3b8'} />
-              <div style={{...styles.optionLabel, color: '#f8fafc'}}>Dark Mode</div>
-              <div style={{...styles.optionDesc, color: '#94a3b8'}}>Default sleek dark theme</div>
-            </button>
-            <button 
-              style={{
-                ...styles.optionCard, 
-                ...styles.contrastPreview, 
-                ...(theme === 'contrast' ? styles.contrastPreviewActive : {})
-              }}
-              onClick={() => setTheme('contrast')}
-              className="glass-card-hover"
-            >
-              <Eye size={24} color={theme === 'contrast' ? '#ffff00' : '#ffffff'} />
-              <div style={{...styles.optionLabel, color: '#ffffff'}}>High Contrast</div>
-              <div style={{...styles.optionDesc, color: '#ffff00'}}>Maximum readability</div>
-            </button>
+            {THEMES.map(({ id, label, Icon }) => {
+              const active = theme === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  style={{ ...styles.optionCard, ...(active ? styles.optionActive : {}) }}
+                  onClick={() => setTheme(id)}
+                  className={`glass-card-hover theme-preview-card theme-preview-${id}`}
+                  aria-pressed={active}
+                >
+                  <Icon size={24} color={active ? 'var(--primary-light)' : 'var(--text-secondary)'} />
+                  <div style={styles.optionLabel}>{label}</div>
+                  <div style={styles.optionDesc}>{themeDescriptions[id]}</div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         <hr style={styles.divider} />
 
-        {/* Accessibility */}
         <div style={styles.section}>
           <div style={styles.sectionHeader}>
             <Type size={18} color="var(--secondary)" />
             <h3 style={styles.sectionTitle}>Accessibility</h3>
           </div>
-          
+
           <div style={styles.formRow} className="settings-form-row">
             <div style={styles.formLabel}>
               <div>Text Size</div>
               <div style={styles.formDesc}>Adjust global typography scale</div>
             </div>
             <div style={styles.btnGroup}>
-              <button 
-                style={{...styles.toggleBtn, ...(textSize === 'small' ? styles.toggleActive : {})}}
+              <button
+                style={{ ...styles.toggleBtn, ...(textSize === 'small' ? styles.toggleActive : {}) }}
                 onClick={() => setTextSize('small')}
               >Small</button>
-              <button 
-                style={{...styles.toggleBtn, ...(textSize === 'medium' ? styles.toggleActive : {})}}
+              <button
+                style={{ ...styles.toggleBtn, ...(textSize === 'medium' ? styles.toggleActive : {}) }}
                 onClick={() => setTextSize('medium')}
               >Medium</button>
-              <button 
-                style={{...styles.toggleBtn, ...(textSize === 'large' ? styles.toggleActive : {})}}
+              <button
+                style={{ ...styles.toggleBtn, ...(textSize === 'large' ? styles.toggleActive : {}) }}
                 onClick={() => setTextSize('large')}
               >Large</button>
             </div>
@@ -123,8 +103,8 @@ export default function Settings({ user, showToast }) {
             </div>
             <label style={styles.switch}>
               <input type="checkbox" checked={!animations} onChange={(e) => setAnimations(!e.target.checked)} style={styles.switchInput} />
-              <span style={{...styles.slider, ...(!animations ? styles.sliderChecked : {})}}>
-                <span style={{...styles.sliderThumb, ...(!animations ? styles.sliderThumbChecked : {})}}></span>
+              <span style={{ ...styles.slider, ...(!animations ? styles.sliderChecked : {}) }}>
+                <span style={{ ...styles.sliderThumb, ...(!animations ? styles.sliderThumbChecked : {}) }}></span>
               </span>
             </label>
           </div>
@@ -140,10 +120,17 @@ export default function Settings({ user, showToast }) {
   );
 }
 
+const themeDescriptions = {
+  'aurora-violet': 'White-purple Capium inspired glow',
+  'midnight-ocean': 'Deep blue SaaS dashboard atmosphere',
+  'sunset-ember': 'Warm orange and pink glass accents',
+  'emerald-frost': 'Green and cyan luminous workspace',
+};
+
 const styles = {
   card: {
     padding: '32px',
-    borderRadius: '16px',
+    borderRadius: '24px',
   },
   section: {
     marginBottom: '32px',
@@ -165,9 +152,9 @@ const styles = {
     gap: '16px',
   },
   optionCard: {
-    background: 'rgba(15,23,42,0.02)',
+    background: 'var(--glass)',
     border: '1px solid var(--border-color)',
-    borderRadius: '12px',
+    borderRadius: '20px',
     padding: '20px',
     display: 'flex',
     flexDirection: 'column',
@@ -176,35 +163,11 @@ const styles = {
     cursor: 'pointer',
     transition: 'var(--transition)',
     textAlign: 'center',
+    backdropFilter: 'blur(30px)',
   },
   optionActive: {
-    background: 'rgba(124, 58, 237, 0.08)',
-    borderColor: 'var(--primary)',
-    boxShadow: '0 0 15px rgba(124, 58, 237, 0.1)',
-  },
-  darkPreview: {
-    background: '#1e293b',
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  darkPreviewActive: {
-    borderColor: '#a78bfa',
-    boxShadow: '0 0 15px rgba(59,130,246,0.25)',
-  },
-  lightPreview: {
-    background: '#ffffff',
-    borderColor: 'rgba(15,23,42,0.08)',
-  },
-  lightPreviewActive: {
-    borderColor: '#7c3aed',
-    boxShadow: '0 0 15px rgba(124, 58, 237,0.15)',
-  },
-  contrastPreview: {
-    background: '#121212',
-    borderColor: '#ffffff',
-  },
-  contrastPreviewActive: {
-    borderColor: '#ffff00',
-    boxShadow: '0 0 15px rgba(255,255,0,0.3)',
+    borderColor: 'var(--border-focus)',
+    boxShadow: '0 0 0 1px var(--border-focus), 0 24px 70px var(--glow)',
   },
   optionLabel: {
     fontSize: '1.05rem',
@@ -218,7 +181,7 @@ const styles = {
   },
   divider: {
     border: 'none',
-    borderTop: '1px solid rgba(15,23,42,0.05)',
+    borderTop: '1px solid var(--border-color)',
     margin: '32px 0',
   },
   formRow: {
@@ -226,7 +189,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '16px 0',
-    borderBottom: '1px solid rgba(15,23,42,0.02)',
+    borderBottom: '1px solid var(--border-color)',
   },
   formLabel: {
     fontSize: '1rem',
@@ -240,8 +203,8 @@ const styles = {
   },
   btnGroup: {
     display: 'flex',
-    background: 'rgba(0,0,0,0.2)',
-    borderRadius: '8px',
+    background: 'var(--glass)',
+    borderRadius: '999px',
     padding: '4px',
     border: '1px solid var(--border-color)',
   },
@@ -250,15 +213,16 @@ const styles = {
     border: 'none',
     color: 'var(--text-secondary)',
     padding: '8px 16px',
-    borderRadius: '6px',
+    borderRadius: '999px',
     cursor: 'pointer',
     fontSize: '0.85rem',
     fontWeight: '600',
     transition: 'var(--transition)',
   },
   toggleActive: {
-    background: 'rgba(15,23,42,0.1)',
-    color: 'var(--text-primary)',
+    background: 'var(--gradient)',
+    color: '#ffffff',
+    boxShadow: '0 10px 28px var(--glow)',
   },
   switch: {
     position: 'relative',
@@ -278,19 +242,20 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'rgba(15,23,42,0.1)',
+    background: 'var(--glass-strong)',
     transition: '.4s',
     borderRadius: '24px',
+    border: '1px solid var(--border-color)',
   },
   sliderChecked: {
-    background: 'var(--primary)',
+    background: 'var(--gradient)',
   },
   sliderThumb: {
     position: 'absolute',
     height: '18px',
     width: '18px',
     left: '3px',
-    bottom: '3px',
+    bottom: '2px',
     backgroundColor: 'white',
     transition: '.4s',
     borderRadius: '50%',
@@ -305,3 +270,4 @@ const styles = {
     justifyContent: 'flex-end',
   }
 };
+
