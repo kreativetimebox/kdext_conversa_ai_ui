@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2, Trash2 } from 'lucide-react';
 import { chatCompletion, voiceSTT, voiceTTS, getConversationDetails, createConversation, addMessage, getConversations, deleteConversation } from '../services/api';
 import { attachAudioLevelMeter } from '../utils/audioLevel';
+import { detectLanguage, getDefaultVoiceForLanguage } from '../utils/detectLanguage';
 import SiriOrb from '../components/SiriOrb';
 import ParticleField from '../components/ParticleField';
 
@@ -155,7 +156,11 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
       }
       currentAudioRef.current = null;
 
-      const blobUrl = await voiceTTS(apiKey, text, 'en', 'divya');
+      // Auto-detect the language of the response text so TTS speaks in the
+      // correct language instead of always defaulting to English.
+      const detectedLang = detectLanguage(text);
+      const voice = getDefaultVoiceForLanguage(detectedLang);
+      const blobUrl = await voiceTTS(apiKey, text, detectedLang, voice);
       blobUrlRef.current = blobUrl;
 
       const audio = new Audio(blobUrl);
