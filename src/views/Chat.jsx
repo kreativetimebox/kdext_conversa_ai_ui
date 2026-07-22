@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2, Trash2 } from 'lucide-react';
 import { chatCompletion, voiceSTT, voiceTTS, getConversationDetails, createConversation, addMessage, getConversations, deleteConversation } from '../services/api';
 import { attachAudioLevelMeter } from '../utils/audioLevel';
@@ -21,63 +23,152 @@ const getHistoryGroup = (updatedAtStr) => {
   return 'Older';
 };
 
-// Simple Markdown Renderer
-const renderMarkdown = (text) => {
-  if (!text) return null;
-  
-  // Very basic regex markdown parser for demonstration
-  // Handles bold, code blocks, and newlines
-  const parts = [];
-  let currentIndex = 0;
-  
-  // Find code blocks
-  const codeBlockRegex = /```([\s\S]*?)```/g;
-  let match;
-  
-  while ((match = codeBlockRegex.exec(text)) !== null) {
-    if (match.index > currentIndex) {
-      parts.push({ type: 'text', content: text.slice(currentIndex, match.index) });
-    }
-    parts.push({ type: 'code', content: match[1].trim() });
-    currentIndex = match.index + match[0].length;
-  }
-  
-  if (currentIndex < text.length) {
-    parts.push({ type: 'text', content: text.slice(currentIndex) });
-  }
+// ── Markdown Renderer ──────────────────────────────────────────────────────
+// Uses react-markdown + remark-gfm for full CommonMark + GFM support
+// (headings, lists, tables, links, inline code, fenced code blocks, etc.)
+const MarkdownRenderer = ({ content }) => {
+  if (!content) return null;
 
-  return parts.map((part, index) => {
-    if (part.type === 'code') {
-      return (
-        <div key={index} style={styles.codeBlock}>
-          <div style={styles.codeHeader}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Code</span>
-            <CopyButton text={part.content} />
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        // ── Fenced code blocks ──
+        code({ inline, className, children, ...props }) {
+          const codeString = String(children).replace(/\n$/, '');
+          if (!inline) {
+            const langMatch = /language-(\w+)/.exec(className || '');
+            const lang = langMatch ? langMatch[1] : 'Code';
+            return (
+              <div style={markdownStyles.codeBlock}>
+                <div style={markdownStyles.codeHeader}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{lang}</span>
+                  <CopyButton text={codeString} />
+                </div>
+                <pre style={markdownStyles.pre}><code {...props}>{codeString}</code></pre>
+              </div>
+            );
+          }
+          // ── Inline code ──
+          return <code style={markdownStyles.inlineCode} {...props}>{children}</code>;
+        },
+
+        // ── Headings ──
+        h1: ({ children }) => <h1 style={markdownStyles.h1}>{children}</h1>,
+        h2: ({ children }) => <h2 style={markdownStyles.h2}>{children}</h2>,
+        h3: ({ children }) => <h3 style={markdownStyles.h3}>{children}</h3>,
+        h4: ({ children }) => <h4 style={markdownStyles.h4}>{children}</h4>,
+
+        // ── Paragraphs ──
+        p: ({ children }) => <p style={markdownStyles.p}>{children}</p>,
+
+        // ── Links ──
+        a: ({ href, children }) => (
+          <a href={href} target="_blank" rel="noopener noreferrer" style={markdownStyles.a}>
+            {children}
+          </a>
+        ),
+
+        // ── Lists ──
+        ul: ({ children }) => <ul style={markdownStyles.ul}>{children}</ul>,
+        ol: ({ children }) => <ol style={markdownStyles.ol}>{children}</ol>,
+        li: ({ children }) => <li style={markdownStyles.li}>{children}</li>,
+
+        // ── Blockquote ──
+        blockquote: ({ children }) => <blockquote style={markdownStyles.blockquote}>{children}</blockquote>,
+
+        // ── Horizontal rule ──
+        hr: () => <hr style={markdownStyles.hr} />,
+
+        // ── Tables (GFM) ──
+        table: ({ children }) => (
+          <div style={{ overflowX: 'auto', marginTop: '8px', marginBottom: '8px' }}>
+            <table style={markdownStyles.table}>{children}</table>
           </div>
-          <pre style={styles.pre}><code>{part.content}</code></pre>
-        </div>
-      );
-    }
-    
-    // Parse bold and newlines within text
-    const textParts = part.content.split('\n').map((line, i) => {
-      // Bold
-      const lineWithBold = line.split(/\*\*(.*?)\*\*/g).map((chunk, j) => {
-        if (j % 2 === 1) return <strong key={j} style={{ color: 'var(--text-primary)' }}>{chunk}</strong>;
-        return chunk;
-      });
-      
-      return (
-        <React.Fragment key={i}>
-          {lineWithBold}
-          {i < part.content.split('\n').length - 1 && <br />}
-        </React.Fragment>
-      );
-    });
+        ),
+        thead: ({ children }) => <thead style={markdownStyles.thead}>{children}</thead>,
+        th: ({ children }) => <th style={markdownStyles.th}>{children}</th>,
+        td: ({ children }) => <td style={markdownStyles.td}>{children}</td>,
 
-    return <span key={index} style={{ wordBreak: 'break-word' }}>{textParts}</span>;
-  });
+        // ── Strong / Em ──
+        strong: ({ children }) => <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{children}</strong>,
+        em: ({ children }) => <em>{children}</em>,
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
 };
+
+// Styles for the markdown renderer
+const markdownStyles = {
+  codeBlock: {
+    background: '#1e1e1e',
+    borderRadius: '8px',
+    marginTop: '12px',
+    marginBottom: '12px',
+    overflow: 'hidden',
+    border: '1px solid rgba(15,23,42,0.1)',
+  },
+  codeHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: '#2d2d2d',
+    padding: '6px 12px',
+    borderBottom: '1px solid rgba(15,23,42,0.05)',
+  },
+  pre: {
+    padding: '12px',
+    margin: 0,
+    overflowX: 'auto',
+    fontSize: '0.9rem',
+    fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+    color: '#e4e4e7',
+    lineHeight: 1.5,
+  },
+  inlineCode: {
+    background: 'rgba(124, 58, 237, 0.12)',
+    color: '#c084fc',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontSize: '0.88em',
+    fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+  },
+  h1: { fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', margin: '16px 0 8px' },
+  h2: { fontSize: '1.3rem', fontWeight: 600, color: 'var(--text-primary)', margin: '14px 0 6px' },
+  h3: { fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '12px 0 4px' },
+  h4: { fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '10px 0 4px' },
+  p: { margin: '6px 0', lineHeight: 1.7, wordBreak: 'break-word' },
+  a: { color: '#818cf8', textDecoration: 'underline', textUnderlineOffset: '2px' },
+  ul: { paddingLeft: '20px', margin: '6px 0', listStyleType: 'disc' },
+  ol: { paddingLeft: '20px', margin: '6px 0' },
+  li: { margin: '4px 0', lineHeight: 1.6 },
+  blockquote: {
+    borderLeft: '3px solid rgba(124, 58, 237, 0.5)',
+    paddingLeft: '14px',
+    margin: '10px 0',
+    color: 'var(--text-secondary)',
+    fontStyle: 'italic',
+  },
+  hr: { border: 'none', borderTop: '1px solid var(--border-color)', margin: '16px 0' },
+  table: { borderCollapse: 'collapse', width: '100%', fontSize: '0.88rem' },
+  thead: { background: 'rgba(15,23,42,0.06)' },
+  th: {
+    border: '1px solid var(--border-color)',
+    padding: '8px 12px',
+    textAlign: 'left',
+    fontWeight: 600,
+    color: 'var(--text-primary)',
+  },
+  td: {
+    border: '1px solid var(--border-color)',
+    padding: '8px 12px',
+    color: 'var(--text-secondary)',
+  },
+};
+
+
 
 const CopyButton = ({ text, variant = 'icon' }) => {
   const [copied, setCopied] = useState(false);
@@ -698,7 +789,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
                     <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
                   ) : (
                     <div>
-                      {renderMarkdown(msg.content)}
+                      <MarkdownRenderer content={msg.content} />
                       {isTyping && index === messages.length - 1 && (
                         <span style={styles.cursor}></span>
                       )}
@@ -989,38 +1080,6 @@ const styles = {
     padding: '4px',
     transition: 'var(--transition)',
     marginRight: '8px',
-  },
-  codeBlock: {
-    background: '#1e1e1e',
-    borderRadius: '8px',
-    marginTop: '12px',
-    marginBottom: '12px',
-    overflow: 'hidden',
-    border: '1px solid rgba(15,23,42,0.1)',
-  },
-  codeHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    background: '#2d2d2d',
-    padding: '6px 12px',
-    borderBottom: '1px solid rgba(15,23,42,0.05)',
-  },
-  pre: {
-    padding: '12px',
-    margin: 0,
-    overflowX: 'auto',
-    fontSize: '0.9rem',
-    fontFamily: 'monospace',
-    color: '#e4e4e7',
-  },
-  copyBtn: {
-    background: 'transparent',
-    border: 'none',
-    color: 'var(--text-muted)',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
   },
   cursor: {
     display: 'inline-block',
