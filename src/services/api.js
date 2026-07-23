@@ -385,9 +385,20 @@ export async function chatCompletion(apiKey, messages, model = null, stream = tr
     let errMsg = `chat ${res.status}`;
     try {
       const errData = await res.json();
-      errMsg = errData?.error || errData?.detail || errData?.message || errMsg;
+      const raw = errData?.error || errData?.detail || errData?.message || errMsg;
+      // detail/error can be an object or a FastAPI validation array — never
+      // let it stringify to "[object Object]" or leak raw JSON to the bubble.
+      if (Array.isArray(raw)) {
+        errMsg = raw.map(d => d?.msg || d).join(', ');
+      } else if (raw && typeof raw === 'object') {
+        errMsg = raw.message || raw.detail || raw.error || JSON.stringify(raw);
+      } else {
+        errMsg = raw;
+      }
     } catch (_) {}
-    throw new Error(errMsg);
+    const err = new Error(errMsg);
+    err.status = res.status;
+    throw err;
   }
   return res;
 }

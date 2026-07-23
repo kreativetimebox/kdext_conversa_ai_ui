@@ -8,6 +8,28 @@ import { detectLanguage, getDefaultVoiceForLanguage } from '../utils/detectLangu
 import SiriOrb from '../components/SiriOrb';
 import ParticleField from '../components/ParticleField';
 
+// ── Error classification ───────────────────────────────────────────────────
+// Detect a usage/rate limit so the UI can lock the composer instead of just
+// painting another error bubble.
+const isLimitError = (err) => {
+  if (err?.status === 429) return true;
+  const msg = (err?.message || '').toLowerCase();
+  return /\b(limit|quota|exceeded|too many requests|insufficient|out of credit|rate[- ]?limit)\b/.test(msg);
+};
+
+// Turn any thrown error into a short, human-readable line — never the raw
+// JSON / stack / "[object Object]" the backend or fetch layer produces.
+const friendlyError = (err) => {
+  if (isLimitError(err)) {
+    return "You've reached your usage limit. Please upgrade your plan or try again later.";
+  }
+  const msg = err?.message || '';
+  if (err?.name === 'TypeError' || /failed to fetch|networkerror|network request failed/i.test(msg)) {
+    return "Couldn't reach the AI service. Please check your connection and try again.";
+  }
+  return 'Something went wrong while generating a response. Please try again.';
+};
+
 const getHistoryGroup = (updatedAtStr) => {
   if (!updatedAtStr) return 'Older';
   const updatedDate = new Date(updatedAtStr);
@@ -299,6 +321,10 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   // Live mic volume (0-1) while recording, drives the Siri-style reactive orb.
   const [micLevel, setMicLevel] = useState(0);
 
+  // Set when the backend reports a usage/rate limit — locks the composer and
+  // shows a banner until the user reloads or the limit resets.
+  const [limitReached, setLimitReached] = useState(false);
+
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer toggle only — always visible on desktop
   const [conversations, setConversations] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -514,7 +540,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
-    if (!input.trim() || isTyping || isRecording) return;
+    if (!input.trim() || isTyping || isRecording || limitReached) return;
     
     const userMsgContent = input.trim();
     const userMsg = { role: 'user', content: userMsgContent };
@@ -598,7 +624,12 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
             }
             // Surface upstream errors instead of silently dropping them
             // (a throw here must NOT be caught by the JSON-parse handler).
-            if (obj.error) throw new Error(obj.error);
+            // obj.error may be a string or an object — normalise to a string
+            // so it never becomes "[object Object]" downstream.
+            if (obj.error) {
+              const e = obj.error;
+              throw new Error(typeof e === 'string' ? e : (e.message || e.detail || JSON.stringify(e)));
+            }
             if (obj.content) {
               const token = obj.content;
               assistantReply += token;
@@ -619,6 +650,13 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
         reader.cancel().catch(() => {});
       }
       setIsTyping(false);
+
+      // Stream ended cleanly but the model returned nothing — remove the empty
+      // placeholder instead of leaving a blank AI bubble on screen.
+      if (!assistantReply && gen === chatGenRef.current) {
+        setMessages(prev => prev.filter((_, i) => i !== assistantMsgIndex));
+        showToast('No response was generated. Please try again.', 'warning');
+      }
 
       // Save assistant message or create new conversation
       if (assistantReply) {
@@ -660,15 +698,29 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
           } catch (errDb) {
             console.error("Failed to save stopped reply:", errDb);
           }
+        } else if (!assistantReply && gen === chatGenRef.current) {
+          // Stopped before a single token arrived — drop the empty assistant
+          // placeholder so it doesn't linger as a blank AI bubble.
+          setMessages(prev => prev.filter((_, i) => i !== assistantMsgIndex));
         }
         return;
+      }
+
+      // The conversation was switched out from under this stream — don't write
+      // an error bubble into the newly-loaded (different) message list.
+      if (gen !== chatGenRef.current) return;
+
+      // Usage/rate limit: lock the composer so the user can't keep firing
+      // requests that will all fail, and show a clear banner.
+      if (isLimitError(err)) {
+        setLimitReached(true);
       }
 
       // Real error: keep any partial content above the error note instead of
       // discarding streamed tokens, and DON'T persist the error text as an
       // assistant turn (it used to be saved + replayed to the model as
-      // context on the next question).
-      const errorText = `Error: ${err.message || 'Failed to connect to AI engine.'}`;
+      // context on the next question). Show a friendly line, never raw JSON.
+      const errorText = friendlyError(err);
       setMessages(prev => {
         const newMsgs = [...prev];
         newMsgs[assistantMsgIndex] = {
@@ -832,11 +884,18 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
         )}
 
         <div className="chat-input-area">
-          <div className="chat-input-wrapper">
+          {limitReached && (
+            <div style={styles.limitBanner}>
+              You've reached your usage limit. Chat is temporarily disabled — please upgrade your plan or try again later.
+            </div>
+          )}
+          <div className="chat-input-wrapper" style={limitReached ? { opacity: 0.6 } : undefined}>
             <button
               onClick={isRecording ? stopRecording : startRecording}
+              disabled={limitReached}
               style={{
                 ...styles.actionBtn,
+                cursor: limitReached ? 'not-allowed' : 'pointer',
                 color: isRecording ? '#ef4444' : 'var(--text-muted)',
                 transform: isRecording ? `scale(${1 + micLevel * 0.35})` : 'scale(1)',
                 boxShadow: isRecording ? `0 0 ${8 + micLevel * 24}px ${2 + micLevel * 6}px rgba(239, 68, 68, 0.45)` : 'none',
@@ -853,9 +912,9 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
               value={input}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder={isRecording ? "Listening..." : "Message Conversa AI..."}
+              placeholder={limitReached ? "Usage limit reached" : isRecording ? "Listening..." : "Message Conversa AI..."}
               rows={1}
-              disabled={isRecording}
+              disabled={isRecording || limitReached}
             />
             
             {isTyping ? (
@@ -868,10 +927,10 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
                 <StopCircle size={18} />
               </button>
             ) : (
-              <button 
-                className="chat-send-btn" 
+              <button
+                className="chat-send-btn"
                 onClick={handleSubmit}
-                disabled={!input.trim() || isRecording}
+                disabled={!input.trim() || isRecording || limitReached}
               >
                 <Send size={18} />
               </button>
@@ -1095,5 +1154,16 @@ const styles = {
     fontSize: '0.75rem',
     color: 'var(--text-muted)',
     marginTop: '12px',
+  },
+  limitBanner: {
+    background: 'rgba(239, 68, 68, 0.1)',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
+    color: '#ef4444',
+    borderRadius: '10px',
+    padding: '10px 14px',
+    marginBottom: '10px',
+    fontSize: '0.82rem',
+    fontWeight: 500,
+    textAlign: 'center',
   }
 };
