@@ -16,20 +16,45 @@
 // known deployment so old builds keep working.
 const CONFIGURED_BASE = (import.meta.env?.VITE_API_BASE_URL || 'https://aiservices.dexaitech.com').replace(/\/+$/, '');
 
-// The real backend server (always direct, for building absolute audio URLs)
-export const SERVER_BASE = CONFIGURED_BASE;
+// Fallback used when the UI is opened by raw server IP instead of the domain
+// (e.g. the reverse proxy / TLS in front of aiservices.dexaitech.com is down).
+// In that case CONFIGURED_BASE would still point at the broken domain, so we
+// talk to the gateway directly instead.
+const DIRECT_GATEWAY_URL = (import.meta.env?.VITE_DIRECT_GATEWAY_URL || 'http://185.14.252.20:8001').replace(/\/+$/, '');
 
-// API calls go through the Vite dev proxy or use secure reverse proxy
-const BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-  ? ''
+function isRawIpHost(hostname) {
+  return /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
+}
+
+// The real backend server, for building absolute audio URLs. Mirrors the
+// BASE_URL fallback below so audio actually resolves against whichever host
+// served the request.
+export const SERVER_BASE = (typeof window !== 'undefined' && isRawIpHost(window.location.hostname))
+  ? DIRECT_GATEWAY_URL
   : CONFIGURED_BASE;
+
+// API calls go through the Vite dev proxy, hit the gateway directly (raw IP
+// access — domain may be unreachable), or use the secure reverse proxy.
+const BASE_URL = (() => {
+  if (typeof window === 'undefined') return CONFIGURED_BASE;
+  const { hostname } = window.location;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return '';
+  if (isRawIpHost(hostname)) return DIRECT_GATEWAY_URL;
+  return CONFIGURED_BASE;
+})();
 
 // WebSocket base for live translation — same host as the API, ws(s) scheme.
 // On localhost it goes through the Vite dev proxy just like HTTP calls.
 export function getWsBaseUrl() {
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${proto}//${window.location.host}`;
+  if (typeof window !== 'undefined') {
+    const { hostname, protocol, host } = window.location;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      const proto = protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${proto}//${host}`;
+    }
+    if (isRawIpHost(hostname)) {
+      return DIRECT_GATEWAY_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+    }
   }
   return CONFIGURED_BASE.replace('https://', 'wss://').replace('http://', 'ws://');
 }
