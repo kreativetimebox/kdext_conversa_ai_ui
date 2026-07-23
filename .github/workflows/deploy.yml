@@ -14,8 +14,8 @@ concurrency:
 
 env:
   SSH_PORT: "22"
-  SSH_USER: balabantaray-user
-  REMOTE_DIR: /home/balabantaray-user/kdext_conversa_ai_ui
+  SSH_USER: ubuntu
+  REMOTE_DIR: /home/ubuntu/kdext_conversa_ai_ui
   IMAGE_NAME: kdext-conversa-ai-ui
   APP_PORT: "8004"
 
@@ -52,7 +52,7 @@ jobs:
             -o ServerAliveInterval=60 -o ServerAliveCountMax=30 -T \
             "$SSH_USER@$HOST" "bash -s" << 'SCRIPT'
           set -euo pipefail
-          cd /home/balabantaray-user/kdext_conversa_ai_ui
+          cd /home/ubuntu/kdext_conversa_ai_ui
 
           container_name="kdext-conversa-ai-ui"
 
