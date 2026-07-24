@@ -1,8 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2, Trash2 } from 'lucide-react';
-import { chatCompletion, voiceSTT, voiceTTS, getConversationDetails, createConversation, addMessage, getConversations, deleteConversation } from '../services/api';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2, Trash2, ChevronLeft, ChevronRight, ChevronDown, MoreVertical, Pencil, RefreshCw, AlertTriangle } from 'lucide-react';
+import { chatCompletion, voiceSTT, voiceTTS, getConversationDetails, createConversation, addMessage, getConversations, deleteConversation, renameConversation } from '../services/api';
 import { attachAudioLevelMeter } from '../utils/audioLevel';
 import { detectLanguage, getDefaultVoiceForLanguage } from '../utils/detectLanguage';
 import SiriOrb from '../components/SiriOrb';
@@ -17,17 +19,53 @@ const isLimitError = (err) => {
   return /\b(limit|quota|exceeded|too many requests|insufficient|out of credit|rate[- ]?limit)\b/.test(msg);
 };
 
+// Detect context-length / token-limit errors from the backend.
+const isContextLengthError = (err) => {
+  const msg = (err?.message || '').toLowerCase();
+  return /\b(context.?length|token.?limit|maximum.?context|too.?long|max.?tokens|context.?window)\b/.test(msg);
+};
+
+// Detect network / connectivity errors
+const isNetworkError = (err) => {
+  if (err?.name === 'TypeError') return true;
+  const msg = (err?.message || '').toLowerCase();
+  return /failed to fetch|networkerror|network request failed|net::err|load failed|fetch failed/i.test(msg);
+};
+
 // Turn any thrown error into a short, human-readable line — never the raw
 // JSON / stack / "[object Object]" the backend or fetch layer produces.
 const friendlyError = (err) => {
   if (isLimitError(err)) {
     return "You've reached your usage limit. Please upgrade your plan or try again later.";
   }
-  const msg = err?.message || '';
-  if (err?.name === 'TypeError' || /failed to fetch|networkerror|network request failed/i.test(msg)) {
-    return "Couldn't reach the AI service. Please check your connection and try again.";
+  if (isContextLengthError(err)) {
+    return "This conversation has reached the maximum context limit. Please start a New Chat to continue.";
+  }
+  if (isNetworkError(err)) {
+    return "No internet connection. Please check your network and try again.";
   }
   return 'Something went wrong while generating a response. Please try again.';
+};
+
+// ── Loop detection ─────────────────────────────────────────────────────────
+// Detects if the AI is stuck repeating itself. Returns true when a 50+
+// character substring appears 3+ times in the accumulated response.
+const detectRepetitionLoop = (text) => {
+  if (!text || text.length < 200) return false;
+  // Check the last 600 characters for repeating patterns
+  const tail = text.slice(-600);
+  // Try pattern lengths from 50 to 150
+  for (let pLen = 50; pLen <= 150; pLen += 10) {
+    const pattern = tail.slice(-pLen);
+    let count = 0;
+    let idx = tail.indexOf(pattern);
+    while (idx !== -1) {
+      count++;
+      if (count >= 3) return true;
+      idx = tail.indexOf(pattern, idx + 1);
+    }
+  }
+  return false;
 };
 
 const getHistoryGroup = (updatedAtStr) => {
@@ -46,14 +84,15 @@ const getHistoryGroup = (updatedAtStr) => {
 };
 
 // ── Markdown Renderer ──────────────────────────────────────────────────────
-// Uses react-markdown + remark-gfm for full CommonMark + GFM support
-// (headings, lists, tables, links, inline code, fenced code blocks, etc.)
+// Uses react-markdown + remark-gfm + remark-math + rehype-katex for full
+// CommonMark + GFM + LaTeX math support.
 const MarkdownRenderer = ({ content }) => {
   if (!content) return null;
 
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeKatex]}
       components={{
         // ── Fenced code blocks ──
         code({ inline, className, children, ...props }) {
@@ -219,10 +258,13 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
   const blobUrlRef = useRef(null);
-  // Stop playback if this button's component unmounts (e.g. user navigates
-  // away to another page while audio is still playing)
+  const mountedRef = useRef(true);
+
+  // Track mounted state to avoid setState after unmount
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -233,11 +275,9 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
       }
     };
   }, []);
+
   // Fully stop THIS button's playback: pause, free the blob URL, reset UI.
-  // Registered in the shared currentAudioRef so that when another SpeakButton
-  // starts, it can stop us AND reset our UI (previously only the audio was
-  // paused — the superseded button stayed stuck on "Stop" and leaked its URL).
-  const stopSelf = () => {
+  const stopSelf = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
@@ -246,8 +286,8 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
       URL.revokeObjectURL(blobUrlRef.current);
       blobUrlRef.current = null;
     }
-    setIsPlaying(false);
-  };
+    if (mountedRef.current) setIsPlaying(false);
+  }, []);
 
   const handleSpeak = async () => {
     // If already playing, stop it
@@ -258,6 +298,8 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
     }
 
     if (!text?.trim()) return;
+
+    // Immediately show the Stop state BEFORE the async call
     setIsPlaying(true);
 
     try {
@@ -269,13 +311,23 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
       }
       currentAudioRef.current = null;
 
+      // Register ourselves as the current audio owner IMMEDIATELY
+      // so the stop button works even during the TTS API call.
+      currentAudioRef.current = { stop: stopSelf, owner: stopSelf };
+
       // Auto-detect the language of the response text so TTS speaks in the
       // correct language instead of always defaulting to English.
       const detectedLang = detectLanguage(text);
       const voice = getDefaultVoiceForLanguage(detectedLang);
       const blobUrl = await voiceTTS(apiKey, text, detectedLang, voice);
-      blobUrlRef.current = blobUrl;
 
+      // Check if we were stopped while waiting for TTS
+      if (!mountedRef.current || currentAudioRef.current?.owner !== stopSelf) {
+        URL.revokeObjectURL(blobUrl);
+        return;
+      }
+
+      blobUrlRef.current = blobUrl;
       const audio = new Audio(blobUrl);
       audioRef.current = audio;
       currentAudioRef.current = { stop: stopSelf, owner: stopSelf };
@@ -290,7 +342,8 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
         showToast('Failed to play audio.', 'error');
       };
     } catch (err) {
-      setIsPlaying(false);
+      if (mountedRef.current) setIsPlaying(false);
+      if (currentAudioRef.current?.owner === stopSelf) currentAudioRef.current = null;
       showToast(err.message || 'Speech synthesis failed.', 'error');
     }
   };
@@ -306,7 +359,7 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
       }}
       title={isPlaying ? 'Stop speaking' : 'Speak response'}
     >
-      <Volume2 size={13} color={isPlaying ? '#a78bfa' : undefined} />
+      {isPlaying ? <StopCircle size={13} color="#a78bfa" /> : <Volume2 size={13} />}
       <span>{isPlaying ? 'Stop' : 'Speak'}</span>
     </button>
   );
@@ -324,12 +377,28 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
   // Set when the backend reports a usage/rate limit — locks the composer and
   // shows a banner until the user reloads or the limit resets.
   const [limitReached, setLimitReached] = useState(false);
+  // Set when the conversation exceeds the context/token limit
+  const [contextLimitReached, setContextLimitReached] = useState(false);
 
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer toggle only — always visible on desktop
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // desktop collapse toggle
   const [conversations, setConversations] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  // Track whether we're in the middle of creating a conversation (prevents race condition)
+  const [savingConversation, setSavingConversation] = useState(false);
+
+  // Context menu state
+  const [ctxMenuId, setCtxMenuId] = useState(null);
+  // Rename state
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  // Auto-scroll control: when user scrolls up during streaming, pause auto-scroll
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const chatHistoryRef = useRef(null);
   const textareaRef = useRef(null);
   const abortControllerRef = useRef(null);
   const currentAudioRef = useRef(null);
@@ -351,6 +420,10 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
     // message list at a stale index.
     chatGenRef.current += 1;
     abortControllerRef.current?.abort();
+    // Reset context limit when switching conversations
+    setContextLimitReached(false);
+    setUserScrolledUp(false);
+    setShowScrollBtn(false);
 
     const loadConversation = async () => {
       if (activeConversationId) {
@@ -367,6 +440,12 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
           showToast('Failed to load conversation history.', 'error');
         } finally {
           setIsTyping(false);
+          // Scroll to show messages after loading (fixes bug-029)
+          requestAnimationFrame(() => {
+            if (chatHistoryRef.current) {
+              chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
+            }
+          });
         }
       } else {
         setMessages([]);
@@ -400,21 +479,49 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
 
   const handleSelectConversation = (id) => {
     setSidebarOpen(false);
+    setCtxMenuId(null);
     navigate(`/chat/${id}`);
   };
 
+  // Fix bug-002: handleNewChat must reset state immediately rather than
+  // relying on a route change (which no-ops when already on /chat).
+  // Also clears input (fix bug-024).
   const handleNewChat = () => {
     setSidebarOpen(false);
-    navigate('/chat');
+    setCtxMenuId(null);
+    // Abort any in-flight stream
+    chatGenRef.current += 1;
+    abortControllerRef.current?.abort();
+    // Reset all state
+    setMessages([]);
+    setInput('');
+    setIsTyping(false);
+    setLimitReached(false);
+    setContextLimitReached(false);
+    setUserScrolledUp(false);
+    setShowScrollBtn(false);
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    // Navigate to /chat (if not already there, it triggers the effect;
+    // if already there, the state resets above handle it)
+    if (currentPath !== '/chat') {
+      navigate('/chat');
+    }
   };
 
+  // Fix bug-020/021: After deleting the active conversation, clear messages
+  // and navigate away so the deleted conversation can't be used.
   const handleDeleteConversation = async (e, id) => {
-    e.stopPropagation();
+    if (e) e.stopPropagation();
+    setCtxMenuId(null);
     if (!window.confirm('Are you sure you want to delete this chat?')) return;
     const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
     try {
       await deleteConversation(apiKey, id);
       if (activeConversationId === id) {
+        // Actively clear messages and navigate to new chat
+        setMessages([]);
+        setInput('');
+        setIsTyping(false);
         navigate('/chat');
       }
       fetchConversations();
@@ -423,19 +530,66 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Rename conversation
+  const handleRenameConversation = async (id) => {
+    if (!renameValue.trim()) {
+      setRenamingId(null);
+      return;
+    }
+    const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
+    try {
+      await renameConversation(apiKey, id, renameValue.trim());
+      fetchConversations();
+    } catch {
+      showToast('Failed to rename conversation.', 'error');
+    }
+    setRenamingId(null);
+  };
+
+  // Smart auto-scroll: only scroll to bottom if user is near the bottom
+  const scrollToBottom = useCallback(() => {
+    if (userScrolledUp) return; // Don't force scroll if user scrolled up
+    if (chatHistoryRef.current) {
+      chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
+    }
+  }, [userScrolledUp]);
+
+  // Handle scroll events on the chat history container
+  const handleChatScroll = useCallback(() => {
+    const el = chatHistoryRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const isNearBottom = distFromBottom < 100;
+
+    if (isNearBottom) {
+      setUserScrolledUp(false);
+      setShowScrollBtn(false);
+    } else if (isTyping) {
+      // Only mark as scrolled up if we're currently streaming
+      setUserScrolledUp(true);
+      setShowScrollBtn(true);
+    } else {
+      setShowScrollBtn(distFromBottom > 300);
+    }
+  }, [isTyping]);
+
+  const handleScrollToLatest = () => {
+    setUserScrolledUp(false);
+    setShowScrollBtn(false);
+    if (chatHistoryRef.current) {
+      chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping]);
+  }, [messages, isTyping, scrollToBottom]);
 
   const handleInput = (e) => {
     setInput(e.target.value);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   };
 
@@ -453,11 +607,6 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       micLevelMeterRef.current = attachAudioLevelMeter(stream, {
         onLevel: setMicLevel,
         silenceTimeoutMs: 3500,
-        // Act on this closure's own `recorder`/`stream` directly rather than
-        // through the stopRecording() wrapper — that reads `mediaRecorder`/
-        // `isRecording` state as of THIS render (still null/false here,
-        // since the setters below haven't applied yet), so calling it from
-        // this later async callback would silently no-op on stale state.
         onSilence: () => {
           if (recorder.state !== 'inactive') recorder.stop();
           setIsRecording(false);
@@ -469,10 +618,8 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       };
 
       recorder.onstop = async () => {
-        // MediaRecorder.mimeType includes codec params (e.g. "audio/webm;codecs=opus")
-        // but the STT server only accepts the bare base type. Strip codec suffix.
         const rawMime = recorder.mimeType || 'audio/webm';
-        const mimeType = rawMime.split(';')[0].trim(); // → "audio/webm"
+        const mimeType = rawMime.split(';')[0].trim();
         const audioBlob = new Blob(audioChunks, { type: mimeType });
         const ext = mimeType.includes('webm') ? 'webm'
                   : mimeType.includes('ogg')  ? 'ogg'
@@ -485,12 +632,8 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
         
         try {
           const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
-          // Use gateway-proxied STT endpoint (/api/voice/stt → engine :8002/v1/stt)
           const res = await voiceSTT(apiKey, file, null);
-          // Discard if a newer recording started while this one transcribed —
-          // otherwise the previous recording's text lands as the current one.
           if (gen !== voiceGenRef.current) return;
-          // Gateway returns { text, language, words[] }
           const transcript = res?.text || res?.detail || '';
           if (transcript) {
             setInput(prev => prev + (prev ? ' ' : '') + transcript);
@@ -538,17 +681,21 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, retryContent = null) => {
     if (e && e.preventDefault) e.preventDefault();
-    if (!input.trim() || isTyping || isRecording || limitReached) return;
+    const submitContent = retryContent || input.trim();
+    if (!submitContent || isTyping || isRecording || limitReached || savingConversation) return;
     
-    const userMsgContent = input.trim();
+    const userMsgContent = submitContent;
     const userMsg = { role: 'user', content: userMsgContent };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
-    setInput('');
+    if (!retryContent) setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setIsTyping(true);
+    // Reset scroll tracking for new message
+    setUserScrolledUp(false);
+    setShowScrollBtn(false);
     
     // Add empty assistant message placeholder
     setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
@@ -559,11 +706,6 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
     const apiKey = user?.api_key || sessionStorage.getItem('api_key') || 'demo';
 
     // ── Prompt budget ────────────────────────────────────────────────────────
-    // The model has an 8192-token context and every request asks for 2048
-    // output tokens, so the prompt must stay under ~5800 tokens or the engine
-    // rejects the request outright. Send the newest turns that fit, skipping
-    // error bubbles (previously the FULL history — error messages included —
-    // was sent every turn, so long chats eventually broke permanently).
     const estTokens = (t) => Math.ceil((t || '').length / 3);
     const PROMPT_TOKEN_BUDGET = 5500;
     const priorTurns = [];
@@ -622,10 +764,6 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
             } catch (jsonErr) {
               continue; // skip malformed SSE fragments
             }
-            // Surface upstream errors instead of silently dropping them
-            // (a throw here must NOT be caught by the JSON-parse handler).
-            // obj.error may be a string or an object — normalise to a string
-            // so it never becomes "[object Object]" downstream.
             if (obj.error) {
               const e = obj.error;
               throw new Error(typeof e === 'string' ? e : (e.message || e.detail || JSON.stringify(e)));
@@ -633,6 +771,25 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
             if (obj.content) {
               const token = obj.content;
               assistantReply += token;
+
+              // ── Loop detection (bug-010/011) ──
+              if (detectRepetitionLoop(assistantReply)) {
+                // Auto-abort the stream
+                abortControllerRef.current?.abort();
+                assistantReply += '\n\n⚠️ *Response was automatically stopped because a repetitive loop was detected.*';
+                setMessages(prev => {
+                  const newMsgs = [...prev];
+                  newMsgs[assistantMsgIndex] = {
+                    ...newMsgs[assistantMsgIndex],
+                    content: assistantReply,
+                    isError: true,
+                  };
+                  return newMsgs;
+                });
+                hasFinished = true;
+                break;
+              }
+
               setMessages(prev => {
                 const newMsgs = [...prev];
                 newMsgs[assistantMsgIndex] = {
@@ -663,11 +820,14 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
         if (activeConversationId) {
           try {
             await addMessage(apiKey, activeConversationId, 'assistant', assistantReply);
+            fetchConversations(); // refresh sidebar timestamps
           } catch (err) {
             console.error("Failed to save assistant message to db:", err);
             showToast('Reply shown but could not be saved to history.', 'warning');
           }
         } else {
+          // Fix bug-019: Block further sends during conversation creation
+          setSavingConversation(true);
           try {
             const title = userMsgContent.substring(0, 30) + (userMsgContent.length > 30 ? '...' : '');
             const seededMessages = [
@@ -682,6 +842,8 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
           } catch (err) {
             console.error("Failed to create conversation:", err);
             showToast('This chat could not be saved to history.', 'warning');
+          } finally {
+            setSavingConversation(false);
           }
         }
       }
@@ -692,6 +854,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       // User hit Stop (or switched conversation): keep whatever streamed,
       // save the partial reply, and don't paint an error bubble.
       if (err.name === 'AbortError') {
+        // Fix bug-013: preserve messages on abort
         if (assistantReply && activeConversationId && gen === chatGenRef.current) {
           try {
             await addMessage(apiKey, activeConversationId, 'assistant', assistantReply);
@@ -710,16 +873,17 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
       // an error bubble into the newly-loaded (different) message list.
       if (gen !== chatGenRef.current) return;
 
-      // Usage/rate limit: lock the composer so the user can't keep firing
-      // requests that will all fail, and show a clear banner.
+      // Usage/rate limit: lock the composer
       if (isLimitError(err)) {
         setLimitReached(true);
       }
 
-      // Real error: keep any partial content above the error note instead of
-      // discarding streamed tokens, and DON'T persist the error text as an
-      // assistant turn (it used to be saved + replayed to the model as
-      // context on the next question). Show a friendly line, never raw JSON.
+      // Context length error: show inline banner
+      if (isContextLengthError(err)) {
+        setContextLimitReached(true);
+      }
+
+      // Real error: keep any partial content above the error note
       const errorText = friendlyError(err);
       setMessages(prev => {
         const newMsgs = [...prev];
@@ -733,12 +897,34 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
     }
   };
 
+  // Retry handler: resend the last user message
+  const handleRetry = () => {
+    // Find the last user message
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        // Remove the failed response and resend
+        const lastUserContent = messages[i].content;
+        setMessages(prev => prev.slice(0, i));
+        setTimeout(() => handleSubmit(null, lastUserContent), 50);
+        return;
+      }
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
     }
   };
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!ctxMenuId) return;
+    const close = () => setCtxMenuId(null);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, [ctxMenuId]);
 
   const historyList = loadingHistory ? (
     <div style={styles.historyEmptyState}>Loading conversations…</div>
@@ -755,6 +941,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
           <div style={styles.historyGroupLabel}>{group}</div>
           {items.map((c) => {
             const cid = c.conversation_id || c.id;
+            const isActive = activeConversationId === cid;
             return (
               <div
                 key={cid}
@@ -762,17 +949,56 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
                 className="chat-history-item"
                 style={{
                   ...styles.historyItemRow,
-                  ...(activeConversationId === cid ? styles.historyItemActive : {}),
+                  ...(isActive ? styles.historyItemActive : {}),
                 }}
               >
-                <span style={styles.historyItemTitle}>{c.title || 'Untitled'}</span>
-                <button
-                  onClick={(e) => handleDeleteConversation(e, cid)}
-                  style={styles.historyDeleteBtn}
-                  title="Delete chat"
-                >
-                  <Trash2 size={14} />
-                </button>
+                {renamingId === cid ? (
+                  <input
+                    className="chat-history-rename-input"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={() => handleRenameConversation(cid)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleRenameConversation(cid);
+                      if (e.key === 'Escape') setRenamingId(null);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                  />
+                ) : (
+                  <span style={{
+                    ...styles.historyItemTitle,
+                    ...(isActive ? { color: 'var(--primary-light)', fontWeight: 600 } : {}),
+                  }}>
+                    {c.title || 'Untitled'}
+                  </span>
+                )}
+                <div className="chat-history-item-menu" style={{ position: 'relative' }}>
+                  <button
+                    className="chat-history-ctx-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCtxMenuId(ctxMenuId === cid ? null : cid);
+                    }}
+                    title="More options"
+                  >
+                    <MoreVertical size={14} />
+                  </button>
+                  {ctxMenuId === cid && (
+                    <div className="chat-history-ctx-menu" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => {
+                        setRenamingId(cid);
+                        setRenameValue(c.title || '');
+                        setCtxMenuId(null);
+                      }}>
+                        <Pencil size={14} /> Rename
+                      </button>
+                      <button className="danger" onClick={(e) => handleDeleteConversation(e, cid)}>
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -783,7 +1009,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
 
   return (
     <div style={styles.container}>
-      <aside className={`chat-sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <aside className={`chat-sidebar ${sidebarOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div style={styles.sidebarHeader}>
           <button onClick={handleNewChat} className="btn btn-primary" style={styles.newChatBtn}>
             New Chat
@@ -793,14 +1019,28 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
           {historyList}
         </div>
       </aside>
+      {/* Desktop sidebar collapse toggle */}
+      <button
+        className="chat-sidebar-collapse-btn"
+        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+        style={{ left: sidebarCollapsed ? 0 : 280 }}
+      >
+        {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+      </button>
       {sidebarOpen && <div className="chat-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
 
-      <div className="chat-container" style={{ height: 'auto', flex: 1, minHeight: 0, position: 'relative' }}>
+      <div className="chat-container" style={{ height: '100%', flex: 1, minHeight: 0, position: 'relative' }}>
         <ParticleField level={micLevel} active={isRecording} />
         <button className="chat-history-toggle" onClick={() => setSidebarOpen(true)}>
           History
         </button>
-        <div className="chat-history" style={{ position: 'relative', zIndex: 1 }}>
+        <div
+          className="chat-history"
+          ref={chatHistoryRef}
+          onScroll={handleChatScroll}
+          style={{ position: 'relative', zIndex: 1 }}
+        >
           {messages.length === 0 ? (
   <div style={styles.emptyState}>
     <div
@@ -829,7 +1069,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
 ) : (
           
             messages.map((msg, index) => (
-              <div key={index} className={`chat-bubble-wrapper ${msg.role} animate-fade-in`}>
+              <div key={index} className={`chat-bubble-wrapper ${msg.role} no-animate`}>
                 {msg.role === 'assistant' && (
                   <div style={styles.avatarAi}>
                     <Bot size={18} color="#fff" />
@@ -863,6 +1103,13 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
                       ) : null}
                     </div>
                   )}
+
+                  {/* Retry button for failed messages */}
+                  {msg.isError && index === messages.length - 1 && !isTyping && (
+                    <button className="chat-retry-btn" onClick={handleRetry}>
+                      <RefreshCw size={13} /> Retry
+                    </button>
+                  )}
                 </div>
                 
                 {msg.role === 'user' && (
@@ -876,6 +1123,13 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Scroll-to-latest button (bug-028) */}
+        {showScrollBtn && (
+          <button className="scroll-to-bottom-btn" onClick={handleScrollToLatest}>
+            <ChevronDown size={14} /> Scroll to latest
+          </button>
+        )}
+
         {isRecording && messages.length > 0 && (
           <div style={styles.floatingOrbRow}>
             <SiriOrb size={120} level={micLevel} active={isRecording} />
@@ -884,18 +1138,25 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
         )}
 
         <div className="chat-input-area">
+          {/* Context limit banner (enhancement) */}
+          {contextLimitReached && (
+            <div className="chat-context-limit-banner">
+              <AlertTriangle size={16} />
+              This conversation has reached the maximum context limit. Please start a New Chat to continue.
+            </div>
+          )}
           {limitReached && (
             <div style={styles.limitBanner}>
               You've reached your usage limit. Chat is temporarily disabled — please upgrade your plan or try again later.
             </div>
           )}
-          <div className="chat-input-wrapper" style={limitReached ? { opacity: 0.6 } : undefined}>
+          <div className="chat-input-wrapper" style={limitReached || contextLimitReached ? { opacity: 0.6 } : undefined}>
             <button
               onClick={isRecording ? stopRecording : startRecording}
-              disabled={limitReached}
+              disabled={limitReached || contextLimitReached}
               style={{
                 ...styles.actionBtn,
-                cursor: limitReached ? 'not-allowed' : 'pointer',
+                cursor: (limitReached || contextLimitReached) ? 'not-allowed' : 'pointer',
                 color: isRecording ? '#ef4444' : 'var(--text-muted)',
                 transform: isRecording ? `scale(${1 + micLevel * 0.35})` : 'scale(1)',
                 boxShadow: isRecording ? `0 0 ${8 + micLevel * 24}px ${2 + micLevel * 6}px rgba(239, 68, 68, 0.45)` : 'none',
@@ -903,7 +1164,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
               }}
               title={isRecording ? "Stop Recording" : "Voice Input via STT"}
             >
-              {isRecording ? <StopCircle size={20} className={isRecording ? 'pulse' : ''} /> : <Mic size={20} />}
+              {isRecording ? <StopCircle size={20} /> : <Mic size={20} />}
             </button>
             
             <textarea
@@ -912,9 +1173,9 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
               value={input}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder={limitReached ? "Usage limit reached" : isRecording ? "Listening..." : "Message Conversa AI..."}
+              placeholder={limitReached ? "Usage limit reached" : contextLimitReached ? "Context limit reached — start a New Chat" : isRecording ? "Listening..." : "Message Conversa AI..."}
               rows={1}
-              disabled={isRecording || limitReached}
+              disabled={isRecording || limitReached || contextLimitReached}
             />
             
             {isTyping ? (
@@ -930,7 +1191,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
               <button
                 className="chat-send-btn"
                 onClick={handleSubmit}
-                disabled={!input.trim() || isRecording || limitReached}
+                disabled={!input.trim() || isRecording || limitReached || contextLimitReached || savingConversation}
               >
                 <Send size={18} />
               </button>
@@ -942,15 +1203,8 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
         </div>
       </div>
 
-      {/* Pulse Animation for mic and responsive Chat Hero title */}
+      {/* Responsive Chat Hero title */}
       <style>{`
-        @keyframes customPulse {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.1); opacity: 0.7; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        .pulse { animation: customPulse 1.5s infinite ease-in-out; }
-
         .chat-hero-title {
           font-family: var(--font-heading);
           font-size: 2.2rem;
@@ -986,10 +1240,13 @@ const styles = {
     display: 'flex',
     flexDirection: 'row',
     position: 'relative',
+    height: '100%',
+    overflow: 'hidden',
   },
   sidebarHeader: {
     padding: '16px',
     borderBottom: '1px solid var(--border-color)',
+    flexShrink: 0,
   },
   newChatBtn: {
     width: '100%',
@@ -1028,11 +1285,12 @@ const styles = {
     marginBottom: '4px',
     borderRadius: '8px',
     cursor: 'pointer',
-    transition: 'var(--transition)',
+    transition: 'all 0.15s ease',
   },
   historyItemActive: {
     background: 'var(--bg-subtle)',
-    color: 'var(--primary-light)',
+    borderLeft: '3px solid var(--primary-light)',
+    paddingLeft: '9px',
   },
   historyItemTitle: {
     flex: 1,

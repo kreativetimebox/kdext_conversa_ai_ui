@@ -70,7 +70,12 @@ export default function App() {
   const navigate = (path) => {
     window.history.pushState(null, '', path);
     setCurrentPath(path);
-    window.scrollTo(0, 0);
+    // Chat has its own internal scrolling — don't reset the page scroll
+    // position for chat routes (fixes browser back/forward confusion).
+    const isChatPath = path === '/chat' || path.startsWith('/chat/');
+    if (!isChatPath) {
+      window.scrollTo(0, 0);
+    }
   };
 
   // Centralized API keys state

@@ -1,4 +1,5 @@
 /* ConversaAI Global Design System */
+@import url('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css');
 
 :root {
   /* Fonts */
@@ -557,6 +558,12 @@ p {
 
 .animate-fade-in {
   animation: fadeIn 0.4s ease forwards;
+}
+
+/* Chat bubbles skip the fade-in for a snappier feel */
+.chat-bubble-wrapper.no-animate {
+  animation: none !important;
+  opacity: 1;
 }
 
 @keyframes spin {
@@ -1542,9 +1549,10 @@ p {
 .app-container {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
   width: 100%;
   background-color: var(--bg-main);
+  overflow: hidden;
 }
 
 .nav-item {
@@ -1617,6 +1625,7 @@ p {
   position: relative;
   flex: 1;
   min-height: 0;
+  overflow: auto;
 }
 
 /* Chat's fixed-viewport app shell: clips to exactly that space so the
@@ -1624,6 +1633,8 @@ p {
    instead of the whole page scrolling. */
 .main-content-fill {
   overflow: hidden;
+  flex: 1;
+  min-height: 0;
 }
 
 /* ── Chat Sidebar (conversation history) ── */
@@ -1636,10 +1647,123 @@ p {
   background: var(--bg-card);
   display: flex;
   flex-direction: column;
+  transition: width 0.25s ease, min-width 0.25s ease, opacity 0.25s ease;
+}
+
+.chat-sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-right: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chat-sidebar-collapse-btn {
+  position: absolute;
+  top: 50%;
+  left: 280px;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0 8px 8px 0;
+  padding: 8px 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  transition: left 0.25s ease, background 0.2s ease;
+}
+
+.chat-sidebar-collapse-btn:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+.chat-sidebar.collapsed ~ .chat-sidebar-collapse-btn {
+  left: 0;
+  border-radius: 0 8px 8px 0;
 }
 
 .chat-history-item:hover {
   background: var(--bg-subtle);
+}
+
+/* Context menu for history items */
+.chat-history-item-menu {
+  position: relative;
+}
+
+.chat-history-ctx-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.chat-history-item:hover .chat-history-ctx-btn {
+  opacity: 1;
+}
+
+.chat-history-ctx-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 8px 24px var(--shadow-color);
+  z-index: 90;
+  min-width: 140px;
+}
+
+.chat-history-ctx-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.chat-history-ctx-menu button:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+.chat-history-ctx-menu button.danger:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+}
+
+/* Rename input */
+.chat-history-rename-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-focus);
+  border-radius: 6px;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
 }
 
 .chat-sidebar-backdrop {
@@ -1663,8 +1787,18 @@ p {
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
   }
 
+  .chat-sidebar.collapsed {
+    width: 280px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .chat-sidebar.open {
     transform: translateX(0);
+  }
+
+  .chat-sidebar-collapse-btn {
+    display: none;
   }
 
   .chat-sidebar-backdrop {
@@ -1701,6 +1835,8 @@ p {
   width: 100%;
   max-width: 1000px;
   margin: 0 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chat-history {
@@ -1710,6 +1846,36 @@ p {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  min-height: 0;
+  scroll-behavior: smooth;
+}
+
+/* Scroll-to-bottom floating button */
+.scroll-to-bottom-btn {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 8px 16px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 16px var(--shadow-color);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.scroll-to-bottom-btn:hover {
+  background: var(--bg-subtle);
+  transform: translateX(-50%) scale(1.05);
 }
 
 .chat-bubble-wrapper {
@@ -1748,12 +1914,52 @@ p {
   border-bottom-left-radius: 4px;
 }
 
+/* Retry button below failed messages */
+.chat-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 6px 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s ease;
+}
+
+.chat-retry-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
 .chat-input-area {
   padding: 20px 24px;
   padding-bottom: calc(20px + env(safe-area-inset-bottom));
   background: var(--bg-main);
   border-top: 1px solid var(--border-color);
   position: relative;
+  flex-shrink: 0;
+}
+
+/* Context limit inline banner */
+.chat-context-limit-banner {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #d97706;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .chat-input-wrapper {
@@ -1783,7 +1989,7 @@ p {
   font-size: 1rem;
   resize: none;
   min-height: 24px;
-  max-height: 150px;
+  max-height: 200px;
 }
 
 .chat-input:focus {
