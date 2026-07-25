@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import AppTopNav from './components/AppTopNav';
 import { getProfile } from './services/api';
+import { sanitizeHistoryEntries } from './utils/sanitizeUrl';
 
 // Views
 import LandingPage from './views/LandingPage';
@@ -90,10 +91,17 @@ export default function App() {
     }
   ]);
 
-  // Initialize History Log from localStorage
+  // Initialize History Log from localStorage. Sanitize on load so any entry
+  // persisted before the credential-safety fix (whose `name` may still contain
+  // a presigned URL's ?X-Amz-Credential=... query) is scrubbed before it's
+  // rendered or written back — nothing credential-bearing survives the load.
   const [historyData, setHistoryData] = useState(() => {
-    const local = localStorage.getItem('conversa_history');
-    return local ? JSON.parse(local) : [];
+    try {
+      const local = localStorage.getItem('conversa_history');
+      return local ? sanitizeHistoryEntries(JSON.parse(local)) : [];
+    } catch {
+      return [];
+    }
   });
 
   useEffect(() => {

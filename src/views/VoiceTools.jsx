@@ -19,6 +19,7 @@ import {
 import { textToSpeech, getVoices, getDemoVoices, speechToText, demoSTT, buildAudioUrl, getJobStatus } from '../services/api';
 import AudioReviewPanel from '../components/AudioReviewPanel';
 import { attachAudioLevelMeter } from '../utils/audioLevel';
+import { fileNameFromUrl } from '../utils/sanitizeUrl';
 import SiriOrb from '../components/SiriOrb';
 import OrbitField from '../components/OrbitField';
 
@@ -319,16 +320,13 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
 
       // Log to history log
       if (setHistoryData) {
-        // Strip the query string before deriving the filename: in S3 mode
-        // data.audio_url is a PRESIGNED URL whose query carries the AWS access
-        // key (X-Amz-Credential) and signature. Keeping it here would persist
-        // those credentials into localStorage (conversa_history) and render
-        // them in the History table — a credential leak. Use the path basename.
-        const ttsFileName =
-          data.audio_url.split('?')[0].split('/').pop() || `tts.${audioFormat}`;
+        // fileNameFromUrl strips the credential-bearing query string: in S3
+        // mode data.audio_url is a PRESIGNED URL whose query carries the AWS
+        // access key (X-Amz-Credential) + signature. Persisting it into
+        // localStorage (conversa_history) or rendering it would leak creds.
         const entry = {
           id: Date.now(),
-          name: ttsFileName,
+          name: fileNameFromUrl(data.audio_url, `tts.${audioFormat}`),
           type: 'Text to Speech',
           submitted: new Date().toLocaleString(),
           time: data.processing_time ? `${data.processing_time.toFixed(2)}s` : '-',
