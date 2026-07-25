@@ -215,7 +215,7 @@ export default function App() {
   const isChatRoute = path === '/chat' || path.startsWith('/chat/');
 
   return (
-    <div style={useAppLayout ? {} : styles.appWrapper} className={useAppLayout ? "app-container" : ""}>
+    <div style={useAppLayout ? {} : styles.appWrapper} className={useAppLayout ? `app-container${isChatRoute ? ' app-container-locked' : ''}` : ""}>
       {/* Background decoration elements */}
       <div className="bg-glow-wrapper">
         <div className="bg-glow-purple"></div>
