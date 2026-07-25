@@ -247,7 +247,7 @@ export default function Translate({ user, showToast }) {
   // Auto-stops the mic after a stretch of silence so it doesn't stay hot
   // forever if no one is speaking.
   const voiceLevelMeterRef = useRef(null);
-  const VOICE_SILENCE_TIMEOUT_MS = 3500;
+  const VOICE_SILENCE_TIMEOUT_MS = 5000;
   // Segment STT calls run in parallel, so a slow chunk must not let a later
   // chunk's text land first: each chunk takes a sequence number and results
   // are buffered, then appended in order — but only up to a bounded wait, so

@@ -315,11 +315,59 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
       // so the stop button works even during the TTS API call.
       currentAudioRef.current = { stop: stopSelf, owner: stopSelf };
 
-      // Auto-detect the language of the response text so TTS speaks in the
+      // Clean the text for TTS: strip emojis, markdown, code blocks, URLs
+      // so the engine doesn't try to pronounce "🎉" or "```javascript".
+      const cleanTextForTTS = (raw) => {
+        return raw
+          .replace(/```[\s\S]*?```/g, '')                     // code blocks
+          .replace(/`[^`]*`/g, '')                             // inline code
+          .replace(/https?:\/\/\S+/g, '')                      // URLs
+          .replace(/!\[.*?\]\(.*?\)/g, '')                     // images
+          .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')             // links → keep label
+          .replace(/^#{1,6}\s+/gm, '')                         // heading markers
+          .replace(/(\*{1,3}|_{1,3})(.*?)\1/g, '$2')           // bold/italic markers
+          .replace(/~~(.*?)~~/g, '$1')                          // strikethrough
+          .replace(/^[\s]*[-*+]\s+/gm, '')                     // unordered list markers
+          .replace(/^[\s]*\d+\.\s+/gm, '')                     // ordered list markers
+          .replace(/^>\s+/gm, '')                               // blockquotes
+          .replace(/---+/g, '')                                 // horizontal rules
+          .replace(/\|/g, ' ')                                  // table pipes
+          .replace(/[#*_~>[\]()!|]/g, '')                       // leftover markdown chars
+          // Strip emojis (covers all emoji Unicode ranges)
+          .replace(/[\u{1F600}-\u{1F64F}]/gu, '')              // emoticons
+          .replace(/[\u{1F300}-\u{1F5FF}]/gu, '')              // misc symbols
+          .replace(/[\u{1F680}-\u{1F6FF}]/gu, '')              // transport
+          .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '')              // flags
+          .replace(/[\u{2600}-\u{26FF}]/gu, '')                // misc symbols
+          .replace(/[\u{2700}-\u{27BF}]/gu, '')                // dingbats
+          .replace(/[\u{FE00}-\u{FE0F}]/gu, '')                // variation selectors
+          .replace(/[\u{200D}]/gu, '')                          // zero-width joiner
+          .replace(/[\u{20E3}]/gu, '')                          // combining enclosing keycap
+          .replace(/[\u{E0020}-\u{E007F}]/gu, '')              // tags
+          .replace(/[\u{1F900}-\u{1F9FF}]/gu, '')              // supplemental symbols
+          .replace(/[\u{1FA00}-\u{1FA6F}]/gu, '')              // chess symbols
+          .replace(/[\u{1FA70}-\u{1FAFF}]/gu, '')              // symbols extended-A
+          .replace(/[\u{2702}-\u{27B0}]/gu, '')                // more dingbats
+          .replace(/[\u{23E9}-\u{23F3}]/gu, '')                // media controls
+          .replace(/[\u{23F8}-\u{23FA}]/gu, '')                // more media
+          .replace(/[\u{25AA}-\u{25FE}]/gu, '')                // geometric shapes
+          .replace(/[\u{2934}-\u{2935}]/gu, '')                // arrows
+          .replace(/[\u{3030}\u{303D}\u{3297}\u{3299}]/gu, '') // misc CJK
+          .replace(/\s{2,}/g, ' ')                              // collapse whitespace
+          .trim();
+      };
+
+      const ttsText = cleanTextForTTS(text);
+      if (!ttsText) {
+        if (mountedRef.current) setIsPlaying(false);
+        return;
+      }
+
+      // Auto-detect the language of the CLEANED text so TTS speaks in the
       // correct language instead of always defaulting to English.
-      const detectedLang = detectLanguage(text);
+      const detectedLang = detectLanguage(ttsText);
       const voice = getDefaultVoiceForLanguage(detectedLang);
-      const blobUrl = await voiceTTS(apiKey, text, detectedLang, voice);
+      const blobUrl = await voiceTTS(apiKey, ttsText, detectedLang, voice);
 
       // Check if we were stopped while waiting for TTS
       if (!mountedRef.current || currentAudioRef.current?.owner !== stopSelf) {
