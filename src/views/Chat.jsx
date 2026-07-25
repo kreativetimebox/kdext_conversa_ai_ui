@@ -315,24 +315,11 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
       // so the stop button works even during the TTS API call.
       currentAudioRef.current = { stop: stopSelf, owner: stopSelf };
 
-      // Clean the text for TTS: strip emojis, markdown, code blocks, URLs
-      // so the engine doesn't try to pronounce "🎉" or "```javascript".
+      // Clean the text for TTS: only strip emojis so the engine doesn't
+      // try to pronounce "🎉" etc. Keep all punctuation intact so TTS
+      // properly pauses at periods, commas, and other natural break points.
       const cleanTextForTTS = (raw) => {
         return raw
-          .replace(/```[\s\S]*?```/g, '')                     // code blocks
-          .replace(/`[^`]*`/g, '')                             // inline code
-          .replace(/https?:\/\/\S+/g, '')                      // URLs
-          .replace(/!\[.*?\]\(.*?\)/g, '')                     // images
-          .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')             // links → keep label
-          .replace(/^#{1,6}\s+/gm, '')                         // heading markers
-          .replace(/(\*{1,3}|_{1,3})(.*?)\1/g, '$2')           // bold/italic markers
-          .replace(/~~(.*?)~~/g, '$1')                          // strikethrough
-          .replace(/^[\s]*[-*+]\s+/gm, '')                     // unordered list markers
-          .replace(/^[\s]*\d+\.\s+/gm, '')                     // ordered list markers
-          .replace(/^>\s+/gm, '')                               // blockquotes
-          .replace(/---+/g, '')                                 // horizontal rules
-          .replace(/\|/g, ' ')                                  // table pipes
-          .replace(/[#*_~>[\]()!|]/g, '')                       // leftover markdown chars
           // Strip emojis (covers all emoji Unicode ranges)
           .replace(/[\u{1F600}-\u{1F64F}]/gu, '')              // emoticons
           .replace(/[\u{1F300}-\u{1F5FF}]/gu, '')              // misc symbols
@@ -353,7 +340,7 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
           .replace(/[\u{25AA}-\u{25FE}]/gu, '')                // geometric shapes
           .replace(/[\u{2934}-\u{2935}]/gu, '')                // arrows
           .replace(/[\u{3030}\u{303D}\u{3297}\u{3299}]/gu, '') // misc CJK
-          .replace(/\s{2,}/g, ' ')                              // collapse whitespace
+          .replace(/\s{2,}/g, ' ')                              // collapse extra whitespace
           .trim();
       };
 
