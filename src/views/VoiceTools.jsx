@@ -701,8 +701,8 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
   };
 
   return (
-    <div className="page-container voice-tools-page">
-      <OrbitField level={micLevel} active={sttState === 'recording'} />
+    <div className="page-container animate-fade-in voice-tools-page">
+      {/* OrbitField background animation removed */}
 
       {/* ═══════════════════ TABS ═══════════════════ */}
       {(subView === 'studio' || subView === 'history') && (
@@ -903,7 +903,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
 
                       {sttState === 'recording' && (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                          <div className="badge badge-danger" style={{ marginBottom: '10px' }}>
+                          <div className="badge badge-danger" style={{ animation: 'pulse 1s infinite alternate', marginBottom: '10px' }}>
                             🔴 RECORDING ACTIVE
                           </div>
 
@@ -970,7 +970,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
 
                 {/* Error Banner */}
                 {sttError && (
-                  <div style={styles.errorBanner}>
+                  <div style={styles.errorBanner} className="animate-fade-in">
                     <AlertCircle size={16} color="#ef4444" />
                     <span>{sttError}</span>
                   </div>
@@ -978,7 +978,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
 
                 {/* Results card */}
                 {transcriptResult && (
-                  <div className="glass-card" style={styles.sttCard}>
+                  <div className="glass-card animate-fade-in" style={styles.sttCard}>
                     <div style={styles.resultsHeader}>
                       <h3 style={styles.cardSubHeader}>Transcription Complete</h3>
                       <div style={styles.resultsActions}>
@@ -1176,7 +1176,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
 
             {/* Error Banner */}
             {ttsError && (
-              <div style={styles.errorBanner}>
+              <div style={styles.errorBanner} className="animate-fade-in">
                 <AlertCircle size={16} color="#ef4444" />
                 <span>{ttsError}</span>
               </div>
@@ -1213,7 +1213,7 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
 
             {/* Premium Audio Player */}
             {audioUrl && (
-              <div style={styles.audioPlayerBox}>
+              <div style={styles.audioPlayerBox} className="animate-fade-in">
                 <div style={styles.audioPlayerHeader}>
                   <Volume2 size={16} color="var(--primary)" />
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
