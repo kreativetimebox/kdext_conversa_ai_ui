@@ -319,9 +319,16 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
 
       // Log to history log
       if (setHistoryData) {
+        // Strip the query string before deriving the filename: in S3 mode
+        // data.audio_url is a PRESIGNED URL whose query carries the AWS access
+        // key (X-Amz-Credential) and signature. Keeping it here would persist
+        // those credentials into localStorage (conversa_history) and render
+        // them in the History table — a credential leak. Use the path basename.
+        const ttsFileName =
+          data.audio_url.split('?')[0].split('/').pop() || `tts.${audioFormat}`;
         const entry = {
           id: Date.now(),
-          name: data.audio_url.split('/').pop() || `tts.${audioFormat}`,
+          name: ttsFileName,
           type: 'Text to Speech',
           submitted: new Date().toLocaleString(),
           time: data.processing_time ? `${data.processing_time.toFixed(2)}s` : '-',
