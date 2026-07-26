@@ -231,6 +231,51 @@ const markdownStyles = {
 
 
 
+// ── Chunk long text for TTS ─────────────────────────────────────────────────
+// Splits text at sentence boundaries so each chunk stays ≤ maxLen characters.
+// This prevents server timeouts when speaking long AI responses.
+const TTS_CHUNK_LIMIT = 500;
+
+const splitTextIntoChunks = (text, maxLen = TTS_CHUNK_LIMIT) => {
+  if (text.length <= maxLen) return [text];
+
+  const chunks = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLen) {
+      chunks.push(remaining);
+      break;
+    }
+
+    // Try to split at the last sentence boundary within maxLen
+    const slice = remaining.slice(0, maxLen);
+    // Look for sentence-ending punctuation followed by a space or end
+    let splitIdx = -1;
+    for (let i = slice.length - 1; i >= Math.floor(maxLen * 0.3); i--) {
+      const ch = slice[i];
+      if ((ch === '.' || ch === '!' || ch === '?' || ch === '\n') &&
+          (i === slice.length - 1 || /\s/.test(slice[i + 1]))) {
+        splitIdx = i + 1;
+        break;
+      }
+    }
+    // Fallback: split at last space
+    if (splitIdx === -1) {
+      splitIdx = slice.lastIndexOf(' ');
+    }
+    // Last resort: hard cut
+    if (splitIdx <= 0) {
+      splitIdx = maxLen;
+    }
+
+    chunks.push(remaining.slice(0, splitIdx).trim());
+    remaining = remaining.slice(splitIdx).trim();
+  }
+
+  return chunks.filter(c => c.length > 0);
+};
+
 const CopyButton = ({ text, variant = 'icon' }) => {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
@@ -354,16 +399,54 @@ const SpeakButton = ({ text, apiKey, showToast,currentAudioRef, }) => {
       // correct language instead of always defaulting to English.
       const detectedLang = detectLanguage(ttsText);
       const voice = getDefaultVoiceForLanguage(detectedLang);
-      const blobUrl = await voiceTTS(apiKey, ttsText, detectedLang, voice);
+
+      // Chunk long text to avoid server timeouts. Each chunk is ≤ 500 chars,
+      // split at sentence boundaries for natural pacing.
+      const chunks = splitTextIntoChunks(ttsText, TTS_CHUNK_LIMIT);
+      const audioBlobs = [];
+
+      for (const chunk of chunks) {
+        // Check if stopped/unmounted between chunks
+        if (!mountedRef.current || currentAudioRef.current?.owner !== stopSelf) {
+          audioBlobs.forEach(url => URL.revokeObjectURL(url));
+          return;
+        }
+        const chunkBlobUrl = await voiceTTS(apiKey, chunk, detectedLang, voice);
+        audioBlobs.push(chunkBlobUrl);
+      }
 
       // Check if we were stopped while waiting for TTS
       if (!mountedRef.current || currentAudioRef.current?.owner !== stopSelf) {
-        URL.revokeObjectURL(blobUrl);
+        audioBlobs.forEach(url => URL.revokeObjectURL(url));
         return;
       }
 
-      blobUrlRef.current = blobUrl;
-      const audio = new Audio(blobUrl);
+      // If single chunk, play directly; if multiple, concatenate into one blob
+      let finalBlobUrl;
+      if (audioBlobs.length === 1) {
+        finalBlobUrl = audioBlobs[0];
+      } else {
+        // Fetch each blob URL back into raw blobs, then concatenate
+        const rawBlobs = await Promise.all(
+          audioBlobs.map(async (url) => {
+            const resp = await fetch(url);
+            return resp.blob();
+          })
+        );
+        // Revoke the individual chunk URLs
+        audioBlobs.forEach(url => URL.revokeObjectURL(url));
+        const combined = new Blob(rawBlobs, { type: rawBlobs[0]?.type || 'audio/wav' });
+        finalBlobUrl = URL.createObjectURL(combined);
+      }
+
+      // Check again after concatenation
+      if (!mountedRef.current || currentAudioRef.current?.owner !== stopSelf) {
+        URL.revokeObjectURL(finalBlobUrl);
+        return;
+      }
+
+      blobUrlRef.current = finalBlobUrl;
+      const audio = new Audio(finalBlobUrl);
       audioRef.current = audio;
       currentAudioRef.current = { stop: stopSelf, owner: stopSelf };
       audio.play();
@@ -981,7 +1064,7 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
               <div
                 key={cid}
                 onClick={() => handleSelectConversation(cid)}
-                className="chat-history-item"
+                className={`chat-history-item ${isActive ? 'active' : ''}`}
                 style={{
                   ...styles.historyItemRow,
                   ...(isActive ? styles.historyItemActive : {}),

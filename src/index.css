@@ -1691,8 +1691,22 @@ p {
   border-radius: 0 8px 8px 0;
 }
 
+.chat-history-item.active {
+  background: rgba(124, 58, 237, 0.1);
+  border-left: 3px solid var(--primary-light);
+  padding-left: 9px;
+}
+
+.chat-history-item.active .chat-history-ctx-btn {
+  opacity: 1;
+}
+
 .chat-history-item:hover {
   background: var(--bg-subtle);
+}
+
+.chat-history-item.active:hover {
+  background: rgba(124, 58, 237, 0.14);
 }
 
 /* Context menu for history items */

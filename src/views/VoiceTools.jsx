@@ -674,9 +674,9 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
   // Character Limit Calculations
   const charPercentage = Math.min((text.length / CHAR_LIMIT) * 100, 100);
   let progressBarColor = 'var(--success)';
-  if (text.length > 850) {
+  if (text.length >= CHAR_LIMIT) {
     progressBarColor = 'var(--error)';
-  } else if (text.length > 600) {
+  } else if (text.length > CHAR_LIMIT * 0.85) {
     progressBarColor = 'var(--warning)';
   }
 
@@ -1146,10 +1146,14 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
               <textarea
                 rows={6}
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setText(val.length > CHAR_LIMIT ? val.slice(0, CHAR_LIMIT) : val);
+                }}
                 placeholder="Type or paste the sentences you want to convert to high-fidelity speech..."
                 className="form-input"
                 style={{ resize: 'vertical', background: 'var(--bg-main)' }}
+                maxLength={CHAR_LIMIT}
               />
               
               {/* Character Limit Indicator */}
