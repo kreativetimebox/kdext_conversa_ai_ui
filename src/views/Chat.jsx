@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2, Trash2, ChevronLeft, ChevronRight, ChevronDown, MoreVertical, Pencil, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Send, Mic, Copy, CheckCircle2, User, Bot, StopCircle, Volume2, Trash2, ChevronLeft, ChevronRight, ChevronDown, MoreVertical, Pencil, RefreshCw, AlertTriangle, Plus } from 'lucide-react';
 import { chatCompletion, voiceSTT, voiceTTS, getConversationDetails, createConversation, addMessage, getConversations, deleteConversation, renameConversation } from '../services/api';
 import { attachAudioLevelMeter } from '../utils/audioLevel';
 import { detectLanguage, getDefaultVoiceForLanguage } from '../utils/detectLanguage';
@@ -610,10 +610,18 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
     // Abort any in-flight stream
     chatGenRef.current += 1;
     abortControllerRef.current?.abort();
-    // Reset all state
+    abortControllerRef.current = null;
+    // Stop any playing audio
+    if (currentAudioRef.current?.stop) {
+      currentAudioRef.current.stop();
+    }
+    currentAudioRef.current = null;
+    // Reset all state — including savingConversation which can get stuck
+    // after a loop detection abort (bug-012)
     setMessages([]);
     setInput('');
     setIsTyping(false);
+    setSavingConversation(false);
     setLimitReached(false);
     setContextLimitReached(false);
     setUserScrolledUp(false);
@@ -664,12 +672,20 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
     setRenamingId(null);
   };
 
-  // Smart auto-scroll: only scroll to bottom if user is near the bottom
+  // Smart auto-scroll: only scroll to bottom if user is near the bottom.
+  // Uses double-RAF to ensure the DOM has fully painted before scrolling —
+  // fixes bug-014/026 where initial messages weren't visible.
   const scrollToBottom = useCallback(() => {
     if (userScrolledUp) return; // Don't force scroll if user scrolled up
-    if (chatHistoryRef.current) {
-      chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
-    }
+    const doScroll = () => {
+      if (chatHistoryRef.current) {
+        chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
+      }
+    };
+    // Double-RAF ensures layout is complete before scrolling — a single
+    // rAF fires before the browser has actually rendered the new DOM nodes
+    // when React batches state updates (e.g. first message in a new chat).
+    requestAnimationFrame(() => requestAnimationFrame(doScroll));
   }, [userScrolledUp]);
 
   // Handle scroll events on the chat history container
@@ -1137,15 +1153,26 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
           {historyList}
         </div>
       </aside>
-      {/* Desktop sidebar collapse toggle */}
-      <button
-        className="chat-sidebar-collapse-btn"
-        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-        title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-        style={{ left: sidebarCollapsed ? 0 : 280 }}
-      >
-        {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-      </button>
+      {/* Desktop sidebar collapse toggle — also shows a New Chat button
+          when collapsed (bug-035) so the user can always start a new chat */}
+      <div className={`chat-sidebar-collapse-strip ${sidebarCollapsed ? 'collapsed' : ''}`} style={{ left: sidebarCollapsed ? 0 : 280 }}>
+        {sidebarCollapsed && (
+          <button
+            className="chat-sidebar-new-chat-icon"
+            onClick={handleNewChat}
+            title="New Chat"
+          >
+            <Plus size={18} />
+          </button>
+        )}
+        <button
+          className="chat-sidebar-collapse-btn"
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+        >
+          {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
+      </div>
       {sidebarOpen && <div className="chat-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
 
       <div className="chat-container" style={{ height: '100%', flex: 1, minHeight: 0, position: 'relative' }}>

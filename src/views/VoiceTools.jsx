@@ -805,7 +805,10 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
                     <Mic size={15} /> Live Record
                   </button>
                   <button
-                    onClick={() => setSttMode('upload')}
+                    onClick={() => {
+                      setSttMode('upload');
+                      fileInputRef.current?.click();
+                    }}
                     style={{ ...styles.sttTab, ...(sttMode === 'upload' ? styles.sttTabActive : {}) }}
                     type="button"
                   >

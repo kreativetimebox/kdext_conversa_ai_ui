@@ -1664,12 +1664,23 @@ p {
   pointer-events: none;
 }
 
-.chat-sidebar-collapse-btn {
+/* Collapse strip: a slim vertical bar sitting at the sidebar edge. Hosts
+   the collapse chevron and, when collapsed, a dedicated New Chat (+) icon
+   so the user can always start a new chat without expanding the sidebar
+   (bug-035). */
+.chat-sidebar-collapse-strip {
   position: absolute;
   top: 50%;
-  left: 280px;
   transform: translateY(-50%);
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: left 0.25s ease;
+}
+
+.chat-sidebar-collapse-btn {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 0 8px 8px 0;
@@ -1678,7 +1689,7 @@ p {
   color: var(--text-muted);
   display: flex;
   align-items: center;
-  transition: left 0.25s ease, background 0.2s ease;
+  transition: background 0.2s ease;
 }
 
 .chat-sidebar-collapse-btn:hover {
@@ -1686,9 +1697,28 @@ p {
   color: var(--text-primary);
 }
 
-.chat-sidebar.collapsed ~ .chat-sidebar-collapse-btn {
-  left: 0;
+/* New Chat icon visible only when sidebar is collapsed */
+.chat-sidebar-new-chat-icon {
+  background: var(--primary);
+  border: none;
   border-radius: 0 8px 8px 0;
+  padding: 8px 6px;
+  cursor: pointer;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+}
+
+.chat-sidebar-new-chat-icon:hover {
+  background: #6d28d9;
+  transform: scale(1.08);
+}
+
+.chat-sidebar.collapsed ~ .chat-sidebar-collapse-strip {
+  left: 0 !important;
 }
 
 .chat-history-item.active {
@@ -1816,7 +1846,7 @@ p {
     transform: translateX(0);
   }
 
-  .chat-sidebar-collapse-btn {
+  .chat-sidebar-collapse-strip {
     display: none;
   }
 
@@ -2440,8 +2470,10 @@ p {
   margin: 0 auto;
   padding: 40px 40px 80px 40px !important;
   width: 100%;
+  max-width: 1400px;
   box-sizing: border-box;
   position: relative;
+  flex: 1;
 }
 
 @media (max-width: 768px) {

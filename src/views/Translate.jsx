@@ -42,10 +42,14 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
   const [search, setSearch] = useState('');
   const ref = useRef(null);
   const inputRef = useRef(null);
+  const [dropUp, setDropUp] = useState(false);
 
   const selected = options.find(l => l.code === value);
 
-  const filtered = options.filter(l =>
+  // bug-037: filter out the currently selected value from the dropdown list
+  // so "Detect Language" doesn't appear twice (once as trigger, once in list).
+  const baseOptions = options.filter(l => l.code !== value);
+  const filtered = baseOptions.filter(l =>
     l.name.toLowerCase().includes(search.toLowerCase()) ||
     l.code.toLowerCase().includes(search.toLowerCase())
   );
@@ -64,6 +68,16 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
   useEffect(() => {
     if (open && inputRef.current) {
       inputRef.current.focus();
+    }
+  }, [open]);
+
+  // bug-038: detect if dropdown would extend past viewport bottom and flip upward
+  useEffect(() => {
+    if (open && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const dropdownHeight = 350; // approximate max dropdown height
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setDropUp(spaceBelow < dropdownHeight && rect.top > dropdownHeight);
     }
   }, [open]);
 
@@ -109,11 +123,13 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
         />
       </button>
 
-      {/* Dropdown panel */}
+      {/* Dropdown panel — flips upward when near viewport bottom (bug-038) */}
       {open && (
         <div style={{
           position: 'absolute',
-          top: 'calc(100% + 8px)',
+          ...(dropUp
+            ? { bottom: 'calc(100% + 8px)' }
+            : { top: 'calc(100% + 8px)' }),
           left: align === 'left' ? 0 : 'auto',
           right: align === 'right' ? 0 : 'auto',
           zIndex: 999,
@@ -165,32 +181,29 @@ function LangDropdown({ value, onChange, options, placeholder = 'Select Language
                   gap: '12px',
                   padding: '10px 16px',
                   width: '100%',
-                  background: lang.code === value ? 'rgba(124, 58, 237,0.15)' : 'transparent',
+                  background: 'transparent',
                   border: 'none',
                   cursor: 'pointer',
                   color: 'var(--text-primary)',
                   fontSize: '0.9rem',
                   textAlign: 'left',
                   transition: 'background 0.15s ease',
-                  borderLeft: lang.code === value ? '3px solid #7c3aed' : '3px solid transparent',
+                  borderLeft: '3px solid transparent',
                 }}
-                onMouseEnter={e => { if (lang.code !== value) e.currentTarget.style.background = 'rgba(15,23,42,0.05)'; }}
-                onMouseLeave={e => { if (lang.code !== value) e.currentTarget.style.background = 'transparent'; }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(15,23,42,0.05)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
                 <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '1.3rem', lineHeight: 1, flexShrink: 0 }}>
                   {lang.flag === '🔍' ? <Search size={16} color="var(--primary)" /> : lang.flag}
                 </span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: lang.code === value ? '700' : '500', color: lang.code === value ? 'var(--primary-light)' : 'var(--text-primary)' }}>
+                  <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>
                     {lang.name}
                   </div>
                   {lang.region && (
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '1px' }}>{lang.region}</div>
                   )}
                 </div>
-                {lang.code === value && (
-                  <CheckCircle2 size={14} color="#7c3aed" style={{ flexShrink: 0 }} />
-                )}
               </button>
             ))}
           </div>
@@ -437,6 +450,7 @@ export default function Translate({ user, showToast }) {
 
       ws.onclose = (ev) => {
         setWsConnected(false);
+        setIsTranslating(false);
         clearInterval(pingTimerRef.current);
         wsRef.current = null;
         if (!shouldReconnectRef.current) return; // component unmounted / key changed
@@ -1070,19 +1084,21 @@ export default function Translate({ user, showToast }) {
   };
 
   const handleSwap = () => {
+    // bug-041: Don't swap when source is 'auto' and no language has been
+    // detected yet — there's nothing meaningful to swap.
+    if (sourceLang === 'auto' && !detectedLang) {
+      showToast('Please enter text first so the source language can be detected before swapping.', 'info');
+      return;
+    }
     if (sourceLang !== 'auto') {
       setSourceLang(targetLang);
       setTargetLang(sourceLang);
       setSourceText(translatedText);
       setTranslatedText('');
     } else {
-      if (detectedLang) {
-        setSourceLang(targetLang);
-        setTargetLang(detectedLang);
-      } else {
-        setSourceLang(targetLang);
-        setTargetLang('en');
-      }
+      // Auto-detected: swap detected into source, target into detected
+      setSourceLang(targetLang);
+      setTargetLang(detectedLang);
       setSourceText(translatedText);
       setTranslatedText('');
     }
@@ -1098,6 +1114,14 @@ export default function Translate({ user, showToast }) {
 
   const handleClear = () => {
     setSourceText('');
+    setTranslatedText('');
+    setDetectedLang(null);
+  };
+
+  // bug-050: Clear translation output when source language changes so
+  // stale text from a previous language doesn't linger.
+  const handleSourceLangChange = (code) => {
+    setSourceLang(code);
     setTranslatedText('');
     setDetectedLang(null);
   };
@@ -1248,7 +1272,7 @@ export default function Translate({ user, showToast }) {
           <div style={styles.langSide} className="translate-lang-side translate-lang-side-left">
             <LangDropdown
               value={sourceLang}
-              onChange={setSourceLang}
+              onChange={handleSourceLangChange}
               options={LANGUAGES}
               placeholder="Detect Language"
             />
@@ -1259,12 +1283,16 @@ export default function Translate({ user, showToast }) {
             )}
           </div>
 
-          {/* Swap button */}
+          {/* Swap button — disabled when source is auto with no detection (bug-041) */}
           <button
             onClick={handleSwap}
-            disabled={isTranslating}
-            style={styles.swapBtn}
-            title="Swap languages"
+            disabled={isTranslating || (sourceLang === 'auto' && !detectedLang)}
+            style={{
+              ...styles.swapBtn,
+              opacity: (sourceLang === 'auto' && !detectedLang) ? 0.4 : 1,
+              cursor: (isTranslating || (sourceLang === 'auto' && !detectedLang)) ? 'not-allowed' : 'pointer',
+            }}
+            title={sourceLang === 'auto' && !detectedLang ? 'Enter text first to detect source language' : 'Swap languages'}
             className="translate-swap-btn"
           >
             <ArrowRightLeft size={18} color="#a78bfa" />
@@ -1769,6 +1797,8 @@ const styles = {
     margin: 0,
     lineHeight: 1.5,
     fontStyle: 'italic',
+    wordBreak: 'break-word',
+    overflowWrap: 'anywhere',
   },
   historyResult: {
     fontSize: '0.9rem',
@@ -1776,5 +1806,7 @@ const styles = {
     margin: 0,
     lineHeight: 1.5,
     fontWeight: '500',
+    wordBreak: 'break-word',
+    overflowWrap: 'anywhere',
   },
 };
