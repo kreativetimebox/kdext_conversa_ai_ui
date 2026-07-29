@@ -166,12 +166,24 @@ export default function VoiceTools({ showToast, defaultSubView = 'studio', user,
     setTtsError('');
   }, [defaultSubView]);
 
-  // ── Stop audio on unmount (user navigates to another page) ──────────────────
+  // ── Stop audio + release the mic on unmount (user navigates away) ───────────
   useEffect(() => {
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = '';
+      }
+      // Release the microphone if the user leaves mid-recording — otherwise the
+      // MediaRecorder and its mic stream stay live, so the browser keeps showing
+      // the recording indicator with no UI left to stop it.
+      const mr = mediaRecorderRef.current;
+      if (mr) {
+        try {
+          if (mr.state !== 'inactive') mr.stop();
+        } catch {
+          // recorder already torn down — nothing to stop
+        }
+        mr.stream?.getTracks().forEach(t => t.stop());
       }
     };
   }, []);

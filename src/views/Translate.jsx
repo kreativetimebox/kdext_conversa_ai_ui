@@ -398,7 +398,16 @@ export default function Translate({ user, showToast }) {
           // rejects genuinely out-of-order/old arrivals; `id ===` is kept
           // (not just `>`) so multiple 'delta' chunks of the same in-flight
           // stream keep landing.
-          if (msg.id < lastAppliedIdRef.current) return;
+          if (msg.id < lastAppliedIdRef.current) {
+            // This response was superseded by a newer request. Don't apply it,
+            // but still release its per-request bookkeeping — otherwise a fast
+            // typist outrunning the round-trip leaks a reqEngine/reqMeta entry
+            // for every superseded request across the session. (No-op for delta
+            // frames, which never populate these refs.)
+            delete reqEngineRef.current[msg.id];
+            delete reqMetaRef.current[msg.id];
+            return;
+          }
           lastAppliedIdRef.current = msg.id;
 
           if (msg.type === 'delta') {
