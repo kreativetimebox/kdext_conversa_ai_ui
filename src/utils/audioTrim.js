@@ -16,7 +16,7 @@ export function sliceAudioBuffer(buffer, startSec, endSec) {
     sliced.copyToChannel(channelData, ch, 0);
   }
 
-  ctx.close?.();
+  ctx.close().catch(() => {});
   return sliced;
 }
 

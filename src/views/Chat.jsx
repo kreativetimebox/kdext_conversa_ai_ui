@@ -812,6 +812,14 @@ export default function Chat({ user, showToast, currentPath, navigate }) {
     if (mediaRecorder && isRecording) {
       mediaRecorder.stop();
       setIsRecording(false);
+      // Clean up the mic level meter (AudioContext + rAF loop) immediately
+      // instead of waiting for onstop — otherwise the AudioContext leaks
+      // and the rAF loop keeps running in the background.
+      if (micLevelMeterRef.current) {
+        micLevelMeterRef.current.stop();
+        micLevelMeterRef.current = null;
+      }
+      setMicLevel(0);
     }
   };
 

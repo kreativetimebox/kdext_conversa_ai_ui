@@ -838,6 +838,7 @@ export default function Translate({ user, showToast }) {
     return () => {
       voiceActiveRef.current = false;
       clearTimeout(voiceCycleTimerRef.current);
+      clearTimeout(voiceGapTimerRef.current);
       if (voiceLevelMeterRef.current) {
         voiceLevelMeterRef.current.stop();
         voiceLevelMeterRef.current = null;
